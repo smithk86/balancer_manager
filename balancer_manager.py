@@ -4,7 +4,6 @@ import re
 import requests
 import argparse
 from bs4 import BeautifulSoup, Comment
-from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
 
 """ balancer_manager.py: Library for programatically interacting with Apache's mod_proxy_balancer management interface """
