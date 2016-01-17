@@ -50,7 +50,10 @@ class ApacheBalancerManager:
 
         routes = []
         tables = bs.find_all('table')
-        for table in tables[1:]:
+
+        # only iterate through even tables
+        # odd tables contain data about the cluster itself
+        for table in tables[1::2]:
             for row in table.find_all('tr'):
                 route = row.find_all('td')
                 if len(route) > 0:
