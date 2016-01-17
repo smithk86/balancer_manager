@@ -39,9 +39,6 @@ class ApacheBalancerManager:
         r = s.get(self.url)
         return r.text
 
-    def _post(self):
-        s = self._get_http_session()
-
     def get_routes(self):
         page = self._get_html()
         bs = BeautifulSoup(page, 'html.parser')
