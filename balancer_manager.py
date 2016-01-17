@@ -1,9 +1,7 @@
-import sys
-import os
 import re
 import requests
 import argparse
-from bs4 import BeautifulSoup, Comment
+from bs4 import BeautifulSoup
 
 
 """ balancer_manager.py: Library for programatically interacting with Apache's mod_proxy_balancer management interface """
@@ -12,8 +10,6 @@ __author__ = "Kyle Smith"
 __email__ = "smithk86@gmail.com"
 __license__ = "GPL"
 __version__ = "1.0.1"
-__status__ = "Development"
-__version__ = "0.1.0"
 
 
 def _get_value(val):
@@ -35,7 +31,7 @@ class ApacheBalancerManager:
 
     def _get_http_session(self):
         s = requests.Session()
-        s.headers.update({'User-agent': 'balancer_manager.py/{version}'.format(version=VERSION)})
+        s.headers.update({'User-agent': 'balancer_manager.py/{version}'.format(version=__version__)})
         return s
 
     def _get_html(self):
@@ -119,8 +115,6 @@ class ApacheBalancerManager:
             'b': route['cluster'],
             'nonce': route['session_nonce_uuid']
         }
-
-        print(post_data)
 
         s = self._get_http_session()
         s.post(self.url, data=post_data)
