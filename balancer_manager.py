@@ -30,13 +30,19 @@ def _get_print_value(val):
 
 class ApacheBalancerManager:
 
-    def __init__(self, url, verify_ssl_cert=True):
+    def __init__(self, url, verify_ssl_cert=True, username=None, password=None):
         self.url = url
         self.verify_ssl_cert = verify_ssl_cert
+        self.auth_username = username
+        self.auth_password = password
 
     def _get_http_session(self):
         s = requests.Session()
         s.headers.update({'User-agent': 'balancer_manager.py/{version}'.format(version=__version__)})
+
+        if self.auth_username and self.auth_password:
+            s.auth = (self.auth_username, self.auth_password)
+
         return s
 
     def _get_html(self):
@@ -180,10 +186,12 @@ def main():
     parser.add_argument('-r', '--route')
     parser.add_argument('--enable', action='store_true', default=False)
     parser.add_argument('--disable', action='store_true', default=False)
+    parser.add_argument('-u', '--username', default=None)
+    parser.add_argument('-p', '--password', default=None)
     parser.add_argument('--no-check-certificate', dest='no_check_certificate', action='store_true', default=False)
     args = parser.parse_args()
 
-    abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.no_check_certificate)
+    abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.no_check_certificate, username=args.username, password=args.password)
     routes = abm.get_routes()
 
     if args.enable and args.disable:
