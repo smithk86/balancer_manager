@@ -12,7 +12,7 @@ __license__ = "GPL"
 __version__ = "1.0.1"
 
 
-def _get_value(val):
+def _get_print_value(val):
     if val is None:
         return ''
     elif type(val) is bool:
@@ -146,23 +146,23 @@ class ApacheBalancerManager:
 
         for route in self.get_routes():
             rows.append([
-                _get_value(route['cluster']),
-                _get_value(route['url']),
-                _get_value(route['route']),
-                _get_value(route['route_redir']),
-                _get_value(route['factor']),
-                _get_value(route['set']),
-                _get_value(route['status_init']),
-                _get_value(route['status_ignore_errors']),
-                _get_value(route['status_draining_mode']),
-                _get_value(route['status_disabled']),
-                _get_value(route['status_hot_standby']),
-                _get_value(route['elected']),
-                _get_value(route['busy']),
-                _get_value(route['load']),
-                _get_value(route['to']),
-                _get_value(route['from']),
-                _get_value(route['session_nonce_uuid'])
+                _get_print_value(route['cluster']),
+                _get_print_value(route['url']),
+                _get_print_value(route['route']),
+                _get_print_value(route['route_redir']),
+                _get_print_value(route['factor']),
+                _get_print_value(route['set']),
+                _get_print_value(route['status_init']),
+                _get_print_value(route['status_ignore_errors']),
+                _get_print_value(route['status_draining_mode']),
+                _get_print_value(route['status_disabled']),
+                _get_print_value(route['status_hot_standby']),
+                _get_print_value(route['elected']),
+                _get_print_value(route['busy']),
+                _get_print_value(route['load']),
+                _get_print_value(route['to']),
+                _get_print_value(route['from']),
+                _get_print_value(route['session_nonce_uuid'])
             ])
 
         widths = [max(map(len, col)) for col in zip(*rows)]
