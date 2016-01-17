@@ -1,6 +1,7 @@
 import re
 import requests
 import argparse
+import logging
 from bs4 import BeautifulSoup
 
 
@@ -10,6 +11,9 @@ __author__ = "Kyle Smith"
 __email__ = "smithk86@gmail.com"
 __license__ = "GPL"
 __version__ = "1.0.1"
+
+# redirect urllib3 warning to logging module
+logging.captureWarnings(True)
 
 
 def _get_print_value(val):
@@ -26,8 +30,9 @@ def _get_print_value(val):
 
 class ApacheBalancerManager:
 
-    def __init__(self, url):
+    def __init__(self, url, verify_ssl_cert=True):
         self.url = url
+        self.verify_ssl_cert = verify_ssl_cert
 
     def _get_http_session(self):
         s = requests.Session()
@@ -36,7 +41,7 @@ class ApacheBalancerManager:
 
     def _get_html(self):
         s = self._get_http_session()
-        r = s.get(self.url)
+        r = s.get(self.url, verify=self.verify_ssl_cert)
         return r.text
 
     def get_routes(self):
@@ -117,7 +122,7 @@ class ApacheBalancerManager:
         }
 
         s = self._get_http_session()
-        s.post(self.url, data=post_data)
+        s.post(self.url, data=post_data, verify=self.verify_ssl_cert)
 
     def print_routes(self):
 
@@ -175,9 +180,10 @@ def main():
     parser.add_argument('-r', '--route')
     parser.add_argument('--enable', action='store_true', default=False)
     parser.add_argument('--disable', action='store_true', default=False)
+    parser.add_argument('--no-check-certificate', dest='no_check_certificate', action='store_true', default=False)
     args = parser.parse_args()
 
-    abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'))
+    abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.no_check_certificate)
     routes = abm.get_routes()
 
     if args.enable and args.disable:
