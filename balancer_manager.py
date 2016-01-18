@@ -35,24 +35,33 @@ class ApacheBalancerManager:
         self.verify_ssl_cert = verify_ssl_cert
         self.auth_username = username
         self.auth_password = password
+        self.apache_version = None
 
         self.session = requests.Session()
         self.session.headers.update({'User-agent': 'balancer_manager.py/{version}'.format(version=__version__)})
         if self.auth_username and self.auth_password:
             self.session.auth = (self.auth_username, self.auth_password)
 
-    def _get_html(self):
-        r = self.session.get(self.url, verify=self.verify_ssl_cert)
-        return r.text
+        page = self._get_soup_html()
+        full_version_string = page.find('dt').string
+        match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', full_version_string)
+        if match:
+            self.apache_version = match.group(1)
+
+        if self.apache_version is None:
+            raise TypeError('apache version parse failed')
+
+    def _get_soup_html(self):
+        req = self.session.get(self.url, verify=self.verify_ssl_cert)
+        return BeautifulSoup(req.text, 'html.parser')
 
     def get_routes(self):
-        page = self._get_html()
-        bs = BeautifulSoup(page, 'html.parser')
+        page = self._get_soup_html()
         session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
         cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
 
         routes = []
-        tables = bs.find_all('table')
+        tables = page.find_all('table')
 
         # only iterate through even tables
         # odd tables contain data about the cluster itself
