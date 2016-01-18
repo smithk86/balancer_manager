@@ -12,22 +12,7 @@ __email__ = "smithk86@gmail.com"
 __license__ = "GPL"
 __version__ = "1.0.1"
 
-# disable warnings
-requests.packages.urllib3.disable_warnings()
-
 logger = logging.getLogger(__name__)
-
-
-def _get_print_value(val):
-    if val is None:
-        return ''
-    elif type(val) is bool:
-        if val:
-            return 'on'
-        else:
-            return 'off'
-    else:
-        return val
 
 
 class ApacheBalancerManager:
@@ -207,7 +192,24 @@ class ApacheBalancerManager:
         else:
             raise ValueError('this module only supports apache 2.2 and 2.4')
 
-    def print_routes(self):
+
+def main():
+
+    # disable warnings
+    requests.packages.urllib3.disable_warnings()
+
+    def get_value(val):
+        if val is None:
+            return ''
+        elif type(val) is bool:
+            if val:
+                return 'on'
+            else:
+                return 'off'
+        else:
+            return val
+
+    def print_routes(routes):
 
         rows = [[
             'Cluster',
@@ -229,33 +231,31 @@ class ApacheBalancerManager:
             'Session Nonce UUID'
         ]]
 
-        for route in self.get_routes():
+        for route in routes:
             rows.append([
-                _get_print_value(route['cluster']),
-                _get_print_value(route['url']),
-                _get_print_value(route['route']),
-                _get_print_value(route['route_redir']),
-                _get_print_value(route['factor']),
-                _get_print_value(route['set']),
-                _get_print_value(route['status_init']),
-                _get_print_value(route['status_ignore_errors']),
-                _get_print_value(route['status_draining_mode']),
-                _get_print_value(route['status_disabled']),
-                _get_print_value(route['status_hot_standby']),
-                _get_print_value(route['elected']),
-                _get_print_value(route['busy']),
-                _get_print_value(route['load']),
-                _get_print_value(route['to']),
-                _get_print_value(route['from']),
-                _get_print_value(route['session_nonce_uuid'])
+                get_value(route['cluster']),
+                get_value(route['url']),
+                get_value(route['route']),
+                get_value(route['route_redir']),
+                get_value(route['factor']),
+                get_value(route['set']),
+                get_value(route['status_init']),
+                get_value(route['status_ignore_errors']),
+                get_value(route['status_draining_mode']),
+                get_value(route['status_disabled']),
+                get_value(route['status_hot_standby']),
+                get_value(route['elected']),
+                get_value(route['busy']),
+                get_value(route['load']),
+                get_value(route['to']),
+                get_value(route['from']),
+                get_value(route['session_nonce_uuid'])
             ])
 
         widths = [max(map(len, col)) for col in zip(*rows)]
         for row in rows:
             print(' | '.join((val.ljust(width) for val, width in zip(row, widths))))
 
-
-def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('balance-manager-url')
     parser.add_argument('-l', '--list', dest='list_routes', action='store_true', default=False)
@@ -279,7 +279,7 @@ def main():
         raise ValueError('--enable and --disable are incompatible')
 
     if args.list_routes:
-        abm.print_routes()
+        print_routes(routes)
 
     elif args.enable or args.disable:
 
