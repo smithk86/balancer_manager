@@ -12,9 +12,10 @@ __email__ = "smithk86@gmail.com"
 __license__ = "GPL"
 __version__ = "1.0.1"
 
-# redirect urllib3 warning to logging module
-logging.captureWarnings(True)
+# disable warnings
+requests.packages.urllib3.disable_warnings()
 
+logger = logging.getLogger(__name__)
 
 def _get_print_value(val):
     if val is None:
@@ -31,6 +32,10 @@ def _get_print_value(val):
 class ApacheBalancerManager:
 
     def __init__(self, url, verify_ssl_cert=True, username=None, password=None):
+
+        if verify_ssl_cert is False:
+            logger.warn('ssl certificate verification is disabled')
+
         self.url = url
         self.verify_ssl_cert = verify_ssl_cert
         self.auth_username = username
@@ -50,6 +55,8 @@ class ApacheBalancerManager:
 
         if self.apache_version is None:
             raise TypeError('apache version parse failed')
+
+        logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
 
     def _get_soup_html(self):
         req = self.session.get(self.url, verify=self.verify_ssl_cert)
@@ -192,7 +199,11 @@ def main():
     parser.add_argument('-u', '--username', default=None)
     parser.add_argument('-p', '--password', default=None)
     parser.add_argument('--no-check-certificate', dest='no_check_certificate', action='store_true', default=False)
+    parser.add_argument('-d', '--debug', action='store_true', default=False)
     args = parser.parse_args()
+
+    log_level = logging.DEBUG if args.debug else logging.WARN
+    logging.basicConfig(level=log_level)
 
     abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.no_check_certificate, username=args.username, password=args.password)
     routes = abm.get_routes()
