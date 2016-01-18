@@ -61,6 +61,10 @@ class ApacheBalancerManager:
 
     def _get_soup_html(self):
         req = self.session.get(self.url, verify=self.verify_ssl_cert)
+
+        if req.status_code is not requests.codes.ok:
+            req.raise_for_status()
+
         return BeautifulSoup(req.text, 'html.parser')
 
     def _get_empty_route_dictionary(self):
