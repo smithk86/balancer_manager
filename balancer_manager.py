@@ -17,6 +17,7 @@ requests.packages.urllib3.disable_warnings()
 
 logger = logging.getLogger(__name__)
 
+
 def _get_print_value(val):
     if val is None:
         return ''
