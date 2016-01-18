@@ -36,18 +36,13 @@ class ApacheBalancerManager:
         self.auth_username = username
         self.auth_password = password
 
-    def _get_http_session(self):
-        s = requests.Session()
-        s.headers.update({'User-agent': 'balancer_manager.py/{version}'.format(version=__version__)})
-
+        self.session = requests.Session()
+        self.session.headers.update({'User-agent': 'balancer_manager.py/{version}'.format(version=__version__)})
         if self.auth_username and self.auth_password:
-            s.auth = (self.auth_username, self.auth_password)
-
-        return s
+            self.session.auth = (self.auth_username, self.auth_password)
 
     def _get_html(self):
-        s = self._get_http_session()
-        r = s.get(self.url, verify=self.verify_ssl_cert)
+        r = self.session.get(self.url, verify=self.verify_ssl_cert)
         return r.text
 
     def get_routes(self):
@@ -127,8 +122,7 @@ class ApacheBalancerManager:
             'nonce': route['session_nonce_uuid']
         }
 
-        s = self._get_http_session()
-        s.post(self.url, data=post_data, verify=self.verify_ssl_cert)
+        self.session.post(self.url, data=post_data, verify=self.verify_ssl_cert)
 
     def print_routes(self):
 
