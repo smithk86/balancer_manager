@@ -154,7 +154,7 @@ class ApacheBalancerManager:
                         route_dict['cluster'] = cluster_name
 
                     else:
-                        raise ValueError('this script only supports apache 2.2 and 2.4')
+                        raise ValueError('this module only supports apache 2.2 and 2.4')
 
                     routes.append(route_dict)
 
@@ -171,21 +171,37 @@ class ApacheBalancerManager:
         if type(status_hot_standby) is bool:
             route['status_hot_standby'] = status_hot_standby
 
-        post_data = {
-            'w_lf': '1',
-            'w_ls': '0',
-            'w_wr': route['route'],
-            'w_rr': '',
-            'w_status_I': int(route['status_ignore_errors']),
-            'w_status_N': int(route['status_draining_mode']),
-            'w_status_D': int(route['status_disabled']),
-            'w_status_H': int(route['status_hot_standby']),
-            'w': route['url'],
-            'b': route['cluster'],
-            'nonce': route['session_nonce_uuid']
-        }
+        if self.apache_version[0:4] == '2.4.':
+            post_data = {
+                'w_lf': '1',
+                'w_ls': '0',
+                'w_wr': route['route'],
+                'w_rr': '',
+                'w_status_I': int(route['status_ignore_errors']),
+                'w_status_N': int(route['status_draining_mode']),
+                'w_status_D': int(route['status_disabled']),
+                'w_status_H': int(route['status_hot_standby']),
+                'w': route['url'],
+                'b': route['cluster'],
+                'nonce': route['session_nonce_uuid']
+            }
+            self.session.post(self.url, data=post_data, verify=self.verify_ssl_cert)
 
-        self.session.post(self.url, data=post_data, verify=self.verify_ssl_cert)
+        elif self.apache_version[0:4] == '2.2.':
+            get_data = {
+                'lf': '1',
+                'ls': '0',
+                'wr': route['route'],
+                'rr': '',
+                'dw': 'Disable' if route['status_disabled'] else 'Enable',
+                'w': route['url'],
+                'b': route['cluster'],
+                'nonce': route['session_nonce_uuid']
+            }
+            self.session.get(self.url, params=get_data, verify=self.verify_ssl_cert)
+
+        else:
+            raise ValueError('this module only supports apache 2.2 and 2.4')
 
     def print_routes(self):
 
