@@ -63,6 +63,27 @@ class ApacheBalancerManager:
         req = self.session.get(self.url, verify=self.verify_ssl_cert)
         return BeautifulSoup(req.text, 'html.parser')
 
+    def _get_empty_route_dictionary(self):
+        return {
+            'url': None,
+            'route': None,
+            'route_redir': None,
+            'factor': None,
+            'set': None,
+            'status_init': None,
+            'status_ignore_errors': None,
+            'status_draining_mode': None,
+            'status_disabled': None,
+            'status_hot_standby': None,
+            'elected': None,
+            'busy': None,
+            'load': None,
+            'to': None,
+            'from': None,
+            'session_nonce_uuid': None,
+            'cluster': None
+        }
+
     def get_routes(self):
         page = self._get_soup_html()
         session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
@@ -92,25 +113,50 @@ class ApacheBalancerManager:
                         if cluster_name_match:
                             cluster_name = cluster_name_match.group(1)
 
-                    routes.append({
-                        'url': cells[0].find('a').string,
-                        'route': cells[1].string,
-                        'route_redir': cells[2].string,
-                        'factor': cells[3].string,
-                        'set': cells[4].string,
-                        'status_init': 'Init' in cells[5].string,
-                        'status_ignore_errors': 'Ign' in cells[5].string,
-                        'status_draining_mode': 'Drn' in cells[5].string,
-                        'status_disabled': 'Dis' in cells[5].string,
-                        'status_hot_standby': 'Stby' in cells[5].string,
-                        'elected': cells[6].string,
-                        'busy': cells[7].string,
-                        'load': cells[8].string,
-                        'to': cells[9].string,
-                        'from': cells[10].string,
-                        'session_nonce_uuid': session_nonce_uuid,
-                        'cluster': cluster_name
-                    })
+                    route_dict = self._get_empty_route_dictionary()
+
+                    if self.apache_version[0:4] == '2.4.':
+                        route_dict['url'] = cells[0].find('a').string
+                        route_dict['route'] = cells[1].string
+                        route_dict['route_redir'] = cells[2].string
+                        route_dict['factor'] = cells[3].string
+                        route_dict['set'] = cells[4].string
+                        route_dict['status_init'] = 'Init' in cells[5].string
+                        route_dict['status_ignore_errors'] = 'Ign' in cells[5].string
+                        route_dict['status_draining_mode'] = 'Drn' in cells[5].string
+                        route_dict['status_disabled'] = 'Dis' in cells[5].string
+                        route_dict['status_hot_standby'] = 'Stby' in cells[5].string
+                        route_dict['elected'] = cells[6].string
+                        route_dict['busy'] = cells[7].string
+                        route_dict['load'] = cells[8].string
+                        route_dict['to'] = cells[9].string
+                        route_dict['from'] = cells[10].string
+                        route_dict['session_nonce_uuid'] = session_nonce_uuid
+                        route_dict['cluster'] = cluster_name
+
+                    elif self.apache_version[0:4] == '2.2.':
+                        route_dict['url'] = cells[0].find('a').string
+                        route_dict['route'] = cells[1].string
+                        route_dict['route_redir'] = cells[2].string
+                        route_dict['factor'] = cells[3].string
+                        route_dict['set'] = cells[4].string
+                        route_dict['status_init'] = 'Ok' in cells[5].string
+                        route_dict['status_ignore_errors'] = 'n/a'
+                        route_dict['status_draining_mode'] = 'n/a'
+                        route_dict['status_disabled'] = 'Dis' in cells[5].string
+                        route_dict['status_hot_standby'] = 'Stby' in cells[5].string
+                        route_dict['elected'] = cells[6].string
+                        route_dict['busy'] = 'n/a'
+                        route_dict['load'] = 'n/a'
+                        route_dict['to'] = cells[7].string
+                        route_dict['from'] = cells[8].string
+                        route_dict['session_nonce_uuid'] = session_nonce_uuid
+                        route_dict['cluster'] = cluster_name
+
+                    else:
+                        raise ValueError('this script only supports apache 2.2 and 2.4')
+
+                    routes.append(route_dict)
 
         return routes
 
