@@ -265,14 +265,14 @@ def main():
     parser.add_argument('--disable', action='store_true', default=False)
     parser.add_argument('-u', '--username', default=None)
     parser.add_argument('-p', '--password', default=None)
-    parser.add_argument('--no-check-certificate', dest='no_check_certificate', action='store_true', default=False)
+    parser.add_argument('-k', '--insecure', help='ignore ssl certificate errors', action='store_true', default=False)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
     args = parser.parse_args()
 
     log_level = logging.DEBUG if args.debug else logging.WARN
     logging.basicConfig(level=log_level)
 
-    abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.no_check_certificate, username=args.username, password=args.password)
+    abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.insecure, username=args.username, password=args.password)
     routes = abm.get_routes()
 
     if args.enable and args.disable:
