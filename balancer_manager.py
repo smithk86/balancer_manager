@@ -46,7 +46,13 @@ class ApacheBalancerManager:
         logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
 
     def _get_soup_html(self):
-        req = self.session.get(self.url, verify=self.verify_ssl_cert)
+
+        if self.url.find('/') >= 0:
+            url = self.url
+        else:
+            url = 'http://{url}/balancer-manager'.format(url=self.url)
+
+        req = self.session.get(url, verify=self.verify_ssl_cert)
 
         if req.status_code is not requests.codes.ok:
             req.raise_for_status()
