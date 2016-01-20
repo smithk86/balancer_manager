@@ -10,7 +10,7 @@ setup(
     author_email='smithk86@gmail.com',
     url='https://github.com/smithk86/balancer_manager',
     packages=[
-        'balancer_manager'
+        'py_balancer_manager'
     ],
     install_requires=[
         'requests',
