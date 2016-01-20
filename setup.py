@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(
-    name='Balancer Manager',
+    name='py_balancer_manager',
     version='1.0-dev',
     description="Library for programatically interacting with Apache's mod_proxy_balancer management interface",
     author='Kyle Smith',
