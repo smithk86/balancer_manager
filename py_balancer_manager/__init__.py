@@ -15,6 +15,18 @@ __version__ = "1.0-dev"
 logger = logging.getLogger(__name__)
 
 
+class ApacheBalancerManagerError(Exception):
+
+    def __init__(self, *args, **kwargs):
+        super(ApacheBalancerManagerError, self).__init__(self, *args, **kwargs)
+
+
+class ApacheBalancerManagerVersionError(ApacheBalancerManagerError):
+    
+    def __init__(self, *args, **kwargs):
+        super(ApacheBalancerManagerVersionError, self).__init__(self, *args, **kwargs)
+
+
 class ApacheBalancerManager:
 
     def __init__(self, url, verify_ssl_cert=True, username=None, password=None):
@@ -158,6 +170,14 @@ class ApacheBalancerManager:
         return routes
 
     def change_route_status(self, route, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
+
+        if self.apache_version[0:4] == '2.2.':
+            if status_ignore_errors is not None:
+                raise ApacheBalancerManagerVersionError('status_ignore_errors is not supported in apache 2.2')
+            if status_draining_mode is not None:
+                raise ApacheBalancerManagerVersionError('status_draining_mode is not supported in apache 2.2')
+            if status_hot_standby is not None:
+                raise ApacheBalancerManagerVersionError('status_hot_standby is not supported in apache 2.2')
 
         if type(status_ignore_errors) is bool:
             route['status_ignore_errors'] = status_ignore_errors
