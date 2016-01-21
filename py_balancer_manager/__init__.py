@@ -56,13 +56,16 @@ class ApacheBalancerManager:
 
         logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
 
-    def _get_soup_html(self):
+    def _get_full_url(self):
 
         if self.url.find('/') >= 0:
-            url = self.url
+            return self.url
         else:
-            url = 'http://{url}/balancer-manager'.format(url=self.url)
+            return 'http://{url}/balancer-manager'.format(url=self.url)
 
+    def _get_soup_html(self):
+
+        url = self._get_full_url()
         req = self.session.get(url, verify=self.verify_ssl_cert)
 
         if req.status_code is not requests.codes.ok:
@@ -202,7 +205,7 @@ class ApacheBalancerManager:
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
-            self.session.post(self.url, data=post_data, verify=self.verify_ssl_cert)
+            self.session.post(self._get_full_url(), data=post_data, verify=self.verify_ssl_cert)
 
         elif self.apache_version[0:4] == '2.2.':
             get_data = {
@@ -215,7 +218,7 @@ class ApacheBalancerManager:
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
-            self.session.get(self.url, params=get_data, verify=self.verify_ssl_cert)
+            self.session.get(self._get_full_url(), params=get_data, verify=self.verify_ssl_cert)
 
         else:
             raise ValueError('this module only supports apache 2.2 and 2.4')
