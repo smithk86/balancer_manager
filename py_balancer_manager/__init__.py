@@ -80,7 +80,8 @@ class ApacheBalancerManager:
             'route_redir': None,
             'factor': None,
             'set': None,
-            'status_init': None,
+            'status_ok': None,
+            'status_error': None,
             'status_ignore_errors': None,
             'status_draining_mode': None,
             'status_disabled': None,
@@ -133,7 +134,8 @@ class ApacheBalancerManager:
                         route_dict['route_redir'] = cells[2].string
                         route_dict['factor'] = cells[3].string
                         route_dict['set'] = cells[4].string
-                        route_dict['status_init'] = 'Init' in cells[5].string
+                        route_dict['status_ok'] = 'Ok' in cells[5].string
+                        route_dict['status_error'] = 'Err' in cells[5].string
                         route_dict['status_ignore_errors'] = 'Ign' in cells[5].string
                         route_dict['status_draining_mode'] = 'Drn' in cells[5].string
                         route_dict['status_disabled'] = 'Dis' in cells[5].string
@@ -152,7 +154,8 @@ class ApacheBalancerManager:
                         route_dict['route_redir'] = cells[2].string
                         route_dict['factor'] = cells[3].string
                         route_dict['set'] = cells[4].string
-                        route_dict['status_init'] = 'Ok' in cells[5].string
+                        route_dict['status_ok'] = 'Ok' in cells[5].string
+                        route_dict['status_error'] = 'Err' in cells[5].string
                         route_dict['status_ignore_errors'] = 'n/a'
                         route_dict['status_draining_mode'] = 'n/a'
                         route_dict['status_disabled'] = 'Dis' in cells[5].string
