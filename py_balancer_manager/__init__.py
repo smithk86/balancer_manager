@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 __author__ = "Kyle Smith"
 __email__ = "smithk86@gmail.com"
-__version__ = "1.0-dev"
+__version__ = "1.1-dev"
 
 logger = logging.getLogger(__name__)
 
