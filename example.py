@@ -75,13 +75,16 @@ def main():
         for row in rows:
             print(' | '.join((val.ljust(width) for val, width in zip(row, widths))))
 
+
     parser = argparse.ArgumentParser()
     parser.add_argument('balance-manager-url')
     parser.add_argument('-l', '--list', dest='list_routes', action='store_true', default=False)
     parser.add_argument('-c', '--cluster')
     parser.add_argument('-r', '--route')
-    parser.add_argument('--enable', action='store_true', default=False)
-    parser.add_argument('--disable', action='store_true', default=False)
+    parser.add_argument('--ignore-errors', dest='ignore_errors', default=None)
+    parser.add_argument('--draining-mode', dest='draining_mode', default=None)
+    parser.add_argument('--disabled', default=None)
+    parser.add_argument('--hot-standby', dest='hot_standby', default=None)
     parser.add_argument('-u', '--username', default=None)
     parser.add_argument('-p', '--password', default=None)
     parser.add_argument('-k', '--insecure', help='ignore ssl certificate errors', action='store_true', default=False)
@@ -112,21 +115,40 @@ def main():
         abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.insecure, username=args.username, password=args.password)
         routes = abm.get_routes()
 
-    if args.enable and args.disable:
-        raise ValueError('--enable and --disable are incompatible')
-
     if args.list_routes:
         print_routes(routes)
 
-    elif args.enable or args.disable:
+    elif (args.ignore_errors is not None or
+        args.draining_mode is not None or
+        args.disabled is not None or
+        args.hot_standby is not None):
 
         if args.cluster is None or args.route is None:
             raise ValueError('--cluster and --route are required')
 
         for route in routes:
             if route['cluster'] == args.cluster and route['route'] == args.route:
-                status_disabled = True if args.disable else False
-                abm.change_route_status(route, status_disabled=status_disabled)
+                _kwargs = {}
+                try:
+                    if args.ignore_errors is not None:
+                        _kwargs['status_ignore_errors'] = bool(int(args.ignore_errors))
+                    if args.draining_mode is not None:
+                        _kwargs['status_draining_mode'] = bool(int(args.draining_mode))
+                    if args.disabled is not None:
+                        _kwargs['status_disabled'] = bool(int(args.disabled))
+                    if args.hot_standby is not None:
+                        _kwargs['status_ignore_errors'] = bool(int(args.hot_standby))
+                except ValueError:
+                    raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
+
+                abm.change_route_status(route, **_kwargs)
+
+                break
+        else:
+            raise NameError('no route was matched to the given cluster ({cluster}) and route ({route})'.format(cluster=args.cluster, route=args.route))
+
+    else:
+        print('no actionable arguments were provided')
 
 
 if __name__ == '__main__':
