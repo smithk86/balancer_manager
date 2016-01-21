@@ -4,8 +4,8 @@ import argparse
 import requests
 import logging
 
-from balancer_manager import ApacheBalancerManager
-from balancer_manager import ApacheBalancerManagerPollThread
+from py_balancer_manager import ApacheBalancerManager
+from py_balancer_manager import ApacheBalancerManagerPollThread
 
 # disable warnings
 requests.packages.urllib3.disable_warnings()
