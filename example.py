@@ -115,7 +115,7 @@ def main():
 
     else:
         abm = ApacheBalancerManager(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.insecure, username=args.username, password=args.password)
-        routes = abm.get_routes()
+        routes = abm.get_routes(cluster=args.cluster)
 
     if args.list_routes:
         print_routes(routes)
@@ -128,24 +128,25 @@ def main():
         if args.cluster is None or args.route is None:
             raise ValueError('--cluster and --route are required')
 
-        for route in routes:
-            if route['cluster'] == args.cluster and route['route'] == args.route:
-                _kwargs = {}
-                try:
-                    if args.ignore_errors is not None:
-                        _kwargs['status_ignore_errors'] = bool(int(args.ignore_errors))
-                    if args.draining_mode is not None:
-                        _kwargs['status_draining_mode'] = bool(int(args.draining_mode))
-                    if args.disabled is not None:
-                        _kwargs['status_disabled'] = bool(int(args.disabled))
-                    if args.hot_standby is not None:
-                        _kwargs['status_ignore_errors'] = bool(int(args.hot_standby))
-                except ValueError:
-                    raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
+        route = abm.get_route(args.cluster, args.route)
 
-                abm.change_route_status(route, **_kwargs)
+        if route:
 
-                break
+            _kwargs = {}
+            try:
+                if args.ignore_errors is not None:
+                    _kwargs['status_ignore_errors'] = bool(int(args.ignore_errors))
+                if args.draining_mode is not None:
+                    _kwargs['status_draining_mode'] = bool(int(args.draining_mode))
+                if args.disabled is not None:
+                    _kwargs['status_disabled'] = bool(int(args.disabled))
+                if args.hot_standby is not None:
+                    _kwargs['status_ignore_errors'] = bool(int(args.hot_standby))
+            except ValueError:
+                raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
+
+            abm.change_route_status(route, **_kwargs)
+
         else:
             raise NameError('no route was matched to the given cluster ({cluster}) and route ({route})'.format(cluster=args.cluster, route=args.route))
 

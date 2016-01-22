@@ -1,4 +1,5 @@
 import re
+import time
 import logging
 import threading
 
@@ -10,7 +11,7 @@ from bs4 import BeautifulSoup
 
 __author__ = "Kyle Smith"
 __email__ = "smithk86@gmail.com"
-__version__ = "1.1.1-dev"
+__version__ = "1.1.2-dev"
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,9 @@ class ApacheBalancerManager:
         self.auth_username = username
         self.auth_password = password
         self.apache_version = None
+        self.cache_ttl = 5
+        self.cache_routes = None
+        self.cache_routes_time = 0
 
         self.session = requests.Session()
         self.session.headers.update({'User-agent': 'balancer_manager.py/{version}'.format(version=__version__)})
@@ -97,7 +101,33 @@ class ApacheBalancerManager:
             'apache_version': self.apache_version
         }
 
-    def get_routes(self):
+    def get_routes(self, cluster=None):
+
+        now = time.time()
+
+        if self.cache_routes is None or self.cache_routes_time < (now - self.cache_ttl):
+            self.cache_routes = self._get_routes_from_apache()
+            self.cache_routes_time = now
+
+        if cluster:
+            routes = []
+            for route in self.cache_routes:
+                if route['cluster'] == cluster:
+                    routes.append(route)
+            return routes
+        else:
+            return self.cache_routes
+
+    def get_route(self, cluster, name):
+
+        for route in self.get_routes(cluster=cluster):
+            if route['route'] == name:
+                return route
+
+        return None
+
+    def _get_routes_from_apache(self):
+
         page = self._get_soup_html()
         session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
         cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
