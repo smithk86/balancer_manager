@@ -53,9 +53,9 @@ def main():
         printer.routes(routes, args.verbose)
 
     elif (args.ignore_errors is not None or
-        args.draining_mode is not None or
-        args.disabled is not None or
-        args.hot_standby is not None):
+            args.draining_mode is not None or
+            args.disabled is not None or
+            args.hot_standby is not None):
 
         if args.cluster is None or args.route is None:
             raise ValueError('--cluster and --route are required')
