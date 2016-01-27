@@ -6,11 +6,16 @@ from .client import Client
 from .prettystring import PrettyString
 
 
-def validate(profile_json, verify_ssl_cert=True):
+def validate(profile_json):
 
     full_profile = json.loads(profile_json)
 
-    client = Client(full_profile['host'], verify_ssl_cert=verify_ssl_cert, username=full_profile['username'], password=full_profile['password'])
+    client = Client(
+        full_profile['host'],
+        verify_ssl_cert=full_profile.get('verify_ssl_cert', True),
+        username=full_profile.get('username', None),
+        password=full_profile.get('password', None)
+    )
 
     validated_routes = []
 

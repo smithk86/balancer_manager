@@ -56,9 +56,13 @@ class Client:
     def _get_full_url(self):
 
         if self.url.find('/') >= 0:
-            return self.url
+            url = self.url
         else:
-            return 'http://{url}/balancer-manager'.format(url=self.url)
+            url = 'http://{url}/balancer-manager'.format(url=self.url)
+
+        logger.debug('balancer manager url: {url}'.format(**locals()))
+
+        return url
 
     def _get_soup_html(self):
 

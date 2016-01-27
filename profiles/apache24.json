@@ -1,7 +1,8 @@
 {
-    "host": "172.16.1.10",
-    "username": null,
-    "password": null,
+    "host": "https://172.16.1.10/balancer-manager",
+    "username": "admin",
+    "password": "admin123$",
+    "verify_ssl_cert": false,
     "default_route_profile": {
         "status_ok": true,
         "status_error": false,

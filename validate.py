@@ -17,7 +17,6 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('profile-json')
-    parser.add_argument('-k', '--insecure', help='ignore ssl certificate errors', action='store_true', default=False)
     parser.add_argument('-v', '--verbose', help='print all route information', action='store_true', default=False)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
     args = parser.parse_args()
@@ -32,10 +31,7 @@ def main():
         print('file does not exist: {profile}'.format(profile=getattr(args, 'profile-json')))
 
     printer.routes(
-        py_balancer_manager.validate(
-            full_profile_json,
-            verify_ssl_cert=not args.insecure
-        ),
+        py_balancer_manager.validate(full_profile_json),
         args.verbose
     )
 
