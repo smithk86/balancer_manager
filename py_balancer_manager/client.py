@@ -9,12 +9,6 @@ from bs4 import BeautifulSoup
 from .errors import BalancerManagerError
 
 
-""" balancer_manager.py: Library for programatically interacting with Apache's mod_proxy_balancer management interface """
-
-__author__ = "Kyle Smith"
-__email__ = "smithk86@gmail.com"
-__version__ = "1.2.0-dev"
-
 logger = logging.getLogger(__name__)
 
 

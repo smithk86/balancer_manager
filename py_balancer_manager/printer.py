@@ -59,6 +59,7 @@ def routes(routes, verbose=False):
     if verbose:
 
         for route in routes:
+
             rows.append([
                 PrettyString(_get_value(route['apache_manager_url']), 'cyan'),
                 _get_value(route['apache_version']),
