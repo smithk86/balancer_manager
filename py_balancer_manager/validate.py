@@ -9,7 +9,7 @@ from .prettystring import PrettyString
 def validate(profile_json, verify_ssl_cert=True):
 
     full_profile = json.loads(profile_json)
-    print(full_profile)
+
     client = Client(full_profile['host'], verify_ssl_cert=verify_ssl_cert, username=full_profile['username'], password=full_profile['password'])
 
     validated_routes = []

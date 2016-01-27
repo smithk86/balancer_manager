@@ -35,7 +35,10 @@ class Client:
         self.cache_routes_time = 0
 
         self.session = requests.Session()
-        self.session.headers.update({'User-agent': 'balancer_manager.py/{version}'.format(version=__version__)})
+        self.session.headers.update({
+            'User-agent': 'py_balancer_manager.Client'
+        })
+
         if self.auth_username and self.auth_password:
             self.session.auth = (self.auth_username, self.auth_password)
 
