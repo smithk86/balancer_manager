@@ -3,7 +3,6 @@
 import json
 
 from .client import Client
-from .prettystring import PrettyString
 
 
 def validate(profile_json):
@@ -17,22 +16,25 @@ def validate(profile_json):
         password=full_profile.get('password', None)
     )
 
-    validated_routes = []
+    routes = []
 
     for cluster in full_profile['clusters']:
+
         route_profiles = cluster.get('routes', {})
 
         for route in client.get_routes(cluster=cluster['name']):
+
             profile = full_profile['default_route_profile'].copy()
             profile.update(route_profiles.get(route['route'], {}))
 
+            # create a special '_validate' key which will contain a list of the validation data
+            route['_validate'] = []
+
+            # for each validated route, push a tuple of the key and its validation status (True/False)
             for key, value in route.items():
                 if key in profile:
-                    if route[key] == profile[key]:
-                        route[key] = PrettyString(value, 'green')
-                    else:
-                        route[key] = PrettyString(value, 'red')
+                    route['_validate'].append((key, (route[key] == profile[key])))
 
-            validated_routes.append(route)
+            routes.append(route)
 
-    return validated_routes
+    return routes

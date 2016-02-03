@@ -7,6 +7,7 @@ import logging
 
 import py_balancer_manager
 from py_balancer_manager import printer
+from py_balancer_manager.prettystring import PrettyString
 
 
 # disable warnings
@@ -30,8 +31,15 @@ def main():
     except FileNotFoundError:
         print('file does not exist: {profile}'.format(profile=getattr(args, 'profile-json')))
 
+    routes = py_balancer_manager.validate(full_profile_json)
+
+    for route in routes:
+        for key, status in route.get('_validate'):
+            color = 'green' if status else 'red'
+            route[key] = PrettyString(route[key], color)
+
     printer.routes(
-        py_balancer_manager.validate(full_profile_json),
+        routes,
         args.verbose
     )
 
