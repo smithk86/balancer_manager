@@ -28,7 +28,7 @@ def main():
     if args.password:
         password = getpass('password # ')
     else:
-        password = Non
+        password = None
 
     default_route_profile = {
         'status_ok': True,
