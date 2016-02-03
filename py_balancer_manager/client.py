@@ -98,7 +98,7 @@ class Client:
             'apache_version': self.apache_version
         }
 
-    def get_routes(self, cluster=None):
+    def get_routes(self, cluster=None, use_cache=True):
 
         now = time.time()
 

@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 import json
+import logging
 from collections import OrderedDict
 
 from .client import Client
 
+logger = logging.getLogger(__name__)
 
-def validate(profile_json):
+
+def validate(profile_json, enforce=False):
 
     full_profile = json.loads(profile_json)
 
@@ -18,6 +21,7 @@ def validate(profile_json):
     )
 
     routes = []
+    holistic_compliance_status = True
 
     for cluster in full_profile['clusters']:
 
@@ -28,17 +32,34 @@ def validate(profile_json):
             profile = full_profile['default_route_profile'].copy()
             profile.update(route_profiles.get(route['route'], {}))
 
-            # create a special '_validate' key which will contain a list of the validation data
-            route['_validate'] = []
+            # create a special '_validate' key which will contain a dict of the validation data
+            route['_validate'] = {}
+            profile_compliance_status = True
 
             # for each validated route, push a tuple of the key and its validation status (True/False)
             for key, value in route.items():
                 if key in profile:
-                    route['_validate'].append((key, (route[key] == profile[key])))
+                    if route[key] == profile[key]:
+                        route['_validate'][key] = True
+                    else:
+                        route['_validate'][key] = False
+                        profile_compliance_status = False
+                        holistic_compliance_status = False
+
+            if enforce and profile_compliance_status is False:
+
+                logger.info('enforcing profile for {cluster}->{route}'.format(**route))
+                client.change_route_status(
+                    route,
+                    status_ignore_errors=profile.get('status_ignore_errors'),
+                    status_draining_mode=profile.get('status_draining_mode'),
+                    status_disabled=profile.get('status_disabled'),
+                    status_hot_standby=profile.get('status_hot_standby')
+                )
 
             routes.append(route)
 
-    return routes
+    return (routes, holistic_compliance_status)
 
 
 def build_profile(host, default_route_profile, **kwargs):
