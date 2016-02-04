@@ -49,12 +49,18 @@ def validate(profile_json, enforce=False):
             if enforce and profile_compliance_status is False:
 
                 logger.info('enforcing profile for {cluster}->{route}'.format(**route))
+
+                status_dict = {}
+                status_dict['status_disabled'] = profile.get('status_disabled')
+
+                if client.apache_version_is('2.4.'):
+                    status_dict['status_ignore_errors'] = profile.get('status_ignore_errors')
+                    status_dict['status_draining_mode'] = profile.get('status_draining_mode')
+                    status_dict['status_hot_standby'] = profile.get('status_hot_standby')
+
                 client.change_route_status(
                     route,
-                    status_ignore_errors=profile.get('status_ignore_errors'),
-                    status_draining_mode=profile.get('status_draining_mode'),
-                    status_disabled=profile.get('status_disabled'),
-                    status_hot_standby=profile.get('status_hot_standby')
+                    **status_dict
                 )
 
             routes.append(route)

@@ -53,6 +53,13 @@ class Client:
 
         logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
 
+    def apache_version_is(self, version):
+
+        if self.apache_version:
+            return self.apache_version.startswith(version)
+        else:
+            raise ApacheVersionError('no apache version has been set')
+
     def _get_full_url(self):
 
         if self.url.find('/') >= 0:
@@ -155,7 +162,7 @@ class Client:
 
                     route_dict = self._get_empty_route_dictionary()
 
-                    if self.apache_version[0:4] == '2.4.':
+                    if self.apache_version_is('2.4.'):
                         route_dict['url'] = cells[0].find('a').string
                         route_dict['route'] = cells[1].string
                         route_dict['route_redir'] = cells[2].string
@@ -175,7 +182,7 @@ class Client:
                         route_dict['session_nonce_uuid'] = session_nonce_uuid
                         route_dict['cluster'] = cluster_name
 
-                    elif self.apache_version[0:4] == '2.2.':
+                    elif self.apache_version_is('2.2.'):
                         route_dict['url'] = cells[0].find('a').string
                         route_dict['route'] = cells[1].string
                         route_dict['route_redir'] = cells[2].string
@@ -204,7 +211,7 @@ class Client:
 
     def change_route_status(self, route, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
 
-        if self.apache_version[0:4] == '2.2.':
+        if self.apache_version_is('2.2.'):
             if status_ignore_errors is not None:
                 raise ApacheVersionError('status_ignore_errors is not supported in apache 2.2')
             if status_draining_mode is not None:
@@ -221,7 +228,7 @@ class Client:
         if type(status_hot_standby) is bool:
             route['status_hot_standby'] = status_hot_standby
 
-        if self.apache_version[0:4] == '2.4.':
+        if self.apache_version_is('2.4.'):
             post_data = {
                 'w_lf': '1',
                 'w_ls': '0',
@@ -237,7 +244,7 @@ class Client:
             }
             self.session.post(self._get_full_url(), data=post_data, verify=self.verify_ssl_cert)
 
-        elif self.apache_version[0:4] == '2.2.':
+        elif self.apache_version_is('2.2.'):
             get_data = {
                 'lf': '1',
                 'ls': '0',
