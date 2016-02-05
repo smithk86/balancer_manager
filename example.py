@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
+import os
 import argparse
 import requests
 import logging
+from getpass import getpass
 
 import py_balancer_manager
 from py_balancer_manager import printer
@@ -23,7 +25,7 @@ def main():
     parser.add_argument('--disabled', default=None)
     parser.add_argument('--hot-standby', dest='hot_standby', default=None)
     parser.add_argument('-u', '--username', default=None)
-    parser.add_argument('-p', '--password', default=None)
+    parser.add_argument('-p', '--password', action='store_true', default=False)
     parser.add_argument('-k', '--insecure', help='ignore ssl certificate errors', action='store_true', default=False)
     parser.add_argument('-v', '--verbose', help='print all route information', action='store_true', default=False)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
@@ -31,6 +33,11 @@ def main():
 
     log_level = logging.DEBUG if args.debug else logging.WARN
     logging.basicConfig(level=log_level)
+
+    if args.password:
+        password = getpass('password # ')
+    else:
+        password = os.environ.get('PASSWORD')
 
     urls = getattr(args, 'balance-manager-url').split(',')
 
@@ -40,13 +47,13 @@ def main():
 
         for url in urls:
             clients.add_client(
-                py_balancer_manager.Client(url, verify_ssl_cert=not args.insecure, username=args.username, password=args.password)
+                py_balancer_manager.Client(url, verify_ssl_cert=not args.insecure, username=args.username, password=password)
             )
 
         routes = clients.get_routes()
 
     else:
-        client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.insecure, username=args.username, password=args.password)
+        client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.insecure, username=args.username, password=password)
         routes = client.get_routes(cluster=args.cluster)
 
     if args.list_routes:

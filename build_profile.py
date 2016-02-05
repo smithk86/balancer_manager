@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import argparse
 from getpass import getpass
 import requests
@@ -28,7 +29,7 @@ def main():
     if args.password:
         password = getpass('password # ')
     else:
-        password = None
+        password = os.environ.get('PASSWORD')
 
     default_route_profile = {
         'status_ok': True,
