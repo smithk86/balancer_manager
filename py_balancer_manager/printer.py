@@ -8,9 +8,9 @@ def routes(routes, verbose=False):
             return ''
         elif type(val) is bool:
             if val:
-                return 'on'
+                return 'X'
             else:
-                return 'off'
+                return ''
         else:
             return val
 

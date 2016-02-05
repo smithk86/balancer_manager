@@ -190,13 +190,13 @@ class Client:
                         route_dict['set'] = cells[4].string
                         route_dict['status_ok'] = 'Ok' in cells[5].string
                         route_dict['status_error'] = 'Err' in cells[5].string
-                        route_dict['status_ignore_errors'] = 'n/a'
-                        route_dict['status_draining_mode'] = 'n/a'
+                        route_dict['status_ignore_errors'] = None
+                        route_dict['status_draining_mode'] = None
                         route_dict['status_disabled'] = 'Dis' in cells[5].string
                         route_dict['status_hot_standby'] = 'Stby' in cells[5].string
                         route_dict['elected'] = cells[6].string
-                        route_dict['busy'] = 'n/a'
-                        route_dict['load'] = 'n/a'
+                        route_dict['busy'] = None
+                        route_dict['load'] = None
                         route_dict['to'] = cells[7].string
                         route_dict['from'] = cells[8].string
                         route_dict['session_nonce_uuid'] = session_nonce_uuid
