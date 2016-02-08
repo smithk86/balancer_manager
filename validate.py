@@ -20,8 +20,10 @@ def main():
 
         for route in routes:
             for key, status in route.get('_validate', {}).items():
-                color = 'green' if status else 'red'
-                route[key] = PrettyString(route[key], color)
+                route[key] = PrettyString(
+                    '\u2713' if route[key] else '\u2717{}'.format('' if status else ' **'),
+                    'green' if status else 'red'
+                )
 
         printer.routes(
             routes,

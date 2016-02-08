@@ -32,10 +32,8 @@ def main():
         password = os.environ.get('PASSWORD')
 
     default_route_profile = {
-        'status_ok': True,
-        'status_error': False,
-#       'status_ignore_errors': False,
-#       'status_draining_mode': False,
+        'status_ignore_errors': False,
+        'status_draining_mode': False,
         'status_disabled': False,
         'status_hot_standby': False
     }

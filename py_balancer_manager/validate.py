@@ -22,6 +22,16 @@ def validate(profile_json, enforce=False):
 
     routes = []
     holistic_compliance_status = True
+    default_route_profile = {
+        'status_ok': True,
+        'status_error': False
+    }
+
+    for key in client.get_validation_properties():
+        default_route_profile[key] = full_profile['default_route_profile'].pop(key)
+
+    if len(full_profile['default_route_profile']) > 0:
+        raise Exception('there were unathorized validation properties provided: {}'.format(full_profile['default_route_profile']))
 
     for cluster in full_profile['clusters']:
 
@@ -29,7 +39,7 @@ def validate(profile_json, enforce=False):
 
         for route in client.get_routes(cluster=cluster['name']):
 
-            profile = full_profile['default_route_profile'].copy()
+            profile = default_route_profile.copy()
             profile.update(route_profiles.get(route['route'], {}))
 
             # create a special '_validate' key which will contain a dict of the validation data
@@ -76,6 +86,13 @@ def build_profile(host, default_route_profile, **kwargs):
         username=kwargs.get('username', None),
         password=kwargs.get('password', None)
     )
+
+    # apache 2.2 only supports 'disabled' and 'hot standby'
+    if client.apache_version_is('2.2.'):
+        default_route_profile = {
+            'status_disabled': default_route_profile.get('status_disabled'),
+            'status_hot_standby': default_route_profile.get('status_hot_standby')
+        }
 
     profile = OrderedDict()
     profile['host'] = host
