@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import json
 import logging
 from collections import OrderedDict
 
@@ -9,15 +8,13 @@ from .client import Client
 logger = logging.getLogger(__name__)
 
 
-def validate(profile_json, enforce=False):
-
-    full_profile = json.loads(profile_json)
+def validate(profile_dict, enforce=False):
 
     client = Client(
-        full_profile['host'],
-        verify_ssl_cert=full_profile.get('verify_ssl_cert', True),
-        username=full_profile.get('username', None),
-        password=full_profile.get('password', None)
+        profile_dict['host'],
+        verify_ssl_cert=profile_dict.get('verify_ssl_cert', True),
+        username=profile_dict.get('username', None),
+        password=profile_dict.get('password', None)
     )
 
     routes = []
@@ -28,12 +25,12 @@ def validate(profile_json, enforce=False):
     }
 
     for key in client.get_validation_properties():
-        default_route_profile[key] = full_profile['default_route_profile'].pop(key)
+        default_route_profile[key] = profile_dict['default_route_profile'].pop(key)
 
-    if len(full_profile['default_route_profile']) > 0:
-        raise Exception('there were unathorized validation properties provided: {}'.format(full_profile['default_route_profile']))
+    if len(profile_dict['default_route_profile']) > 0:
+        raise Exception('there were unathorized validation properties provided: {}'.format(profile_dict['default_route_profile']))
 
-    for cluster in full_profile['clusters']:
+    for cluster in profile_dict['clusters']:
 
         route_profiles = cluster.get('routes', {})
 
@@ -133,4 +130,4 @@ def build_profile(host, default_route_profile, **kwargs):
 
         profile['clusters'].append(cluster_profile)
 
-    print(json.dumps(profile, indent=4))
+    return profile

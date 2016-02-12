@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
+import sys
 import os
 import argparse
 import requests
 import logging
+import json
 
 import py_balancer_manager
 from py_balancer_manager import printer
@@ -43,17 +45,21 @@ def main():
     try:
         with open(getattr(args, 'profile-json')) as fh:
             full_profile_json = fh.read()
+
+        profile_dict = json.loads(full_profile_json)
+
     except FileNotFoundError:
         print('file does not exist: {profile}'.format(profile=getattr(args, 'profile-json')))
+        sys.exit(1)
 
-    routes, compliance_status = py_balancer_manager.validate(full_profile_json, enforce=args.enforce)
+    routes, compliance_status = py_balancer_manager.validate(profile_dict, enforce=args.enforce)
     print_routes(routes)
 
     if args.enforce and compliance_status is False:
         print()
         print(PrettyString('***** compliance has been enforced *****', 'red'))
 
-        routes, compliance_status = py_balancer_manager.validate(full_profile_json)
+        routes, compliance_status = py_balancer_manager.validate(profile_dict)
         print_routes(routes)
 
         if compliance_status is False:

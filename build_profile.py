@@ -5,6 +5,7 @@ import argparse
 from getpass import getpass
 import requests
 import logging
+import json
 
 from py_balancer_manager import build_profile
 
@@ -38,7 +39,9 @@ def main():
         'status_hot_standby': False
     }
 
-    build_profile(getattr(args, 'balance-manager-url'), default_route_profile, username=args.username, password=password, verify_ssl_cert=not args.insecure)
+    profile_dict = build_profile(getattr(args, 'balance-manager-url'), default_route_profile, username=args.username, password=password, verify_ssl_cert=not args.insecure)
+
+    print(json.dumps(profile_dict, indent=4))
 
 if __name__ == '__main__':
 
