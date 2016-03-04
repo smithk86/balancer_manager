@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import threading
 import logging
 from collections import OrderedDict
 
@@ -8,71 +9,72 @@ from .client import Client
 logger = logging.getLogger(__name__)
 
 
-def validate(profile_dict, enforce=False):
+class ValidationClient(Client):
 
-    client = Client(
-        profile_dict['host'],
-        verify_ssl_cert=profile_dict.get('verify_ssl_cert', True),
-        username=profile_dict.get('username', None),
-        password=profile_dict.get('password', None)
-    )
+    def __init__(self, *args, **kwargs):
 
-    routes = []
-    holistic_compliance_status = True
-    default_route_profile = {
-        'status_ok': True,
-        'status_error': False
-    }
+        super(ValidationClient, self).__init__(*args, **kwargs)
 
-    for key in client.get_validation_properties():
-        default_route_profile[key] = profile_dict['default_route_profile'].pop(key)
+        self.holistic_compliance_status = False
 
-    if len(profile_dict['default_route_profile']) > 0:
-        raise Exception('there were unathorized validation properties provided: {}'.format(profile_dict['default_route_profile']))
+    def get_validated_routes(self, default_route_profile={}, clusters=[], enforce=False):
 
-    for cluster in profile_dict['clusters']:
+        routes = []
+        default_route_profile['status_ok'] = True
+        default_route_profile['status_error'] = False
 
-        route_profiles = cluster.get('routes', {})
+        # for key in client.get_validation_properties():
+        #     default_route_profile[key] = profile_dict['default_route_profile'].pop(key)
 
-        for route in client.get_routes(cluster=cluster['name']):
+        # if len(profile_dict['default_route_profile']) > 0:
+        #    raise Exception('there were unathorized validation properties provided: {}'.format(profile_dict['default_route_profile']))
 
-            profile = default_route_profile.copy()
-            profile.update(route_profiles.get(route['route'], {}))
+        for cluster in clusters:
 
-            # create a special '_validate' key which will contain a dict of the validation data
-            route['_validate'] = {}
-            profile_compliance_status = True
+            route_profiles = cluster.get('routes', {})
 
-            # for each validated route, push a tuple of the key and its validation status (True/False)
-            for key, value in route.items():
-                if key in profile:
-                    if route[key] == profile[key]:
-                        route['_validate'][key] = True
-                    else:
-                        route['_validate'][key] = False
-                        profile_compliance_status = False
-                        holistic_compliance_status = False
+            for route in self.get_routes(cluster=cluster['name']):
 
-            if enforce and profile_compliance_status is False:
+                profile = default_route_profile.copy()
+                profile.update(route_profiles.get(route['route'], {}))
 
-                logger.info('enforcing profile for {cluster}->{route}'.format(**route))
+                # create a special '_validate' key which will contain a dict of the validation data
+                route['_validate'] = {}
+                profile_compliance_status = True
+                self.holistic_compliance_status = True
 
-                status_dict = {}
-                status_dict['status_disabled'] = profile.get('status_disabled')
+                # for each validated route, push a tuple of the key and its validation status (True/False)
+                for key, value in route.items():
+                    if key in profile:
+                        if route[key] == profile[key]:
+                            route['_validate'][key] = True
+                        else:
+                            route['_validate'][key] = False
+                            profile_compliance_status = False
+                            self.holistic_compliance_status = False
 
-                if client.apache_version_is('2.4.'):
-                    status_dict['status_ignore_errors'] = profile.get('status_ignore_errors')
-                    status_dict['status_draining_mode'] = profile.get('status_draining_mode')
-                    status_dict['status_hot_standby'] = profile.get('status_hot_standby')
+                route['_validate']['_holistic'] = profile_compliance_status
 
-                client.change_route_status(
-                    route,
-                    **status_dict
-                )
+                if enforce and profile_compliance_status is False:
 
-            routes.append(route)
+                    logger.info('enforcing profile for {cluster}->{route}'.format(**route))
 
-    return (routes, holistic_compliance_status)
+                    status_dict = {}
+                    status_dict['status_disabled'] = profile.get('status_disabled')
+
+                    if self.apache_version_is('2.4.'):
+                        status_dict['status_ignore_errors'] = profile.get('status_ignore_errors')
+                        status_dict['status_draining_mode'] = profile.get('status_draining_mode')
+                        status_dict['status_hot_standby'] = profile.get('status_hot_standby')
+
+                    self.change_route_status(
+                        route,
+                        **status_dict
+                    )
+
+                routes.append(route)
+
+        return routes
 
 
 def build_profile(host, default_route_profile, **kwargs):

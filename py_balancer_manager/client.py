@@ -60,21 +60,9 @@ class Client:
         else:
             raise ApacheVersionError('no apache version has been set')
 
-    def _get_full_url(self):
-
-        if self.url.find('/') >= 0:
-            url = self.url
-        else:
-            url = 'http://{url}/balancer-manager'.format(url=self.url)
-
-        logger.debug('balancer manager url: {url}'.format(**locals()))
-
-        return url
-
     def _get_soup_html(self):
 
-        url = self._get_full_url()
-        req = self.session.get(url, verify=self.verify_ssl_cert)
+        req = self.session.get(self.url, verify=self.verify_ssl_cert)
 
         if req.status_code is not requests.codes.ok:
             req.raise_for_status()
@@ -264,7 +252,7 @@ class Client:
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
-            self.session.post(self._get_full_url(), data=post_data, verify=self.verify_ssl_cert)
+            self.session.post(self.url, data=post_data, verify=self.verify_ssl_cert)
 
         elif self.apache_version_is('2.2.'):
             get_data = {
@@ -277,7 +265,7 @@ class Client:
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
-            self.session.get(self._get_full_url(), params=get_data, verify=self.verify_ssl_cert)
+            self.session.get(self.url, params=get_data, verify=self.verify_ssl_cert)
 
         else:
             raise ValueError('this module only supports apache 2.2 and 2.4')
@@ -302,16 +290,20 @@ class ClientThread(threading.Thread):
 class ClientAggregator:
 
     def __init__(self):
-        self.clients = []
+        self.clients = {}
 
-    def add_client(self, client):
+    def add_client(self, client, client_id=None):
 
         if type(client) is Client:
+
+            if client_id:
+                self.clients.client_id = client_id
+
             self.clients.append(client)
 
-    def get_routes(self):
+    def get_servers(self):
 
-        routes = []
+        servers = []
         threads = []
 
         for client in self.clients:
@@ -324,6 +316,6 @@ class ClientAggregator:
             thread.join()
 
         for thread in threads:
-            routes += thread.routes
+            servers.append(thread.routes)
 
-        return routes
+        return servers
