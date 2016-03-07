@@ -42,18 +42,26 @@ class Client:
         if self.auth_username and self.auth_password:
             self.session.auth = (self.auth_username, self.auth_password)
 
+    def set_apache_version(self):
+
+        if self.apache_version:
+            # do not re-poll if self.apache_version is already set
+            return True
+
         page = self._get_soap_html()
         full_version_string = page.find('dt').string
         match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', full_version_string)
         if match:
             self.apache_version = match.group(1)
 
+        logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
+
         if self.apache_version is None:
             raise TypeError('apache version parse failed')
 
-        logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
-
     def apache_version_is(self, version):
+
+        self.set_apache_version()
 
         if self.apache_version:
             return self.apache_version.startswith(version)
@@ -94,6 +102,8 @@ class Client:
         }
 
     def get_routes(self, cluster=None, use_cache=True):
+
+        self.set_apache_version()
 
         now = time.time()
 
