@@ -22,6 +22,7 @@ class ValidationClient(Client):
         routes = []
         default_route_profile['status_ok'] = True
         default_route_profile['status_error'] = False
+        self.holistic_compliance_status = True
 
         # for key in client.get_validation_properties():
         #     default_route_profile[key] = profile_dict['default_route_profile'].pop(key)
@@ -41,7 +42,6 @@ class ValidationClient(Client):
                 # create a special '_validate' key which will contain a dict of the validation data
                 route['_validate'] = {}
                 profile_compliance_status = True
-                self.holistic_compliance_status = True
 
                 # for each validated route, push a tuple of the key and its validation status (True/False)
                 for key, value in route.items():
