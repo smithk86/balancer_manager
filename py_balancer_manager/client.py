@@ -30,6 +30,8 @@ class Client:
         self.auth_username = username
         self.auth_password = password
         self.apache_version = None
+        self.request_exception = None
+
         self.cache_ttl = 5
         self.cache_routes = None
         self.cache_routes_time = 0
@@ -41,6 +43,36 @@ class Client:
 
         if self.auth_username and self.auth_password:
             self.session.auth = (self.auth_username, self.auth_password)
+
+    def _request_session_get(self, *args, **kwargs):
+
+        response = None
+
+        try:
+
+            response = self.session.get(*args, **kwargs)
+
+        except Exception as e:
+
+            logger.exception(e)
+            self.request_exception = e
+
+        return response
+
+    def _request_session_post(self, *args, **kwargs):
+
+        response = None
+
+        try:
+
+            response = self.session.post(*args, **kwargs)
+
+        except Exception as e:
+
+            logger.exception(e)
+            self.request_exception = e
+
+        return response
 
     def set_apache_version(self):
 
@@ -71,7 +103,7 @@ class Client:
 
     def _get_soup_html(self):
 
-        req = self.session.get(self.url, verify=self.verify_ssl_cert)
+        req = self._request_session_get(self.url, verify=self.verify_ssl_cert)
 
         if req.status_code is not requests.codes.ok:
             req.raise_for_status()
@@ -263,7 +295,7 @@ class Client:
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
-            self.session.post(self.url, data=post_data, verify=self.verify_ssl_cert)
+            self._request_session_post(self.url, data=post_data, verify=self.verify_ssl_cert)
 
         elif self.apache_version_is('2.2.'):
             get_data = {
@@ -276,7 +308,7 @@ class Client:
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
-            self.session.get(self.url, params=get_data, verify=self.verify_ssl_cert)
+            self._request_session_get(self.url, params=get_data, verify=self.verify_ssl_cert)
 
         else:
             raise ValueError('this module only supports apache 2.2 and 2.4')
