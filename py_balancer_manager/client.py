@@ -48,7 +48,8 @@ class Client:
             # do not re-poll if self.apache_version is already set
             return True
 
-        page = self._get_soap_html()
+        page = self._get_soup_html()
+
         full_version_string = page.find('dt').string
         match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', full_version_string)
         if match:
@@ -68,7 +69,7 @@ class Client:
         else:
             raise ApacheVersionError('no apache version has been set')
 
-    def _get_soap_html(self):
+    def _get_soup_html(self):
 
         req = self.session.get(self.url, verify=self.verify_ssl_cert)
 
@@ -152,7 +153,7 @@ class Client:
 
     def _get_routes_from_apache(self):
 
-        page = self._get_soap_html()
+        page = self._get_soup_html()
         session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
         cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
 
