@@ -1,7 +1,6 @@
 import re
 import time
 import logging
-import threading
 
 import requests
 from bs4 import BeautifulSoup
