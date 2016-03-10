@@ -24,12 +24,6 @@ class ValidationClient(Client):
         default_route_profile['status_error'] = False
         self.holistic_compliance_status = True
 
-        # for key in client.get_validation_properties():
-        #     default_route_profile[key] = profile_dict['default_route_profile'].pop(key)
-
-        # if len(profile_dict['default_route_profile']) > 0:
-        #    raise Exception('there were unathorized validation properties provided: {}'.format(profile_dict['default_route_profile']))
-
         for cluster in clusters:
 
             route_profiles = cluster.get('routes', {})

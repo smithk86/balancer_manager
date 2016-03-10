@@ -162,28 +162,6 @@ class Client:
 
         return None
 
-    def get_validation_properties(self):
-
-        if self.apache_version_is('2.2.'):
-
-            return [
-                'status_disabled',
-                'status_hot_standby'
-            ]
-
-        elif self.apache_version_is('2.4.'):
-
-            return [
-                'status_ignore_errors',
-                'status_draining_mode',
-                'status_disabled',
-                'status_hot_standby'
-            ]
-
-        else:
-
-            return []
-
     def _get_routes_from_apache(self):
 
         page = self._get_soup_html()
