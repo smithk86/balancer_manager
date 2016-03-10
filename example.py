@@ -13,6 +13,22 @@ from py_balancer_manager import printer
 requests.packages.urllib3.disable_warnings()
 
 
+class ClientThread(threading.Thread):
+
+    def __init__(self, client):
+        threading.Thread.__init__(self)
+
+        if type(client) is not Client:
+            raise TypeError('first argument must be of type py_balancer_manager.Client')
+
+        self.client = client
+        self.routes = None
+
+    def run(self):
+
+        self.routes = self.client.get_routes()
+
+
 class ClientAggregator:
 
     def __init__(self):

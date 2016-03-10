@@ -291,19 +291,3 @@ class Client:
 
         else:
             raise ValueError('this module only supports apache 2.2 and 2.4')
-
-
-class ClientThread(threading.Thread):
-
-    def __init__(self, client):
-        threading.Thread.__init__(self)
-
-        if type(client) is not Client:
-            raise TypeError('first argument must be of type py_balancer_manager.Client')
-
-        self.client = client
-        self.routes = None
-
-    def run(self):
-
-        self.routes = self.client.get_routes()
