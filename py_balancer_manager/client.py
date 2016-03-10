@@ -20,7 +20,7 @@ class ApacheVersionError(BalancerManagerError):
 
 class Client:
 
-    def __init__(self, url, verify_ssl_cert=True, username=None, password=None):
+    def __init__(self, url, verify_ssl_cert=True, username=None, password=None, cache_ttl=5):
 
         if verify_ssl_cert is False:
             logger.warn('ssl certificate verification is disabled')
@@ -32,7 +32,7 @@ class Client:
         self.apache_version = None
         self.request_exception = None
 
-        self.cache_ttl = 5
+        self.cache_ttl = cache_ttl
         self.cache_routes = None
         self.cache_routes_time = 0
 
@@ -153,9 +153,9 @@ class Client:
         else:
             return self.cache_routes
 
-    def get_route(self, cluster, name):
+    def get_route(self, cluster, name, use_cache=True):
 
-        for route in self.get_routes(cluster=cluster):
+        for route in self.get_routes(cluster=cluster, use_cache=use_cache):
             if route['route'] == name:
                 return route
 
