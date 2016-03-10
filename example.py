@@ -13,6 +13,40 @@ from py_balancer_manager import printer
 requests.packages.urllib3.disable_warnings()
 
 
+class ClientAggregator:
+
+    def __init__(self):
+        self.clients = {}
+
+    def add_client(self, client, client_id=None):
+
+        if type(client) is Client:
+
+            if client_id:
+                self.clients.client_id = client_id
+
+            self.clients.append(client)
+
+    def get_servers(self):
+
+        servers = []
+        threads = []
+
+        for client in self.clients:
+            threads.append(ClientThread(client))
+
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        for thread in threads:
+            servers.append(thread.routes)
+
+        return servers
+
+
 def main():
 
     parser = argparse.ArgumentParser()
@@ -43,7 +77,7 @@ def main():
 
     if len(urls) > 1:
 
-        clients = py_balancer_manager.ClientAggregator()
+        clients = ClientAggregator()
 
         for url in urls:
             clients.add_client(
