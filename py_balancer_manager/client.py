@@ -46,31 +46,32 @@ class Client:
 
     def _request_session_get(self, *args, **kwargs):
 
-        response = None
-
-        try:
-
-            response = self.session.get(*args, **kwargs)
-
-        except Exception as e:
-
-            logger.exception(e)
-            self.request_exception = e
-
-        return response
+        kwargs['method'] = 'get'
+        return self._request_session(*args, **kwargs)
 
     def _request_session_post(self, *args, **kwargs):
 
+        kwargs['method'] = 'post'
+        return self._request_session(*args, **kwargs)
+
+    def _request_session(self, *args, **kwargs):
+
+        request_method = kwargs.pop('method', 'get')
+
         response = None
 
         try:
 
-            response = self.session.post(*args, **kwargs)
+            response = getattr(self.session, request_method)(*args, **kwargs)
 
-        except Exception as e:
+            if response.status_code is not requests.codes.ok:
 
-            logger.exception(e)
+                response.raise_for_status()
+
+        except requests.exceptions.RequestException as e:
+
             self.request_exception = e
+            raise
 
         return response
 
