@@ -20,8 +20,7 @@ class ValidationClient(Client):
     def get_validated_routes(self, default_route_profile={}, clusters=[], enforce=False, use_cache=True):
 
         routes = []
-        default_route_profile['status_ok'] = True
-        default_route_profile['status_error'] = False
+
         self.holistic_compliance_status = True
 
         for cluster in clusters:
