@@ -17,7 +17,7 @@ class ValidationClient(Client):
 
         self.holistic_compliance_status = False
 
-    def get_validated_routes(self, default_route_profile={}, clusters=[], enforce=False):
+    def get_validated_routes(self, default_route_profile={}, clusters=[], enforce=False, use_cache=True):
 
         routes = []
         default_route_profile['status_ok'] = True
@@ -28,7 +28,7 @@ class ValidationClient(Client):
 
             route_profiles = cluster.get('routes', {})
 
-            for route in self.get_routes(cluster=cluster['name']):
+            for route in self.get_routes(cluster=cluster['name'], use_cache=use_cache):
 
                 profile = default_route_profile.copy()
                 profile.update(route_profiles.get(route['route'], {}))
