@@ -19,7 +19,7 @@ class ApacheVersionError(BalancerManagerError):
 
 class Client:
 
-    def __init__(self, url, verify_ssl_cert=True, username=None, password=None, cache_ttl=5):
+    def __init__(self, url, verify_ssl_cert=True, username=None, password=None, cache_ttl=60):
 
         if verify_ssl_cert is False:
             logger.warn('ssl certificate verification is disabled')
