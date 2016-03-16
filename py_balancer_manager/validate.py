@@ -70,10 +70,10 @@ class ValidationClient(Client):
         return routes
 
 
-def build_profile(host, default_route_profile, **kwargs):
+def build_profile(url, default_route_profile, **kwargs):
 
     client = Client(
-        host,
+        url,
         verify_ssl_cert=kwargs.get('verify_ssl_cert', True),
         username=kwargs.get('username', None),
         password=kwargs.get('password', None)
@@ -87,7 +87,7 @@ def build_profile(host, default_route_profile, **kwargs):
         }
 
     profile = OrderedDict()
-    profile['host'] = host
+    profile['url'] = url
     profile['username'] = kwargs.get('username', None)
     profile['password'] = kwargs.get('password', None)
     profile['verify_ssl_cert'] = kwargs.get('verify_ssl_cert', True)
