@@ -135,7 +135,7 @@ def main():
             except ValueError:
                 raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
 
-            abm.change_route_status(route, **_kwargs)
+            client.change_route_status(route, **_kwargs)
 
         else:
             raise NameError('no route was matched to the given cluster ({cluster}) and route ({route})'.format(cluster=args.cluster, route=args.route))
