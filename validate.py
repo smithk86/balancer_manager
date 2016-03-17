@@ -7,8 +7,7 @@ import requests
 import logging
 import json
 
-import py_balancer_manager
-from py_balancer_manager import printer
+from py_balancer_manager import ValidationClient, printer
 from py_balancer_manager.prettystring import PrettyString
 
 
@@ -21,7 +20,10 @@ def main():
     def print_routes(routes):
 
         for route in routes:
-            for key, status in route.get('_validate', {}).items():
+            for key, status in route.get('_validation_status', {}).items():
+                if key.startswith('_'):
+                    continue
+
                 route[key] = PrettyString(
                     '\u2713' if route[key] else '\u2717{}'.format('' if status else ' **'),
                     'green' if status else 'red'
@@ -52,17 +54,29 @@ def main():
         print('file does not exist: {profile}'.format(profile=getattr(args, 'profile-json')))
         sys.exit(1)
 
-    routes, compliance_status = py_balancer_manager.validate(profile_dict, enforce=args.enforce)
-    print_routes(routes)
+    client = ValidationClient(
+        profile_dict.get('url'),
+        profile=profile_dict,
+        username=profile_dict.get('username'),
+        password=profile_dict.get('password'),
+        verify_ssl_cert=profile_dict.get('verify_ssl_cert')
+    )
 
-    if args.enforce and compliance_status is False:
+    print_routes(
+        client.get_routes()
+    )
+
+    if args.enforce and client.holistic_compliance_status is False:
         print()
         print(PrettyString('***** compliance has been enforced *****', 'red'))
 
-        routes, compliance_status = py_balancer_manager.validate(profile_dict)
-        print_routes(routes)
+        client.enforce()
 
-        if compliance_status is False:
+        print_routes(
+            client.get_routes()
+        )
+
+        if client.holistic_compliance_status is False:
             raise Exception('profile has been enforced but still not compliant')
 
 

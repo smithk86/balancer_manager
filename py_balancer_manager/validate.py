@@ -13,61 +13,77 @@ class ValidationClient(Client):
 
     def __init__(self, *args, **kwargs):
 
-        super(ValidationClient, self).__init__(*args, **kwargs)
-
+        self.profile = kwargs.pop('profile')
         self.holistic_compliance_status = False
 
-    def get_validated_routes(self, default_route_profile={}, clusters=[], enforce=False, use_cache=True):
+        if self.profile is None:
 
-        routes = []
+            raise TypeError('self.profile is TypeNone')
+
+        super(ValidationClient, self).__init__(*args, **kwargs)
+
+    def _get_routes_from_apache(self):
+
+        routes = super(ValidationClient, self)._get_routes_from_apache()
 
         self.holistic_compliance_status = True
 
-        for cluster in clusters:
+        for route in routes:
 
-            route_profiles = cluster.get('routes', {})
+            route_profiles = self._get_cluster_routes_from_profile(route['cluster'])
 
-            for route in self.get_routes(cluster=cluster['name'], use_cache=use_cache):
+            # build profile for this route
+            route['_validation_profile'] = self.profile['default_route_profile'].copy()
+            route['_validation_profile'].update(route_profiles.get(route['route'], {}))
 
-                profile = default_route_profile.copy()
-                profile.update(route_profiles.get(route['route'], {}))
+            # create a special '_validation_status' key which will contain a dict of the validation data
+            route['_validation_status'] = {}
+            route['_validation_status']['_holistic'] = True
 
-                # create a special '_validate' key which will contain a dict of the validation data
-                route['_validate'] = {}
-                profile_compliance_status = True
-
-                # for each validated route, push a tuple of the key and its validation status (True/False)
-                for key, value in route.items():
-                    if key in profile:
-                        if route[key] == profile[key]:
-                            route['_validate'][key] = True
-                        else:
-                            route['_validate'][key] = False
-                            profile_compliance_status = False
-                            self.holistic_compliance_status = False
-
-                route['_validate']['_holistic'] = profile_compliance_status
-
-                if enforce and profile_compliance_status is False:
-
-                    logger.info('enforcing profile for {cluster}->{route}'.format(**route))
-
-                    status_dict = {}
-                    status_dict['status_disabled'] = profile.get('status_disabled')
-
-                    if self.apache_version_is('2.4.'):
-                        status_dict['status_ignore_errors'] = profile.get('status_ignore_errors')
-                        status_dict['status_draining_mode'] = profile.get('status_draining_mode')
-                        status_dict['status_hot_standby'] = profile.get('status_hot_standby')
-
-                    self.change_route_status(
-                        route,
-                        **status_dict
-                    )
-
-                routes.append(route)
+            # --- update ----
+            for key in route.keys():
+                if key in route['_validation_profile']:
+                    if route[key] == route['_validation_profile'][key]:
+                        route['_validation_status'][key] = True
+                    else:
+                        route['_validation_status'][key] = False
+                        route['_validation_status']['_holistic'] = False
+                        self.holistic_compliance_status = False
 
         return routes
+
+    def enforce(self):
+
+        for route in self.get_routes():
+
+            validation_status = route.get('_validation_status', {})
+            validation_profile = route.get('_validation_profile', {})
+
+            if validation_status.get('_holistic') is False:
+
+                logger.info('enforcing profile for {cluster}->{route}'.format(**route))
+
+                # build status dictionary to enforce
+                route_statuses = {}
+                route_statuses['status_disabled'] = validation_profile.get('status_disabled')
+
+                if self.apache_version_is('2.4.'):
+                    route_statuses['status_ignore_errors'] = validation_profile.get('status_ignore_errors')
+                    route_statuses['status_draining_mode'] = validation_profile.get('status_draining_mode')
+                    route_statuses['status_hot_standby'] = validation_profile.get('status_hot_standby')
+
+                self.change_route_status(
+                    route,
+                    **route_statuses
+                )
+
+    def _get_cluster_routes_from_profile(self, cluster_name):
+
+        for cluster in self.profile['clusters']:
+            if cluster.get('name') == cluster_name:
+                return cluster.get('routes', {})
+
+        return {}
 
 
 def build_profile(url, default_route_profile, **kwargs):

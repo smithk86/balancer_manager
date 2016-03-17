@@ -111,6 +111,7 @@ class Client:
         return BeautifulSoup(req.text, 'html.parser')
 
     def _get_empty_route_dictionary(self):
+
         return {
             'url': None,
             'route': None,
@@ -140,7 +141,16 @@ class Client:
 
         now = time.time()
 
-        if self.cache_routes is None or self.cache_routes_time < (now - self.cache_ttl):
+        # if cache is expired
+        if self.cache_routes_time < (now - self.cache_ttl):
+            self.cache_routes = None
+
+        # if use_cache has been set to False
+        if use_cache is False:
+            self.cache_routes = None
+
+        if not self.cache_routes:
+            logger.debug('refreshing route cache')
             self.cache_routes = self._get_routes_from_apache()
             self.cache_routes_time = now
 
@@ -290,3 +300,6 @@ class Client:
 
         else:
             raise ValueError('this module only supports apache 2.2 and 2.4')
+
+        # expire cache to force refresh
+        self.cache_routes_time = 0
