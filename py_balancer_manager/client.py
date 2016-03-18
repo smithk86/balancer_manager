@@ -68,7 +68,7 @@ class Client:
         except requests.exceptions.RequestException as e:
 
             self.request_exception = e
-            raise
+            raise BalancerManagerError(e)
 
         return response
 
@@ -98,6 +98,10 @@ class Client:
             return self.apache_version.startswith(version)
         else:
             raise ApacheVersionError('no apache version has been set')
+
+    def test(self):
+
+        self._request_session_get(self.url, verify=self.verify_ssl_cert)
 
     def _get_soup_html(self):
 
