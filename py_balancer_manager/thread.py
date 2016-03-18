@@ -1,5 +1,8 @@
 import sys
 import threading
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ClientRefreshRouteThread(threading.Thread):
@@ -20,4 +23,5 @@ class ClientRefreshRouteThread(threading.Thread):
 
         except Exception as e:
 
-            VmcConnectThread.exc_info.append(sys.exc_info())
+            ClientRefreshRouteThread.exc_info.append(sys.exc_info())
+            logger.exception(e)
