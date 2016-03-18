@@ -104,8 +104,6 @@ def build_profile(url, default_route_profile, **kwargs):
 
     profile = OrderedDict()
     profile['url'] = url
-    profile['username'] = kwargs.get('username', None)
-    profile['password'] = kwargs.get('password', None)
     profile['verify_ssl_cert'] = kwargs.get('verify_ssl_cert', True)
     profile['default_route_profile'] = default_route_profile
     profile['clusters'] = list()
