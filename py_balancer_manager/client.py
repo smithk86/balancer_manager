@@ -12,9 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class ApacheVersionError(BalancerManagerError):
-
-    def __init__(self, *args, **kwargs):
-        super(ApacheVersionError, self).__init__(self, *args, **kwargs)
+    pass
 
 
 class Client:
