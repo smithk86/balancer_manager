@@ -98,8 +98,7 @@ def build_profile(url, default_route_profile, **kwargs):
     # apache 2.2 only supports 'disabled' and 'hot standby'
     if client.apache_version_is('2.2.'):
         default_route_profile = {
-            'status_disabled': default_route_profile.get('status_disabled'),
-            'status_hot_standby': default_route_profile.get('status_hot_standby')
+            'status_disabled': default_route_profile.get('status_disabled')
         }
 
     profile = OrderedDict()
