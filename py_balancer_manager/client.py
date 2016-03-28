@@ -24,8 +24,6 @@ class Client:
 
         self.url = url
         self.verify_ssl_cert = verify_ssl_cert
-        self.auth_username = username
-        self.auth_password = password
         self.apache_version = None
         self.request_exception = None
 
@@ -38,8 +36,8 @@ class Client:
             'User-agent': 'py_balancer_manager.Client'
         })
 
-        if self.auth_username and self.auth_password:
-            self.session.auth = (self.auth_username, self.auth_password)
+        if username and password:
+            self.session.auth = (username, password)
 
     def _request_session_get(self, *args, **kwargs):
 
