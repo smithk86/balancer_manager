@@ -28,9 +28,11 @@ def main():
     logging.basicConfig(level=log_level)
 
     if args.password:
-        password = getpass('password # ')
-    else:
+        password = getpass.getpass('password # ')
+    elif os.environ.get('PASSWORD'):
         password = os.environ.get('PASSWORD')
+    else:
+        password = None
 
     default_route_profile = {
         'status_ignore_errors': False,

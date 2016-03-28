@@ -86,9 +86,11 @@ def main():
     logging.basicConfig(level=log_level)
 
     if args.password:
-        password = getpass('password # ')
-    else:
+        password = getpass.getpass('password # ')
+    elif os.environ.get('PASSWORD'):
         password = os.environ.get('PASSWORD')
+    else:
+        password = None
 
     urls = getattr(args, 'balance-manager-url').split(',')
 

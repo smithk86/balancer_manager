@@ -59,6 +59,8 @@ def main():
 
     if args.password:
         password = getpass.getpass('password # ')
+    elif os.environ.get('PASSWORD'):
+        password = os.environ.get('PASSWORD')
     else:
         password = None
 
