@@ -86,7 +86,7 @@ def main():
     logging.basicConfig(level=log_level)
 
     if args.password:
-        password = getpass.getpass('password # ')
+        password = getpass('password # ')
     elif os.environ.get('PASSWORD'):
         password = os.environ.get('PASSWORD')
     else:

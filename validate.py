@@ -3,10 +3,10 @@
 import sys
 import os
 import argparse
-import getpass
 import requests
 import logging
 import json
+from getpass import getpass
 
 from py_balancer_manager import ValidationClient, printer
 from py_balancer_manager.prettystring import PrettyString
@@ -58,7 +58,7 @@ def main():
         sys.exit(1)
 
     if args.password:
-        password = getpass.getpass('password # ')
+        password = getpass('password # ')
     elif os.environ.get('PASSWORD'):
         password = os.environ.get('PASSWORD')
     else:

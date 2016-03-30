@@ -2,10 +2,10 @@
 
 import os
 import argparse
-from getpass import getpass
 import requests
 import logging
 import json
+from getpass import getpass
 
 from py_balancer_manager import build_profile
 
@@ -28,7 +28,7 @@ def main():
     logging.basicConfig(level=log_level)
 
     if args.password:
-        password = getpass.getpass('password # ')
+        password = getpass('password # ')
     elif os.environ.get('PASSWORD'):
         password = os.environ.get('PASSWORD')
     else:
