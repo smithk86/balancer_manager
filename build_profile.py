@@ -16,10 +16,25 @@ requests.packages.urllib3.disable_warnings()
 
 def main():
 
+    def get_bool(value):
+
+        if value is None:
+            return False
+        elif value.lower() in ['true', '1', 'y', 'yes']:
+            return True
+        elif value.lower() in ['false', '0', 'n', 'no']:
+            return False
+        else:
+            raise ValueError('could not parse "{value}" to boolean'.format(**locals()))
+
     parser = argparse.ArgumentParser()
     parser.add_argument('balance-manager-url')
     parser.add_argument('-u', '--username', default=None)
     parser.add_argument('-p', '--password', action='store_true', default=False)
+    parser.add_argument('--default-ignore-errors', dest='default_ignore_errors', default=None)
+    parser.add_argument('--default-draining-mode', dest='default_draining_mode', default=None)
+    parser.add_argument('--default-disabled', dest='default_disabled', default=None)
+    parser.add_argument('--default-hot-standby', dest='default_hot_standby', default=None)
     parser.add_argument('-k', '--insecure', help='ignore ssl certificate errors', action='store_true', default=False)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
     args = parser.parse_args()
@@ -35,10 +50,10 @@ def main():
         password = None
 
     default_route_profile = {
-        'status_ignore_errors': False,
-        'status_draining_mode': False,
-        'status_disabled': False,
-        'status_hot_standby': False
+        'status_ignore_errors': get_bool(args.default_ignore_errors),
+        'status_draining_mode': get_bool(args.default_draining_mode),
+        'status_disabled': get_bool(args.default_disabled),
+        'status_hot_standby': get_bool(args.default_hot_standby),
     }
 
     profile_dict = build_profile(getattr(args, 'balance-manager-url'), default_route_profile, username=args.username, password=password, verify_ssl_cert=not args.insecure)

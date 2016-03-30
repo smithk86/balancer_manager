@@ -66,6 +66,17 @@ class ClientAggregator:
 
 def main():
 
+    def get_bool(value):
+
+        if value is None:
+            return False
+        elif value.lower() in ['true', '1', 'y', 'yes']:
+            return True
+        elif value.lower() in ['false', '0', 'n', 'no']:
+            return False
+        else:
+            raise ValueError('could not parse "{value}" to boolean'.format(**locals()))
+
     parser = argparse.ArgumentParser()
     parser.add_argument('balance-manager-url')
     parser.add_argument('-l', '--list', dest='list_routes', action='store_true', default=False)
@@ -127,13 +138,13 @@ def main():
             _kwargs = {}
             try:
                 if args.ignore_errors is not None:
-                    _kwargs['status_ignore_errors'] = bool(int(args.ignore_errors))
+                    _kwargs['status_ignore_errors'] = get_bool(args.ignore_errors)
                 if args.draining_mode is not None:
-                    _kwargs['status_draining_mode'] = bool(int(args.draining_mode))
+                    _kwargs['status_draining_mode'] = get_bool(args.draining_mode)
                 if args.disabled is not None:
-                    _kwargs['status_disabled'] = bool(int(args.disabled))
+                    _kwargs['status_disabled'] = get_bool(args.disabled)
                 if args.hot_standby is not None:
-                    _kwargs['status_ignore_errors'] = bool(int(args.hot_standby))
+                    _kwargs['status_ignore_errors'] = get_bool(args.hot_standby)
             except ValueError:
                 raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
 
