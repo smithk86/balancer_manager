@@ -17,13 +17,13 @@ class ApacheVersionError(BalancerManagerError):
 
 class Client:
 
-    def __init__(self, url, verify_ssl_cert=True, username=None, password=None, cache_ttl=60):
+    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60):
 
-        if verify_ssl_cert is False:
+        if insecure is True:
             logger.warn('ssl certificate verification is disabled')
 
         self.url = url
-        self.verify_ssl_cert = verify_ssl_cert
+        self.insecure = insecure
         self.apache_version = None
         self.request_exception = None
 
@@ -99,11 +99,11 @@ class Client:
 
     def test(self):
 
-        self._request_session_get(self.url, verify=self.verify_ssl_cert)
+        self._request_session_get(self.url, verify=not self.insecure)
 
     def _get_soup_html(self):
 
-        req = self._request_session_get(self.url, verify=self.verify_ssl_cert)
+        req = self._request_session_get(self.url, verify=not self.insecure)
 
         if req.status_code is not requests.codes.ok:
             req.raise_for_status()
@@ -283,7 +283,7 @@ class Client:
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
-            self._request_session_post(self.url, data=post_data, verify=self.verify_ssl_cert)
+            self._request_session_post(self.url, data=post_data, verify=not self.insecure)
 
         elif self.apache_version_is('2.2.'):
             get_data = {
@@ -296,7 +296,7 @@ class Client:
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
-            self._request_session_get(self.url, params=get_data, verify=self.verify_ssl_cert)
+            self._request_session_get(self.url, params=get_data, verify=not self.insecure)
 
         else:
             raise ValueError('this module only supports apache 2.2 and 2.4')

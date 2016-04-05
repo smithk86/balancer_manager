@@ -69,7 +69,7 @@ def main():
         profile=profile_dict,
         username=args.username,
         password=password,
-        verify_ssl_cert=profile_dict.get('verify_ssl_cert')
+        insecure=profile_dict.get('insecure')
     )
 
     print_routes(

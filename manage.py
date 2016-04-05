@@ -111,13 +111,13 @@ def main():
 
         for url in urls:
             clients.add_client(
-                py_balancer_manager.Client(url, verify_ssl_cert=not args.insecure, username=args.username, password=password)
+                py_balancer_manager.Client(url, insecure=args.insecure, username=args.username, password=password)
             )
 
         routes = clients.get_routes()
 
     else:
-        client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), verify_ssl_cert=not args.insecure, username=args.username, password=password)
+        client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), insecure=args.insecure, username=args.username, password=password)
         routes = client.get_routes(cluster=args.cluster)
 
     if args.list_routes:

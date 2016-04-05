@@ -56,7 +56,7 @@ def main():
         'status_hot_standby': get_bool(args.default_hot_standby),
     }
 
-    profile_dict = build_profile(getattr(args, 'balance-manager-url'), default_route_profile, username=args.username, password=password, verify_ssl_cert=not args.insecure)
+    profile_dict = build_profile(getattr(args, 'balance-manager-url'), default_route_profile, username=args.username, password=password, insecure=args.insecure)
 
     print(json.dumps(profile_dict, indent=4))
 

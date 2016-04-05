@@ -90,7 +90,7 @@ def build_profile(url, default_route_profile, **kwargs):
 
     client = Client(
         url,
-        verify_ssl_cert=kwargs.get('verify_ssl_cert', True),
+        insecure=kwargs.get('insecure', True),
         username=kwargs.get('username', None),
         password=kwargs.get('password', None)
     )
@@ -103,7 +103,7 @@ def build_profile(url, default_route_profile, **kwargs):
 
     profile = OrderedDict()
     profile['url'] = url
-    profile['verify_ssl_cert'] = kwargs.get('verify_ssl_cert', True)
+    profile['insecure'] = kwargs.get('insecure', True)
     profile['default_route_profile'] = default_route_profile
     profile['clusters'] = list()
 
