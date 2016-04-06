@@ -19,6 +19,9 @@ class Client:
 
     def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60):
 
+        if type(insecure) is not bool:
+            raise TypeError('insecure must be type bool')
+
         if insecure is True:
             logger.warn('ssl certificate verification is disabled')
 
