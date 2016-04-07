@@ -118,6 +118,7 @@ class Client:
         return {
             'worker': None,
             'route': None,
+            'priority': -1,
             'route_redir': None,
             'factor': None,
             'set': None,
@@ -186,7 +187,7 @@ class Client:
         # only iterate through even tables
         # odd tables contain data about the cluster itself
         for table in tables[1::2]:
-            for row in table.find_all('tr'):
+            for i, row in enumerate(table.find_all('tr')):
                 route = row.find_all('td')
                 if len(route) > 0:
                     cells = row.find_all('td')
@@ -209,6 +210,7 @@ class Client:
                     if self.apache_version_is('2.4.'):
                         route_dict['worker'] = cells[0].find('a').string
                         route_dict['route'] = cells[1].string
+                        route_dict['priority'] = i
                         route_dict['route_redir'] = cells[2].string
                         route_dict['factor'] = cells[3].string
                         route_dict['set'] = cells[4].string
@@ -229,6 +231,7 @@ class Client:
                     elif self.apache_version_is('2.2.'):
                         route_dict['worker'] = cells[0].find('a').string
                         route_dict['route'] = cells[1].string
+                        route_dict['priority'] = i
                         route_dict['route_redir'] = cells[2].string
                         route_dict['factor'] = cells[3].string
                         route_dict['set'] = cells[4].string
