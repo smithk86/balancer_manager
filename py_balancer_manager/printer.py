@@ -61,10 +61,10 @@ def routes(routes, verbose=False):
         for route in routes:
 
             rows.append([
-                PrettyString(_get_value(route['apache_manager_url']), 'cyan'),
+                PrettyString(_get_value(route['url']), 'cyan'),
                 _get_value(route['apache_version']),
                 _get_value(route['cluster']),
-                PrettyString(_get_value(route['url']), 'yellow'),
+                PrettyString(_get_value(route['worker']), 'yellow'),
                 _get_value(route['route']),
                 _get_value(route['route_redir']),
                 _get_value(route['factor']),
@@ -87,9 +87,9 @@ def routes(routes, verbose=False):
 
         for route in routes:
             rows.append([
-                PrettyString(_get_value(route['apache_manager_url']), 'cyan'),
+                PrettyString(_get_value(route['url']), 'cyan'),
                 _get_value(route['cluster']),
-                PrettyString(_get_value(route['url']), 'yellow'),
+                PrettyString(_get_value(route['worker']), 'yellow'),
                 _get_value(route['route']),
                 _get_value(route['status_ok']),
                 _get_value(route['status_error']),

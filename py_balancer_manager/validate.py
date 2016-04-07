@@ -102,7 +102,7 @@ def build_profile(url, default_route_profile, **kwargs):
         }
 
     profile = OrderedDict()
-    profile['url'] = url
+    profile['worker'] = url
     profile['insecure'] = kwargs.get('insecure', True)
     profile['default_route_profile'] = default_route_profile
     profile['clusters'] = list()

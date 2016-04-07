@@ -116,7 +116,7 @@ class Client:
     def _get_empty_route_dictionary(self):
 
         return {
-            'url': None,
+            'worker': None,
             'route': None,
             'route_redir': None,
             'factor': None,
@@ -134,7 +134,7 @@ class Client:
             'from': None,
             'session_nonce_uuid': None,
             'cluster': None,
-            'apache_manager_url': self.url,
+            'url': self.url,
             'apache_version': self.apache_version
         }
 
@@ -207,7 +207,7 @@ class Client:
                     route_dict = self._get_empty_route_dictionary()
 
                     if self.apache_version_is('2.4.'):
-                        route_dict['url'] = cells[0].find('a').string
+                        route_dict['worker'] = cells[0].find('a').string
                         route_dict['route'] = cells[1].string
                         route_dict['route_redir'] = cells[2].string
                         route_dict['factor'] = cells[3].string
@@ -227,7 +227,7 @@ class Client:
                         route_dict['cluster'] = cluster_name
 
                     elif self.apache_version_is('2.2.'):
-                        route_dict['url'] = cells[0].find('a').string
+                        route_dict['worker'] = cells[0].find('a').string
                         route_dict['route'] = cells[1].string
                         route_dict['route_redir'] = cells[2].string
                         route_dict['factor'] = cells[3].string
@@ -282,7 +282,7 @@ class Client:
                 'w_status_N': int(route['status_draining_mode']),
                 'w_status_D': int(route['status_disabled']),
                 'w_status_H': int(route['status_hot_standby']),
-                'w': route['url'],
+                'w': route['worker'],
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }
@@ -295,7 +295,7 @@ class Client:
                 'wr': route['route'],
                 'rr': '',
                 'dw': 'Disable' if route['status_disabled'] else 'Enable',
-                'w': route['url'],
+                'w': route['worker'],
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
             }

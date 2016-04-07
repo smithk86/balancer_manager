@@ -65,7 +65,7 @@ def main():
         password = None
 
     client = ValidationClient(
-        profile_dict.get('url'),
+        profile_dict.get('worker'),
         profile=profile_dict,
         username=args.username,
         password=password,
