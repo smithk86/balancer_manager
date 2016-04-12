@@ -17,7 +17,7 @@ def _decode_data_useage(usage_string):
 
     try:
         # match string from manager page to number + kilo/mega/giga/tera-byte
-        match = re.match('([\d\.]*)([KMGT])', usage_string)
+        match = re.match('([\d\.]*)([KMGT]?)', usage_string)
         if match:
             num = float(match.group(1))
             scale_code = match.group(2)
@@ -29,6 +29,8 @@ def _decode_data_useage(usage_string):
                 return int(num * 1000000000)
             elif scale_code == 'T':
                 return int(num * 1000000000000)
+            else:
+                return int(num)
         elif usage_string == '0':
             return 0
 
