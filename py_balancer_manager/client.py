@@ -92,8 +92,9 @@ class Client:
             response = getattr(self.session, request_method)(*args, **kwargs)
 
             if response.status_code is not requests.codes.ok:
-
                 response.raise_for_status()
+            else:
+                self.request_exception = None
 
         except requests.exceptions.RequestException as e:
 
