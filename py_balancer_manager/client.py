@@ -46,7 +46,7 @@ class ApacheVersionError(BalancerManagerError):
 
 class Client:
 
-    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60):
+    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30):
 
         if type(insecure) is not bool:
             raise TypeError('insecure must be type bool')
@@ -55,6 +55,8 @@ class Client:
             logger.warning('ssl certificate verification is disabled')
 
         self.url = url
+        self.timeout = timeout
+
         self.insecure = insecure
         self.apache_version = None
         self.request_exception = None
@@ -86,6 +88,9 @@ class Client:
         return self._request_session(*args, **kwargs)
 
     def _request_session(self, *args, **kwargs):
+
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = self.timeout
 
         request_method = kwargs.pop('method', 'get')
 
