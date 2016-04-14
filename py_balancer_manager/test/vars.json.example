@@ -1,0 +1,17 @@
+{
+	"servers": [
+		{
+			"url": "http://192.168.1.100/balancer-manager",
+			"version": "2.2",
+			"username": "user",
+			"password": "passwd"
+		},
+		{
+			"url": "https://192.168.1.101/balancer-manager",
+			"insecure": true,
+			"version": "2.4",
+			"username": "user",
+			"password": "passwd"
+		}
+	]
+}
