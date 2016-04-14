@@ -71,6 +71,10 @@ class Client:
         if username and password:
             self.session.auth = (username, password)
 
+    def close(self):
+
+        self.session.close()
+
     def _request_session_get(self, *args, **kwargs):
 
         kwargs['method'] = 'get'
