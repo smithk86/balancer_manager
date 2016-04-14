@@ -52,7 +52,7 @@ class Client:
             raise TypeError('insecure must be type bool')
 
         if insecure is True:
-            logger.warn('ssl certificate verification is disabled')
+            logger.warning('ssl certificate verification is disabled')
 
         self.url = url
         self.insecure = insecure
