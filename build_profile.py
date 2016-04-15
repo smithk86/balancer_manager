@@ -28,19 +28,21 @@ def main():
             raise ValueError('could not parse "{value}" to boolean'.format(**locals()))
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('balance-manager-url')
+    parser.add_argument('-U', '--url', default=None)
+    parser.add_argument('-c', '--container', default=None)
+    parser.add_argument('-n', '--profile', default=None)
+    parser.add_argument('-D', '--default', action='store_true', default=False)
     parser.add_argument('-u', '--username', default=None)
     parser.add_argument('-p', '--password', action='store_true', default=False)
-    parser.add_argument('--default-ignore-errors', dest='default_ignore_errors', default=None)
-    parser.add_argument('--default-draining-mode', dest='default_draining_mode', default=None)
-    parser.add_argument('--default-disabled', dest='default_disabled', default=None)
-    parser.add_argument('--default-hot-standby', dest='default_hot_standby', default=None)
+    parser.add_argument('-P', '--pretty', action='store_true', default=False)
     parser.add_argument('-k', '--insecure', help='ignore ssl certificate errors', action='store_true', default=False)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
     args = parser.parse_args()
 
     log_level = logging.DEBUG if args.debug else logging.WARN
     logging.basicConfig(level=log_level)
+
+    container = json.loads(args.container) if args.container else None
 
     if args.password:
         password = getpass('password # ')
@@ -49,16 +51,13 @@ def main():
     else:
         password = None
 
-    default_route_profile = {
-        'status_ignore_errors': get_bool(args.default_ignore_errors),
-        'status_draining_mode': get_bool(args.default_draining_mode),
-        'status_disabled': get_bool(args.default_disabled),
-        'status_hot_standby': get_bool(args.default_hot_standby),
-    }
+    profile_dict = build_profile(url=args.url, container=container, profile_name=args.profile, username=args.username, password=password, insecure=args.insecure)
 
-    profile_dict = build_profile(getattr(args, 'balance-manager-url'), default_route_profile, username=args.username, password=password, insecure=args.insecure)
+    if args.pretty:
+        print(json.dumps(profile_dict, indent=4))
+    else:
+        print(json.dumps(profile_dict))
 
-    print(json.dumps(profile_dict, indent=4))
 
 if __name__ == '__main__':
 

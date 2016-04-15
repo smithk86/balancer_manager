@@ -5,72 +5,86 @@ import logging
 from collections import OrderedDict
 
 from .client import Client
+from .errors import ValidationClientError
+
 
 logger = logging.getLogger(__name__)
+
+
+allowed_statuses = ['status_disabled', 'status_hot_standby', 'status_draining_mode', 'status_ignore_errors']
+allowed_statuses_apache_22 = ['status_disabled']
 
 
 class ValidationClient(Client):
 
     def __init__(self, *args, **kwargs):
 
-        self.profile = kwargs.pop('profile')
         self.holistic_compliance_status = False
-
-        if self.profile is None:
-
-            raise TypeError('self.profile is TypeNone')
+        self.container = kwargs.pop('container')
+        profile_name = kwargs.pop('profile', 'default')
+        self.set_profile(profile_name)
 
         super(ValidationClient, self).__init__(*args, **kwargs)
 
+    def set_profile(self, profile_name):
+
+        try:
+            self.profile = self.container['profiles'][profile_name]
+        except KeyError:
+            self.profile = None
+            raise ValidationClientError('profile does not exist -> {profile_name}'.format(**locals()))
+
     def _get_routes_from_apache(self):
 
-        routes = super(ValidationClient, self)._get_routes_from_apache()
+        global allowed_statuses
+        global allowed_statuses_apache_22
+
+        if self.apache_version_is('2.2'):
+            allowed_statuses = allowed_statuses_apache_22
 
         self.holistic_compliance_status = True
 
+        routes = super(ValidationClient, self)._get_routes_from_apache()
+
         for route in routes:
 
+            route['compliance_status'] = True
             route_profiles = self._get_cluster_routes_from_profile(route['cluster'])
+            enabled_statuses_from_route_profile = route_profiles.get(route['route'], {})
 
-            # build profile for this route
-            route['_validation_profile'] = self.profile['default_route_profile'].copy()
-            route['_validation_profile'].update(route_profiles.get(route['route'], {}))
+            for status in allowed_statuses:
+                route[status] = {
+                    'value': route[status],
+                    'profile': status in enabled_statuses_from_route_profile,
+                }
 
-            # create a special '_validation_status' key which will contain a dict of the validation data
-            route['_validation_status'] = {}
-            route['_validation_status']['_holistic'] = True
-
-            # --- update ----
-            for key in route.keys():
-                if key in route['_validation_profile']:
-                    if route[key] == route['_validation_profile'][key]:
-                        route['_validation_status'][key] = True
-                    else:
-                        route['_validation_status'][key] = False
-                        route['_validation_status']['_holistic'] = False
-                        self.holistic_compliance_status = False
+                if route[status]['value'] is route[status]['profile']:
+                    route[status]['valid'] = True
+                else:
+                    route[status]['valid'] = False
+                    route['compliance_status'] = False
+                    self.holistic_compliance_status = False
 
         return routes
 
     def enforce(self):
 
+        global allowed_statuses
+        global allowed_statuses_apache_22
+
+        if self.apache_version_is('2.2'):
+            allowed_statuses = allowed_statuses_apache_22
+
         for route in self.get_routes():
 
-            validation_status = route.get('_validation_status', {})
-            validation_profile = route.get('_validation_profile', {})
-
-            if validation_status.get('_holistic') is False:
+            if route.get('compliance_status') is False:
 
                 logger.info('enforcing profile for {cluster}->{route}'.format(**route))
 
                 # build status dictionary to enforce
                 route_statuses = {}
-                route_statuses['status_disabled'] = validation_profile.get('status_disabled')
-
-                if self.apache_version_is('2.4.'):
-                    route_statuses['status_ignore_errors'] = validation_profile.get('status_ignore_errors')
-                    route_statuses['status_draining_mode'] = validation_profile.get('status_draining_mode')
-                    route_statuses['status_hot_standby'] = validation_profile.get('status_hot_standby')
+                for status in allowed_statuses:
+                    route_statuses[status] = route[status]['profile']
 
                 self.change_route_status(
                     route,
@@ -86,26 +100,56 @@ class ValidationClient(Client):
         return {}
 
 
-def build_profile(url, default_route_profile, **kwargs):
+def build_profile(url=None, container=None, profile_name='default', default=False, insecure=False, username=None, password=None):
 
-    client = Client(
-        url,
-        insecure=kwargs.get('insecure', True),
-        username=kwargs.get('username', None),
-        password=kwargs.get('password', None)
-    )
+    global allowed_statuses
+    global allowed_statuses_apache_22
 
-    # apache 2.2 only supports 'disabled' and 'hot standby'
-    if client.apache_version_is('2.2.'):
-        default_route_profile = {
-            'status_disabled': default_route_profile.get('status_disabled')
-        }
+    if url is None and container is None:
+        raise ValueError('url and container cannot both be null')
 
-    profile = OrderedDict()
-    profile['url'] = url
-    profile['insecure'] = kwargs.get('insecure', True)
-    profile['default_route_profile'] = default_route_profile
-    profile['clusters'] = list()
+    # init client with container settings
+    if container:
+
+        client = Client(
+            container.get('url'),
+            insecure=container.get('insecure'),
+            username=username,
+            password=password
+        )
+
+        # if default is True, remove the default key from all other profiles
+        if default:
+            for profile in container['profiles']:
+                profile.pep('default')
+
+    # create a new container if none was passed
+    else:
+
+        client = Client(
+            url,
+            insecure=insecure,
+            username=username,
+            password=password
+        )
+
+        container = OrderedDict()
+        container['url'] = url
+        container['insecure'] = insecure
+        container['profiles'] = {}
+
+    if client.apache_version_is('2.2'):
+        allowed_statuses = allowed_statuses_apache_22
+
+    # raise error if profile name exists
+    if profile_name in container['profiles']:
+        raise KeyError('profile name exists: {profile_name}'.format(**locals()))
+
+    # build empty profile
+    profile = {
+        'clusters': list(),
+        'default': len(container['profiles']) == 0 or default
+    }
 
     routes = client.get_routes()
 
@@ -124,18 +168,23 @@ def build_profile(url, default_route_profile, **kwargs):
 
         for route in client.get_routes(cluster=cluster):
 
-            entries = {}
+            enabled_statuses = []
 
-            for status_key in default_route_profile.keys():
-                if default_route_profile[status_key] != route[status_key]:
-                    entries[status_key] = route[status_key]
+            for key, value in route.items():
+                if key not in allowed_statuses:
+                    continue
 
-            if len(entries) > 0:
-                cluster_profile['routes'][route['route']] = entries
+                if value is True:
+                    enabled_statuses.append(key)
 
-        if len(cluster_profile['routes']) == 0:
-            del(cluster_profile['routes'])
+            if len(enabled_statuses) > 0:
+                cluster_profile['routes'][route['route']] = enabled_statuses
+
+        # if len(cluster_profile['routes']) == 0:
+        #     del(cluster_profile['routes'])
 
         profile['clusters'].append(cluster_profile)
 
-    return profile
+    container['profiles'][profile_name] = profile
+
+    return container

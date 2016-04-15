@@ -11,8 +11,10 @@ def routes(routes, verbose=False):
                 return 'X'
             else:
                 return ''
+        elif type(val) is dict:
+            return _get_value(val['value'])
         else:
-            return val
+            return str(val)
 
     rows = []
 
