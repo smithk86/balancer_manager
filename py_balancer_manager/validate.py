@@ -67,6 +67,25 @@ class ValidationClient(Client):
 
         return routes
 
+    def change_route_status(self, route, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
+
+        """ convert route statuses back to a simple bool so that it is compatible with the original Client object """
+
+        for key, val in route.items():
+            if key.startswith('status_') and type(val) is dict:
+                route[key] = route[key]['value']
+
+        import pprint
+        pprint.PrettyPrinter(indent=4).pprint(route)
+
+        super(ValidationClient, self).change_route_status(
+            route,
+            status_ignore_errors=status_ignore_errors,
+            status_draining_mode=status_draining_mode,
+            status_disabled=status_disabled,
+            status_hot_standby=status_hot_standby
+        )
+
     def enforce(self):
 
         global allowed_statuses
