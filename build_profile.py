@@ -30,7 +30,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-U', '--url', default=None)
     parser.add_argument('-c', '--container', default=None)
-    parser.add_argument('-n', '--profile', default=None)
+    parser.add_argument('-n', '--profile', default='default')
     parser.add_argument('-D', '--default', action='store_true', default=False)
     parser.add_argument('-u', '--username', default=None)
     parser.add_argument('-p', '--password', action='store_true', default=False)
