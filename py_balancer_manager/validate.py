@@ -11,8 +11,8 @@ from .errors import ValidationClientError
 logger = logging.getLogger(__name__)
 
 
-allowed_statuses = ['status_disabled', 'status_hot_standby', 'status_draining_mode', 'status_ignore_errors']
-allowed_statuses_apache_22 = ['status_disabled']
+_allowed_statuses = ['status_disabled', 'status_hot_standby', 'status_draining_mode', 'status_ignore_errors']
+_allowed_statuses_apache_22 = ['status_disabled']
 
 
 class ValidationClient(Client):
@@ -36,11 +36,10 @@ class ValidationClient(Client):
 
     def _get_routes_from_apache(self):
 
-        global allowed_statuses
-        global allowed_statuses_apache_22
+        global _allowed_statuses
+        global _allowed_statuses_apache_22
 
-        if self.apache_version_is('2.2'):
-            allowed_statuses = allowed_statuses_apache_22
+        allowed_statuses = _allowed_statuses_apache_22 if self.apache_version_is('2.2') else _allowed_statuses
 
         self.holistic_compliance_status = True
 
@@ -88,11 +87,10 @@ class ValidationClient(Client):
 
     def enforce(self):
 
-        global allowed_statuses
-        global allowed_statuses_apache_22
+        global _allowed_statuses
+        global _allowed_statuses_apache_22
 
-        if self.apache_version_is('2.2'):
-            allowed_statuses = allowed_statuses_apache_22
+        allowed_statuses = _allowed_statuses_apache_22 if self.apache_version_is('2.2') else _allowed_statuses
 
         for route in self.get_routes():
 
@@ -121,8 +119,8 @@ class ValidationClient(Client):
 
 def build_profile(url=None, container=None, profile_name='default', default=False, insecure=False, username=None, password=None):
 
-    global allowed_statuses
-    global allowed_statuses_apache_22
+    global _allowed_statuses
+    global _allowed_statuses_apache_22
 
     if url is None and container is None:
         raise ValueError('url and container cannot both be null')
@@ -157,8 +155,7 @@ def build_profile(url=None, container=None, profile_name='default', default=Fals
         container['insecure'] = insecure
         container['profiles'] = {}
 
-    if client.apache_version_is('2.2'):
-        allowed_statuses = allowed_statuses_apache_22
+    allowed_statuses = _allowed_statuses_apache_22 if self.apache_version_is('2.2') else _allowed_statuses
 
     # raise error if profile name exists
     if profile_name in container['profiles']:
