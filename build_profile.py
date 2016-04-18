@@ -28,7 +28,7 @@ def main():
             raise ValueError('could not parse "{value}" to boolean'.format(**locals()))
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-U', '--url', default=None)
+    parser.add_argument('url', nargs='?', default=None)
     parser.add_argument('-c', '--container', default=None)
     parser.add_argument('-n', '--profile', default='default')
     parser.add_argument('-D', '--default', action='store_true', default=False)
@@ -42,7 +42,11 @@ def main():
     log_level = logging.DEBUG if args.debug else logging.WARN
     logging.basicConfig(level=log_level)
 
-    container = json.loads(args.container) if args.container else None
+    if args.container:
+        with open(args.container) as fh:
+            container = json.load(fh)
+    else:
+        container = None
 
     if args.password:
         password = getpass('password # ')
