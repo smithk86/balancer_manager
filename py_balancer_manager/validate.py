@@ -155,7 +155,7 @@ def build_profile(url=None, container=None, profile_name='default', default=Fals
         container['insecure'] = insecure
         container['profiles'] = {}
 
-    allowed_statuses = _allowed_statuses_apache_22 if self.apache_version_is('2.2') else _allowed_statuses
+    allowed_statuses = _allowed_statuses_apache_22 if client.apache_version_is('2.2') else _allowed_statuses
 
     # raise error if profile name exists
     if profile_name in container['profiles']:
