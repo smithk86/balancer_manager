@@ -23,16 +23,16 @@ def main():
         for route in routes:
             for key, value in route.items():
                 if key.startswith('status_') and type(value) is dict:
-                    if value['value'] and value['valid']:
+                    if value['value'] and value['compliance']:
                         char = '\u2713'
-                    elif value['value'] and not value['valid']:
+                    elif value['value'] and not value['compliance']:
                         char = '\u2713 **'
-                    elif not value['value'] and not value['valid']:
+                    elif not value['value'] and not value['compliance']:
                         char = '\u2717 **'
                     else:
                         char = ''
 
-                    color = 'green' if value['valid'] else 'red'
+                    color = 'green' if value['compliance'] else 'red'
 
                     value['value'] = PrettyString(char, color)
 
