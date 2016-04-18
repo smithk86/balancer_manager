@@ -14,7 +14,7 @@ def routes(routes, verbose=False):
         elif type(val) is dict:
             return _get_value(val['value'])
         else:
-            return str(val)
+            return val
 
     rows = []
 

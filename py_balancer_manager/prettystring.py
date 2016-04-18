@@ -41,7 +41,7 @@ class PrettyString(str):
         return PrettyString.mode
 
     def ljust(self, width):
-        padded = str(self.text()).ljust(width)
+        padded = self.text().ljust(width)
         pstring = PrettyString(padded, self.color)
         return str(pstring)
 

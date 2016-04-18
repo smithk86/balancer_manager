@@ -24,11 +24,11 @@ def main():
             for key, value in route.items():
                 if key.startswith('status_') and type(value) is dict:
                     if value['value'] and value['compliance']:
-                        char = '\u2713'
+                        char = ' \u2717'
                     elif value['value'] and not value['compliance']:
-                        char = '\u2713 **'
+                        char = ' \u2717 **'
                     elif not value['value'] and not value['compliance']:
-                        char = '\u2717 **'
+                        char = '[  ] **'
                     else:
                         char = ''
 
