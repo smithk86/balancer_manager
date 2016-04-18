@@ -59,9 +59,9 @@ class ValidationClient(Client):
                 }
 
                 if route[status]['value'] is route[status]['profile']:
-                    route[status]['valid'] = True
+                    route[status]['compliance'] = True
                 else:
-                    route[status]['valid'] = False
+                    route[status]['compliance'] = False
                     route['compliance_status'] = False
                     self.holistic_compliance_status = False
 
