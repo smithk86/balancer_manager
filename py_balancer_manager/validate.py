@@ -74,9 +74,6 @@ class ValidationClient(Client):
             if key.startswith('status_') and type(val) is dict:
                 route[key] = route[key]['value']
 
-        import pprint
-        pprint.PrettyPrinter(indent=4).pprint(route)
-
         super(ValidationClient, self).change_route_status(
             route,
             status_ignore_errors=status_ignore_errors,
