@@ -214,6 +214,10 @@ class Client:
 
         return None
 
+    def expire_route_cache(self):
+        # expire cache to force refresh
+        self.cache_routes_time = 0
+
     def _get_routes_from_apache(self):
 
         page = self._get_soup_html()
@@ -351,4 +355,4 @@ class Client:
             raise ValueError('this module only supports apache 2.2 and 2.4')
 
         # expire cache to force refresh
-        self.cache_routes_time = 0
+        self.expire_route_cache()

@@ -17,24 +17,20 @@ _allowed_statuses_apache_22 = ['status_disabled']
 
 class ValidationClient(Client):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, url, **kwargs):
 
         self.holistic_compliance_status = False
-        self.container = kwargs.pop('container')
-        profile_name = kwargs.pop('profile', 'default')
-        self.set_profile(profile_name)
+        self.profile = kwargs.pop('profile', None)
 
-        super(ValidationClient, self).__init__(*args, **kwargs)
+        super(ValidationClient, self).__init__(url, **kwargs)
 
-    def set_profile(self, profile_name):
-
-        try:
-            self.profile = self.container['profiles'][profile_name]
-        except KeyError:
-            self.profile = None
-            raise ValidationClientError('profile does not exist -> {profile_name}'.format(**locals()))
+        if self.profile is None:
+            self.profile = self.get_profile()
 
     def _get_routes_from_apache(self):
+
+        if self.profile is None:
+            return super(ValidationClient, self)._get_routes_from_apache()
 
         global _allowed_statuses
         global _allowed_statuses_apache_22
@@ -107,97 +103,59 @@ class ValidationClient(Client):
 
     def _get_cluster_routes_from_profile(self, cluster_name):
 
-        for cluster in self.profile['clusters']:
-            if cluster.get('name') == cluster_name:
-                return cluster.get('routes', {})
+        if self.profile:
+            for cluster in self.profile:
+                if cluster.get('name') == cluster_name:
+                    return cluster.get('routes', {})
 
         return {}
 
+    def set_profile(self, profile):
 
-def build_profile(url=None, container=None, profile_name='default', default=False, insecure=False, username=None, password=None):
+        # set new profile
+        self.profile = profile
+        # expire cache to force refresh
+        self.expire_route_cache()
 
-    global _allowed_statuses
-    global _allowed_statuses_apache_22
+    def get_profile(self):
 
-    if url is None and container is None:
-        raise ValueError('url and container cannot both be null')
+        global _allowed_statuses
+        global _allowed_statuses_apache_22
 
-    # init client with container settings
-    if container:
+        allowed_statuses = _allowed_statuses_apache_22 if self.apache_version_is('2.2') else _allowed_statuses
 
-        client = Client(
-            container.get('url'),
-            insecure=container.get('insecure'),
-            username=username,
-            password=password
-        )
+        # init empty list for the profile
+        profile = list()
 
-        # if default is True, remove the default key from all other profiles
-        if default:
-            for profile in container['profiles']:
-                profile.pep('default')
+        routes = self.get_routes()
 
-    # create a new container if none was passed
-    else:
+        clusters = list()
+        for route in routes:
+            try:
+                clusters.index(route['cluster'])
+            except ValueError:
+                clusters.append(route['cluster'])
 
-        client = Client(
-            url,
-            insecure=insecure,
-            username=username,
-            password=password
-        )
+        for cluster in clusters:
 
-        container = OrderedDict()
-        container['url'] = url
-        container['insecure'] = insecure
-        container['profiles'] = {}
+            cluster_profile = OrderedDict()
+            cluster_profile['name'] = cluster
+            cluster_profile['routes'] = dict()
 
-    allowed_statuses = _allowed_statuses_apache_22 if client.apache_version_is('2.2') else _allowed_statuses
+            for route in self.get_routes(cluster=cluster):
 
-    # raise error if profile name exists
-    if profile_name in container['profiles']:
-        raise KeyError('profile name exists: {profile_name}'.format(**locals()))
+                enabled_statuses = []
 
-    # build empty profile
-    profile = {
-        'clusters': list(),
-        'default': len(container['profiles']) == 0 or default
-    }
+                for key, value in route.items():
+                    if key not in allowed_statuses:
+                        continue
 
-    routes = client.get_routes()
+                    if value is True:
+                        enabled_statuses.append(key)
 
-    clusters = list()
-    for route in routes:
-        try:
-            clusters.index(route['cluster'])
-        except ValueError:
-            clusters.append(route['cluster'])
+                if len(enabled_statuses) > 0:
+                    cluster_profile['routes'][route['route']] = enabled_statuses
 
-    for cluster in clusters:
+            profile.append(cluster_profile)
 
-        cluster_profile = OrderedDict()
-        cluster_profile['name'] = cluster
-        cluster_profile['routes'] = dict()
-
-        for route in client.get_routes(cluster=cluster):
-
-            enabled_statuses = []
-
-            for key, value in route.items():
-                if key not in allowed_statuses:
-                    continue
-
-                if value is True:
-                    enabled_statuses.append(key)
-
-            if len(enabled_statuses) > 0:
-                cluster_profile['routes'][route['route']] = enabled_statuses
-
-        # if len(cluster_profile['routes']) == 0:
-        #     del(cluster_profile['routes'])
-
-        profile['clusters'].append(cluster_profile)
-
-    container['profiles'][profile_name] = profile
-
-    return container
+        return profile
