@@ -127,7 +127,7 @@ class ValidationClient(Client):
         # init empty list for the profile
         profile = list()
 
-        routes = self.get_routes()
+        routes = super(ValidationClient, self)._get_routes_from_apache()
 
         clusters = list()
         for route in routes:
@@ -146,11 +146,8 @@ class ValidationClient(Client):
 
                 enabled_statuses = []
 
-                for key, value in route.items():
-                    if key not in allowed_statuses:
-                        continue
-
-                    if value is True:
+                for key, status in route.items():
+                    if key.startswith('status_') and key in allowed_statuses and status is True:
                         enabled_statuses.append(key)
 
                 if len(enabled_statuses) > 0:
