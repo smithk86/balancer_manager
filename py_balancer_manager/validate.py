@@ -147,8 +147,11 @@ class ValidationClient(Client):
                 enabled_statuses = []
 
                 for key, status in route.items():
-                    if key.startswith('status_') and key in allowed_statuses and status is True:
-                        enabled_statuses.append(key)
+                    if key.startswith('status_') and key in allowed_statuses:
+                        if type(status) is not bool:
+                            raise TypeError('status value must be boolean')
+                        if status is True:
+                            enabled_statuses.append(key)
 
                 if len(enabled_statuses) > 0:
                     cluster_profile['routes'][route['route']] = enabled_statuses
