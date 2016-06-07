@@ -127,6 +127,7 @@ class ValidationClient(Client):
         # init empty list for the profile
         profile = list()
 
+        # get routes w/o cache from parent class
         routes = super(ValidationClient, self)._get_routes_from_apache()
 
         clusters = list()
@@ -142,7 +143,11 @@ class ValidationClient(Client):
             cluster_profile['name'] = cluster
             cluster_profile['routes'] = dict()
 
-            for route in self.get_routes(cluster=cluster):
+            for route in routes:
+
+                # skip if another cluster
+                if route['cluster'] != cluster:
+                    continue
 
                 enabled_statuses = []
 
