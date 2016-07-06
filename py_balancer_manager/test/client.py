@@ -103,5 +103,8 @@ class TestClient():
     def _get_random_route(self):
 
         routes = self.client.get_routes()
-        random_index = random.randrange(0, len(routes) - 1)
-        return routes[random_index]
+        if len(routes) > 0:
+            random_index = random.randrange(0, len(routes) - 1) if len(routes) > 1 else 0
+            return routes[random_index]
+        else:
+            return None
