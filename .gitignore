@@ -1,5 +1,6 @@
+/py_balancer_manager/test/vars.json
+*.pyc
 /*egg-info*
 /dist
-*.pyc
+/build
 /.cache
-/py_balancer_manager/test/vars.json
