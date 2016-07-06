@@ -82,6 +82,9 @@ class TestClient():
 
             route = self._get_random_route()
 
+            if route is None:
+                raise ValueError('no route was returned; please check the server')
+
             # only test status_disabled with apache 2.2
             if self.client.apache_version_is('2.2') and status != 'status_disabled':
                 continue
