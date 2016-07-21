@@ -19,7 +19,6 @@ requests.packages.urllib3.disable_warnings()
 def main():
 
     def print_routes(routes):
-
         for route in routes:
             for key, value in route.items():
                 if key.startswith('status_') and type(value) is dict:

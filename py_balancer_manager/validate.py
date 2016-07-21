@@ -27,10 +27,10 @@ class ValidationClient(Client):
         if self.profile is None:
             self.profile = self.get_profile()
 
-    def _get_routes_from_apache(self):
+    def _get_clusters_from_apache(self):
 
         if self.profile is None:
-            return super(ValidationClient, self)._get_routes_from_apache()
+            return super(ValidationClient, self)._get_clusters_from_apache()
 
         global _allowed_statuses
         global _allowed_statuses_apache_22
@@ -39,28 +39,28 @@ class ValidationClient(Client):
 
         self.holistic_compliance_status = True
 
-        routes = super(ValidationClient, self)._get_routes_from_apache()
+        clusters = super(ValidationClient, self)._get_clusters_from_apache()
 
-        for route in routes:
+        for cluster in clusters.values():
+            for route in cluster['routes']:
 
-            route['compliance_status'] = True
-            route_profiles = self._get_cluster_routes_from_profile(route['cluster'])
-            enabled_statuses_from_route_profile = route_profiles.get(route['route'], {})
+                route['compliance_status'] = True
+                enabled_statuses_from_profile = self.profile.get(route['cluster'], {}).get(route['route'], {})
 
-            for status in allowed_statuses:
-                route[status] = {
-                    'value': route[status],
-                    'profile': status in enabled_statuses_from_route_profile,
-                }
+                for status in allowed_statuses:
+                    route[status] = {
+                        'value': route[status],
+                        'profile': status in enabled_statuses_from_profile,
+                    }
 
-                if route[status]['value'] is route[status]['profile']:
-                    route[status]['compliance'] = True
-                else:
-                    route[status]['compliance'] = False
-                    route['compliance_status'] = False
-                    self.holistic_compliance_status = False
+                    if route[status]['value'] is route[status]['profile']:
+                        route[status]['compliance'] = True
+                    else:
+                        route[status]['compliance'] = False
+                        route['compliance_status'] = False
+                        self.holistic_compliance_status = False
 
-        return routes
+        return clusters
 
     def change_route_status(self, route, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
 
@@ -101,15 +101,6 @@ class ValidationClient(Client):
                     **route_statuses
                 )
 
-    def _get_cluster_routes_from_profile(self, cluster_name):
-
-        if self.profile:
-            for cluster in self.profile:
-                if cluster.get('name') == cluster_name:
-                    return cluster.get('routes', {})
-
-        return {}
-
     def set_profile(self, profile):
 
         # set new profile
@@ -125,29 +116,13 @@ class ValidationClient(Client):
         allowed_statuses = _allowed_statuses_apache_22 if self.apache_version_is('2.2') else _allowed_statuses
 
         # init empty list for the profile
-        profile = list()
+        profile = OrderedDict()
 
-        # get routes w/o cache from parent class
-        routes = super(ValidationClient, self)._get_routes_from_apache()
-
-        clusters = list()
-        for route in routes:
-            try:
-                clusters.index(route['cluster'])
-            except ValueError:
-                clusters.append(route['cluster'])
-
-        for cluster in clusters:
+        for name, cluster in super(ValidationClient, self)._get_clusters_from_apache().items():
 
             cluster_profile = OrderedDict()
-            cluster_profile['name'] = cluster
-            cluster_profile['routes'] = dict()
 
-            for route in routes:
-
-                # skip if another cluster
-                if route['cluster'] != cluster:
-                    continue
+            for route in cluster['routes']:
 
                 enabled_statuses = []
 
@@ -159,8 +134,8 @@ class ValidationClient(Client):
                             enabled_statuses.append(key)
 
                 if len(enabled_statuses) > 0:
-                    cluster_profile['routes'][route['route']] = enabled_statuses
+                    cluster_profile[route['route']] = enabled_statuses
 
-            profile.append(cluster_profile)
+            profile[name] = cluster_profile
 
         return profile

@@ -42,39 +42,49 @@ class TestClient():
     def test_route_update(self):
         """ insure timestamp is update when use_cache is False """
 
-        old_time = self.client.cache_routes_time
+        old_time = self.client.cache_clusters_time
         self.client.get_routes(use_cache=False)
-        new_time = self.client.cache_routes_time
+        new_time = self.client.cache_clusters_time
 
         assert old_time < new_time
 
-    def test_validate_routes(self):
+    def test_validate_clusters_and_routes(self):
 
         uuid_pattern = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 
-        for route in self.client.get_routes():
+        for _, cluster in self.client.get_clusters().items():
+            assert cluster['max_members'] is None or type(cluster['max_members']) == int
+            assert cluster['max_members_used'] is None or type(cluster['max_members_used']) == int
+            assert type(cluster['sticky_session']) == str
+            assert cluster['disable_failover'] is None or type(cluster['disable_failover']) == bool
+            assert type(cluster['timeout']) == int
+            assert type(cluster['failover_attempts']) == int
+            assert type(cluster['method']) == str
+            assert cluster['path'] is None or type(cluster['path']) == str
+            assert cluster['active'] is None or type(cluster['active']) == bool
 
-            assert type(route['worker']) == str
-            assert type(route['route']) == str
-            assert type(route['priority']) == int
-            assert type(route['route_redir']) == str
-            assert type(route['factor']) == int
-            assert type(route['set']) == int
-            assert type(route['status_ok']) == bool
-            assert type(route['status_error']) == bool
-            assert route['status_ignore_errors'] is None or type(route['status_ignore_errors']) == bool
-            assert route['status_draining_mode'] is None or type(route['status_draining_mode']) == bool
-            assert type(route['status_disabled']) == bool
-            assert type(route['status_hot_standby']) == bool
-            assert type(route['elected']) == int
-            assert route['busy'] is None or type(route['busy']) == int
-            assert route['load'] is None or type(route['load']) == int
-            assert type(route['to']) == str
-            assert type(route['to_raw']) == int
-            assert type(route['from']) == str
-            assert type(route['from_raw']) == int
-            assert uuid_pattern.match(route['session_nonce_uuid'])
-            assert type(route['cluster']) == str
+            for route in cluster['routes']:
+                assert type(route['worker']) == str
+                assert type(route['route']) == str
+                assert type(route['priority']) == int
+                assert type(route['route_redir']) == str
+                assert type(route['factor']) == int
+                assert type(route['set']) == int
+                assert type(route['status_ok']) == bool
+                assert type(route['status_error']) == bool
+                assert route['status_ignore_errors'] is None or type(route['status_ignore_errors']) == bool
+                assert route['status_draining_mode'] is None or type(route['status_draining_mode']) == bool
+                assert type(route['status_disabled']) == bool
+                assert type(route['status_hot_standby']) == bool
+                assert type(route['elected']) == int
+                assert route['busy'] is None or type(route['busy']) == int
+                assert route['load'] is None or type(route['load']) == int
+                assert type(route['to']) == str
+                assert type(route['to_raw']) == int
+                assert type(route['from']) == str
+                assert type(route['from_raw']) == int
+                assert uuid_pattern.match(route['session_nonce_uuid'])
+                assert type(route['cluster']) == str
 
     def test_route_status_changes(self):
 
