@@ -53,7 +53,6 @@ class TestClient():
         uuid_pattern = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 
         for _, cluster in self.client.get_clusters().items():
-            assert type(cluster['apache_version']) is str
             assert cluster['max_members'] is None or type(cluster['max_members']) == int
             assert cluster['max_members_used'] is None or type(cluster['max_members_used']) == int
             assert type(cluster['sticky_session']) == str
