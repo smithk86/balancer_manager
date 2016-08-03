@@ -191,8 +191,7 @@ class Client:
             'from': None,
             'session_nonce_uuid': None,
             'cluster': None,
-            'url': self.url,
-            'apache_version': self.apache_version
+            'url': self.url
         }
 
     def get_clusters(self, cluster=None, use_cache=True):
