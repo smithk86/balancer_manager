@@ -156,6 +156,7 @@ class Client:
     def _get_empty_cluster_dictionary(self):
 
         return {
+            'apache_version': self.apache_version,
             'max_members': None,
             'max_members_used': None,
             'sticky_session': None,
@@ -191,8 +192,7 @@ class Client:
             'from': None,
             'session_nonce_uuid': None,
             'cluster': None,
-            'url': self.url,
-            'apache_version': self.apache_version
+            'url': self.url
         }
 
     def get_clusters(self, cluster=None, use_cache=True):
