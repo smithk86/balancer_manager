@@ -178,7 +178,7 @@ class Client:
             'route_redir': None,
             'factor': None,
             'set': None,
-            'active': None,
+            'taking_traffic': None,
             'status_ok': None,
             'status_error': None,
             'status_ignore_errors': None,
@@ -391,12 +391,20 @@ class Client:
 
                 clusters[route_dict['cluster']]['routes'].append(route_dict)
 
+        # iterate clusters for post-parse processing
         for cluster_name, cluster in clusters.items():
+            # determine if standby routes are active for cluster
             cluster['standby_activated'] = True
             for route in cluster['routes']:
                 if route['status_ok'] and route['status_hot_standby'] is False:
                     cluster['standby_activated'] = False
                     break
+            # set "standby_activated" property depending on "standby_activated" status
+            for route in cluster['routes']:
+                if cluster['standby_activated'] is False:
+                    route['taking_traffic'] = (route['status_error'] is False and route['status_disabled'] is False and route['status_hot_standby'] is False)
+                else:
+                    route['taking_traffic'] = (route['status_error'] is False and route['status_disabled'] is False and route['status_hot_standby'] is True)
 
         return clusters
 
