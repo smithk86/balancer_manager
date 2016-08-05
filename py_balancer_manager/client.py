@@ -165,6 +165,7 @@ class Client:
             'method': None,
             'path': None,
             'active': None,
+            'standby_activated': None,
             'routes': list()
         }
 
@@ -389,6 +390,13 @@ class Client:
                     clusters[route_dict['cluster']] = {'routes': list()}
 
                 clusters[route_dict['cluster']]['routes'].append(route_dict)
+
+        for cluster_name, cluster in clusters.items():
+            cluster['standby_activated'] = True
+            for route in cluster['routes']:
+                if route['status_ok'] and route['status_hot_standby'] is False:
+                    cluster['standby_activated'] = False
+                    break
 
         return clusters
 
