@@ -103,13 +103,13 @@ class TestClient():
 
             # toggle status to the oposite value
             kwargs = {status: not status_value}
-            self.client.change_route_status(route, **kwargs)
+            self.client.change_route_status(route['cluster'], route['route'], **kwargs)
             updated_route = self.client.get_route(route['cluster'], route['route'])
             assert updated_route[status] is not status_value
 
             # toggle status back to original value
             kwargs = {status: status_value}
-            self.client.change_route_status(route, **kwargs)
+            self.client.change_route_status(route['cluster'], route['route'], **kwargs)
             updated_route = self.client.get_route(route['cluster'], route['route'])
             assert updated_route[status] is status_value
 

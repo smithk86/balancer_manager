@@ -62,16 +62,13 @@ class ValidationClient(Client):
 
         return clusters
 
-    def change_route_status(self, route, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
+    def change_route_status(self, cluster_name, route_name, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
 
         """ convert route statuses back to a simple bool so that it is compatible with the original Client object """
 
-        for key, val in route.items():
-            if key.startswith('status_') and type(val) is dict:
-                route[key] = route[key]['value']
-
         super(ValidationClient, self).change_route_status(
-            route,
+            cluster_name,
+            route_name,
             status_ignore_errors=status_ignore_errors,
             status_draining_mode=status_draining_mode,
             status_disabled=status_disabled,
@@ -97,7 +94,8 @@ class ValidationClient(Client):
                     route_statuses[status] = route[status]['profile']
 
                 self.change_route_status(
-                    route,
+                    route['cluster'],
+                    route['route'],
                     **route_statuses
                 )
 
