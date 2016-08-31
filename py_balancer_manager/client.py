@@ -166,6 +166,7 @@ class Client:
             'path': None,
             'active': None,
             'standby_activated': None,
+            'eligible_routes': None,
             'routes': list()
         }
 
@@ -405,11 +406,18 @@ class Client:
                     route['taking_traffic'] = (route['status_error'] is False and route['status_disabled'] is False and route['status_draining_mode'] is not True and route['status_hot_standby'] is False)
                 else:
                     route['taking_traffic'] = (route['status_error'] is False and route['status_disabled'] is False and route['status_draining_mode'] is not True and route['status_hot_standby'] is True)
+            # calculate the number of routes which are eligible to take traffic
+            cluster['eligible_routes'] = 0
+            for route in cluster['routes']:
+                if route['status_error'] is False and route['status_disabled'] is False and route['status_draining_mode'] is not True:
+                    cluster['eligible_routes'] += 1
 
         return clusters
 
     def change_route_status(self, cluster_name, route_name, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
 
+        clusters = self.get_clusters(cluster=cluster_name)
+        cluster = clusters[cluster_name]
         route = self.get_route(cluster_name, route_name)
 
         if self.apache_version_is('2.2.'):
@@ -428,6 +436,12 @@ class Client:
             route['status_disabled'] = status_disabled
         if type(status_hot_standby) is bool:
             route['status_hot_standby'] = status_hot_standby
+
+        if cluster['eligible_routes'] <= 1:
+            if route['status_disabled'] is True:
+                raise BalancerManagerError('cannot enable the "disabled" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(**locals()))
+            elif route['status_draining_mode'] is True:
+                raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(**locals()))
 
         if self.apache_version_is('2.4.'):
             post_data = {
