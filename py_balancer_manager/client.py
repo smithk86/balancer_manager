@@ -402,9 +402,9 @@ class Client:
             # set "standby_activated" property depending on "standby_activated" status
             for route in cluster['routes']:
                 if cluster['standby_activated'] is False:
-                    route['taking_traffic'] = (route['status_error'] is False and route['status_disabled'] is False and route['status_hot_standby'] is False)
+                    route['taking_traffic'] = (route['status_error'] is False and route['status_disabled'] is False and route['status_draining_mode'] is not True and route['status_hot_standby'] is False)
                 else:
-                    route['taking_traffic'] = (route['status_error'] is False and route['status_disabled'] is False and route['status_hot_standby'] is True)
+                    route['taking_traffic'] = (route['status_error'] is False and route['status_disabled'] is False and route['status_draining_mode'] is not True and route['status_hot_standby'] is True)
 
         return clusters
 
