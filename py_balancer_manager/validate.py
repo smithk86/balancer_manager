@@ -48,32 +48,20 @@ class ValidationClient(Client):
                 enabled_statuses_from_profile = self.profile.get(route['cluster'], {}).get(route['route'], {})
 
                 for status in allowed_statuses:
-                    route[status] = {
+                    key = 'validate_' + status
+                    route[key] = {
                         'value': route[status],
                         'profile': status in enabled_statuses_from_profile,
                     }
 
-                    if route[status]['value'] is route[status]['profile']:
-                        route[status]['compliance'] = True
+                    if route[key]['value'] is route[key]['profile']:
+                        route[key]['compliance'] = True
                     else:
-                        route[status]['compliance'] = False
+                        route[key]['compliance'] = False
                         route['compliance_status'] = False
                         self.holistic_compliance_status = False
 
         return clusters
-
-    def change_route_status(self, cluster_name, route_name, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
-
-        """ convert route statuses back to a simple bool so that it is compatible with the original Client object """
-
-        super(ValidationClient, self).change_route_status(
-            cluster_name,
-            route_name,
-            status_ignore_errors=status_ignore_errors,
-            status_draining_mode=status_draining_mode,
-            status_disabled=status_disabled,
-            status_hot_standby=status_hot_standby
-        )
 
     def enforce(self):
 
@@ -91,7 +79,7 @@ class ValidationClient(Client):
                 # build status dictionary to enforce
                 route_statuses = {}
                 for status in allowed_statuses:
-                    route_statuses[status] = route[status]['profile']
+                    route_statuses[status] = route['validate_' + status]['profile']
 
                 self.change_route_status(
                     route['cluster'],

@@ -420,7 +420,17 @@ class Client:
         cluster = clusters[cluster_name]
         route = self.get_route(cluster_name, route_name)
 
-        if self.apache_version_is('2.2.'):
+        if self.apache_version_is('2.4.'):
+            new_route_statuses = {
+                'status_ignore_errors': route['status_ignore_errors'],
+                'status_draining_mode': route['status_draining_mode'],
+                'status_disabled': route['status_disabled'],
+                'status_hot_standby': route['status_hot_standby']
+            }
+        elif self.apache_version_is('2.2.'):
+            new_route_statuses = {
+                'status_disabled': route['status_disabled']
+            }
             if status_ignore_errors is not None:
                 raise ApacheVersionError('status_ignore_errors is not supported in apache 2.2')
             if status_draining_mode is not None:
@@ -429,18 +439,21 @@ class Client:
                 raise ApacheVersionError('status_hot_standby is not supported in apache 2.2')
 
         if type(status_ignore_errors) is bool:
-            route['status_ignore_errors'] = status_ignore_errors
+            new_route_statuses['status_ignore_errors'] = status_ignore_errors
         if type(status_draining_mode) is bool:
-            route['status_draining_mode'] = status_draining_mode
+            new_route_statuses['status_draining_mode'] = status_draining_mode
         if type(status_disabled) is bool:
-            route['status_disabled'] = status_disabled
+            new_route_statuses['status_disabled'] = status_disabled
         if type(status_hot_standby) is bool:
-            route['status_hot_standby'] = status_hot_standby
+            new_route_statuses['status_hot_standby'] = status_hot_standby
 
-        if cluster['eligible_routes'] <= 1:
-            if route['status_disabled'] is True:
+        # except routes with errors from throwing the "last-route" error
+        if route['status_error'] is True or route['status_disabled'] is True or route['status_draining_mode'] is True:
+            pass
+        elif cluster['eligible_routes'] <= 1:
+            if new_route_statuses['status_disabled'] is True:
                 raise BalancerManagerError('cannot enable the "disabled" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(**locals()))
-            elif route['status_draining_mode'] is True:
+            elif new_route_statuses['status_draining_mode'] is True:
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(**locals()))
 
         if self.apache_version_is('2.4.'):
@@ -449,10 +462,10 @@ class Client:
                 'w_ls': '0',
                 'w_wr': route['route'],
                 'w_rr': '',
-                'w_status_I': int(route['status_ignore_errors']),
-                'w_status_N': int(route['status_draining_mode']),
-                'w_status_D': int(route['status_disabled']),
-                'w_status_H': int(route['status_hot_standby']),
+                'w_status_I': int(new_route_statuses['status_ignore_errors']),
+                'w_status_N': int(new_route_statuses['status_draining_mode']),
+                'w_status_D': int(new_route_statuses['status_disabled']),
+                'w_status_H': int(new_route_statuses['status_hot_standby']),
                 'w': route['worker'],
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']
@@ -465,7 +478,7 @@ class Client:
                 'ls': '0',
                 'wr': route['route'],
                 'rr': '',
-                'dw': 'Disable' if route['status_disabled'] else 'Enable',
+                'dw': 'Disable' if new_route_statuses['status_disabled'] else 'Enable',
                 'w': route['worker'],
                 'b': route['cluster'],
                 'nonce': route['session_nonce_uuid']

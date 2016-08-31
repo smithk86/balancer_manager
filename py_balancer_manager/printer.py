@@ -11,8 +11,6 @@ def routes(routes, verbose=False):
                 return 'X'
             else:
                 return ''
-        elif type(val) is dict:
-            return _get_value(val['value'])
         elif type(val) is int:
             return str(val)
         else:

@@ -20,20 +20,22 @@ def main():
 
     def print_routes(routes):
         for route in routes:
-            for key, value in route.items():
-                if key.startswith('status_') and type(value) is dict:
-                    if value['value'] and value['compliance']:
-                        char = ' \u2717'
-                    elif value['value'] and not value['compliance']:
-                        char = ' \u2717 **'
-                    elif not value['value'] and not value['compliance']:
-                        char = '[  ] **'
-                    else:
-                        char = ''
+            for key, _ in route.items():
+                if key.startswith('status_') and key != 'status_ok' and key != 'status_error':
+                    validation = route.get('validate_' + key)
+                    if type(validation) is dict:
+                        if validation['value'] and validation['compliance']:
+                            char = ' \u2717'
+                        elif validation['value'] and not validation['compliance']:
+                            char = ' \u2717 **'
+                        elif not validation['value'] and not validation['compliance']:
+                            char = '[  ] **'
+                        else:
+                            char = ''
 
-                    color = 'green' if value['compliance'] else 'red'
+                        color = 'green' if validation['compliance'] else 'red'
 
-                    value['value'] = PrettyString(char, color)
+                    route[key] = PrettyString(char, color)
 
         printer.routes(
             routes,
