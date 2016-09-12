@@ -1,4 +1,4 @@
 from .client import Client
 from .validate import ValidationClient
 from .thread import ClientRefreshRouteThread
-from .errors import BalancerManagerError
+from .errors import BalancerManagerError, ValidationClientError

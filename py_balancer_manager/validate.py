@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-
 import threading
 import logging
 from collections import OrderedDict
 
 from .client import Client
-from .errors import ValidationClientError
 
 
 logger = logging.getLogger(__name__)
