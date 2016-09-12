@@ -38,25 +38,32 @@ class ValidationClient(Client):
 
         clusters = super(ValidationClient, self)._get_clusters_from_apache()
 
-        for cluster in clusters.values():
+        for cluster_name, cluster in clusters.items():
+
+            cluster_profile = self.profile.get(cluster_name, {})
+
             for route in cluster['routes']:
 
                 route['compliance_status'] = True
-                enabled_statuses_from_profile = self.profile.get(route['cluster'], {}).get(route['route'], {})
+                route_profile = cluster_profile.get(route['route'])
 
                 for status in allowed_statuses:
                     key = 'validate_' + status
                     route[key] = {
                         'value': route[status],
-                        'profile': status in enabled_statuses_from_profile,
+                        'profile': None,
+                        'compliance': None
                     }
 
-                    if route[key]['value'] is route[key]['profile']:
-                        route[key]['compliance'] = True
-                    else:
-                        route[key]['compliance'] = False
-                        route['compliance_status'] = False
-                        self.holistic_compliance_status = False
+                    if type(route_profile) is list:
+                        route[key]['profile'] = status in route_profile
+
+                        if route[key]['value'] is route[key]['profile']:
+                            route[key]['compliance'] = True
+                        else:
+                            route[key]['compliance'] = False
+                            route['compliance_status'] = False
+                            self.holistic_compliance_status = False
 
         return clusters
 
@@ -116,8 +123,7 @@ class ValidationClient(Client):
                         if status is True:
                             enabled_statuses.append(key)
 
-                if len(enabled_statuses) > 0:
-                    cluster_profile[route['route']] = enabled_statuses
+                cluster_profile[route['route']] = enabled_statuses
 
             profile[name] = cluster_profile
 

@@ -24,16 +24,22 @@ def main():
                 if key.startswith('status_') and key != 'status_ok' and key != 'status_error':
                     validation = route.get('validate_' + key)
                     if type(validation) is dict:
-                        if validation['value'] and validation['compliance']:
-                            char = ' \u2717'
-                        elif validation['value'] and not validation['compliance']:
-                            char = ' \u2717 **'
-                        elif not validation['value'] and not validation['compliance']:
-                            char = '[  ] **'
+                        if validation['compliance'] is None:
+                            char = ' X' if validation['value'] else ''
+                            color = 'blue'
                         else:
-                            char = ''
+                            if not validation['value'] and validation['compliance'] is None:
+                                char = ''
+                            elif validation['value'] and validation['compliance']:
+                                char = ' \u2717'
+                            elif validation['value'] and not validation['compliance']:
+                                char = ' \u2717 **'
+                            elif not validation['value'] and not validation['compliance']:
+                                char = '[  ] **'
+                            else:
+                                char = ''
 
-                        color = 'green' if validation['compliance'] else 'red'
+                            color = 'green' if validation['compliance'] else 'red'
 
                     route[key] = PrettyString(char, color)
 
