@@ -298,7 +298,8 @@ class Client:
                     cluster['max_members'], cluster['max_members_used'] = parse_max_members(cells[0].text)
                     # below is a workaround for a bug in the html formatting in apache 2.4.20 in which the StickySession cell closing tag comes after DisableFailover
                     # HTML = <td>JSESSIONID<td>Off</td></td>
-                    cluster['sticky_session'] = cells[1].find(text=True, recursive=False).strip()
+                    sticky_session_value = cells[1].find(text=True, recursive=False).strip()
+                    cluster['sticky_session'] = False if sticky_session_value == '(None)' else sticky_session_value
                     cluster['disable_failover'] = 'On' in cells[2].text
                     cluster['timeout'] = int(cells[3].text)
                     cluster['failover_attempts'] = int(cells[4].text)
@@ -307,7 +308,7 @@ class Client:
                     cluster['active'] = 'Yes' in cells[7].text
 
                 elif self.apache_version_is('2.2.'):
-                    cluster['sticky_session'] = cells[0].text
+                    cluster['sticky_session'] = False if cells[0].text == '(None)' else cells[0].text
                     cluster['timeout'] = int(cells[1].text)
                     cluster['failover_attempts'] = int(cells[2].text)
                     cluster['method'] = cells[3].text
