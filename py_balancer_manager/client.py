@@ -44,6 +44,8 @@ def _decode_data_useage(usage_string):
 class ApacheVersionError(BalancerManagerError):
     pass
 
+class RouteNotFound(BalancerManagerError):
+    pass
 
 class Client:
 
@@ -420,6 +422,9 @@ class Client:
         clusters = self.get_clusters(cluster=cluster_name)
         cluster = clusters[cluster_name]
         route = self.get_route(cluster_name, route_name)
+
+        if route is None:
+            raise RouteNotFound('route does not exist: {cluster_name} -> {route_name}'.format(**locals()))
 
         if self.apache_version_is('2.4.'):
             new_route_statuses = {

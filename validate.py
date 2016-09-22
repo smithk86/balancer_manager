@@ -8,8 +8,7 @@ import logging
 import json
 from getpass import getpass
 
-from py_balancer_manager import ValidationClient, printer
-from py_balancer_manager.prettystring import PrettyString
+from py_balancer_manager import ValidationClient, print_validated_routes, PrettyString
 
 
 # disable warnings
@@ -17,36 +16,6 @@ requests.packages.urllib3.disable_warnings()
 
 
 def main():
-
-    def print_routes(routes):
-        for route in routes:
-            for key, _ in route.items():
-                if key.startswith('status_') and key != 'status_ok' and key != 'status_error':
-                    validation = route.get('validate_' + key)
-                    if type(validation) is dict:
-                        if validation['compliance'] is None:
-                            char = ' X' if validation['value'] else ''
-                            color = 'blue'
-                        else:
-                            if not validation['value'] and validation['compliance'] is None:
-                                char = ''
-                            elif validation['value'] and validation['compliance']:
-                                char = ' \u2717'
-                            elif validation['value'] and not validation['compliance']:
-                                char = ' \u2717 **'
-                            elif not validation['value'] and not validation['compliance']:
-                                char = '[  ] **'
-                            else:
-                                char = ''
-
-                            color = 'green' if validation['compliance'] else 'red'
-
-                    route[key] = PrettyString(char, color)
-
-        printer.routes(
-            routes,
-            args.verbose
-        )
 
     parser = argparse.ArgumentParser()
     parser.add_argument('action', help='validate, enforce, build')
@@ -94,7 +63,7 @@ def main():
 
     if args.action == 'validate' or args.action == 'enforce':
 
-        print_routes(
+        print_validated_routes(
             client.get_routes()
         )
 
@@ -105,7 +74,7 @@ def main():
 
             client.enforce()
 
-            print_routes(
+            print_validated_routes(
                 client.get_routes()
             )
 

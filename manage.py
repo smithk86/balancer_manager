@@ -8,7 +8,7 @@ import threading
 from getpass import getpass
 
 import py_balancer_manager
-from py_balancer_manager import printer
+from py_balancer_manager import print_routes
 
 # disable warnings
 requests.packages.urllib3.disable_warnings()
@@ -121,7 +121,7 @@ def main():
         routes = client.get_routes(cluster=args.cluster)
 
     if args.list_routes:
-        printer.routes(routes, args.verbose)
+        print_routes(routes, args.verbose)
 
     elif (args.ignore_errors is not None or
             args.draining_mode is not None or

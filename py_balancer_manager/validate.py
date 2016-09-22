@@ -21,13 +21,7 @@ class ValidationClient(Client):
 
         super(ValidationClient, self).__init__(url, **kwargs)
 
-        if self.profile is None:
-            self.profile = self.get_profile()
-
     def _get_clusters_from_apache(self):
-
-        if self.profile is None:
-            return super(ValidationClient, self)._get_clusters_from_apache()
 
         global _allowed_statuses
         global _allowed_statuses_apache_22
@@ -37,6 +31,9 @@ class ValidationClient(Client):
         self.holistic_compliance_status = True
 
         clusters = super(ValidationClient, self)._get_clusters_from_apache()
+
+        if self.profile is None:
+            return clusters
 
         for cluster_name, cluster in clusters.items():
 
@@ -66,6 +63,11 @@ class ValidationClient(Client):
                             self.holistic_compliance_status = False
 
         return clusters
+
+    def get_holistic_compliance_status(self):
+
+        self.get_clusters()
+        return self.holistic_compliance_status
 
     def enforce(self):
 

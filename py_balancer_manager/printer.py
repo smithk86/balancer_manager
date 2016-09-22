@@ -1,7 +1,7 @@
 from .prettystring import PrettyString
 
 
-def routes(routes, verbose=False):
+def print_routes(routes, verbose=False):
 
     def _get_value(val):
         if val is None:
@@ -104,3 +104,40 @@ def routes(routes, verbose=False):
     widths = [max(map(len, col)) for col in zip(*rows)]
     for row in rows:
         print(' | '.join((val.ljust(width) for val, width in zip(row, widths))))
+
+
+def print_validated_routes(routes, hide_compliant_routes=False, verbose=False):
+
+    for route in list(routes):
+
+        if hide_compliant_routes is True and route['compliance_status'] is True:
+            routes.remove(route)
+            continue
+
+        for key, _ in route.items():
+            if key.startswith('status_') and key != 'status_ok' and key != 'status_error':
+                validation = route.get('validate_' + key)
+                if type(validation) is dict:
+                    if validation['compliance'] is None:
+                        char = ' X' if validation['value'] else ''
+                        color = 'blue'
+                    else:
+                        if not validation['value'] and validation['compliance'] is None:
+                            char = ''
+                        elif validation['value'] and validation['compliance']:
+                            char = ' \u2717'
+                        elif validation['value'] and not validation['compliance']:
+                            char = ' \u2717 **'
+                        elif not validation['value'] and not validation['compliance']:
+                            char = '[  ] **'
+                        else:
+                            char = ''
+
+                        color = 'green' if validation['compliance'] else 'red'
+
+                    route[key] = PrettyString(char, color)
+
+    print_routes(
+        routes,
+        verbose
+    )
