@@ -23,7 +23,7 @@ class WorkflowCLI(Workflow):
 
         return prompt(message)
 
-    def exit(self, retval):
+    def exit(self, retval=0):
 
         sys.exit(retval)
 

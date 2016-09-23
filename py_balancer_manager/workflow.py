@@ -32,7 +32,7 @@ class Workflow(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def exit(self):
+    def exit(self, *args, **kwargs):
 
         pass
 
@@ -52,18 +52,24 @@ class Workflow(metaclass=ABCMeta):
 
         """ run the workflow logic """
 
+        self.print()
+
         for group in self.workflow:
 
             self.print_validation(group)
+            self.print()
 
             if not self.prompt(message='execute the above actions?'):
                 self.print()
                 self.exit()
 
+            self.print()
             self.execute_changes(group)
+            self.print()
 
             if self.has_reverts:
                 self.revert_changes(group)
+                self.print()
 
     def print_validation(self, group):
 
@@ -123,6 +129,7 @@ class Workflow(metaclass=ABCMeta):
             self.print()
             self.exit(1)
         else:
+            self.print()
             for load_balancer in group['load_balancers']:
                 for action in group['actions']:
                     if action['revert'] is True:
