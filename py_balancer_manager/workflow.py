@@ -9,15 +9,15 @@ class Workflow(metaclass=ABCMeta):
     def __init__(self, workflow, username=None, password=None):
 
         self.workflow = workflow
-        self.has_reverts = False
+        self.has_reverts = None
         self.username = username
         self.password = password
 
         # prepare data model
-        for group in self.workflow:
-            for load_balancer in group['load_balancers']:
-                for load_balancer in group['load_balancers']:
-                    for action in group['actions']:
+        for step in self.workflow:
+            for load_balancer in step['load_balancers']:
+                for load_balancer in step['load_balancers']:
+                    for action in step['actions']:
                         # add cluster_profiles dictionary
                         action['cluster_profiles'] = {}
 
@@ -54,9 +54,11 @@ class Workflow(metaclass=ABCMeta):
 
         self.print()
 
-        for group in self.workflow:
+        for step in self.workflow:
 
-            self.print_validation(group)
+            self.has_reverts = False
+
+            self.print_validation(step)
             self.print()
 
             if not self.prompt(message='execute the above actions?'):
@@ -64,27 +66,27 @@ class Workflow(metaclass=ABCMeta):
                 self.exit()
 
             self.print()
-            self.execute_changes(group)
+            self.execute_changes(step)
             self.print()
 
             if self.has_reverts:
-                self.revert_changes(group)
+                self.revert_changes(step)
                 self.print()
 
-    def print_validation(self, group):
+    def print_validation(self, step):
 
         """ print the balancers and action so user can verify """
 
-        self.print('action: {name}'.format(name=group['name']))
+        self.print('workflow step: {name}'.format(name=step['name']))
         self.print('balancers:')
-        for i, load_balancer in enumerate(group['load_balancers']):
+        for i, load_balancer in enumerate(step['load_balancers']):
             self.print('    #{i}: {name} ({url})'.format(
                 i=i + 1,
                 name=load_balancer['name'],
                 url=load_balancer['url']
             ))
         self.print('actions:')
-        for i, action in enumerate(group['actions']):
+        for i, action in enumerate(step['actions']):
             self.print('    #{i}: (revert={revert})'.format(i=i + 1, revert='yes' if action['revert'] else 'no'))
             for route in action['routes']:
                 self.print('        {cluster} -> {route} [{changes}]'.format(
@@ -93,19 +95,19 @@ class Workflow(metaclass=ABCMeta):
                     changes=','.join(route['changes'])
                 ))
 
-    def execute_changes(self, group):
+    def execute_changes(self, step):
 
         """ do the work """
 
-        for load_balancer in group['load_balancers']:
+        for load_balancer in step['load_balancers']:
             load_balancer['client'] = ValidationClient(load_balancer['url'], username=self.username, password=self.password)
 
-            for action in group['actions']:
+            for action in step['actions']:
                 if action['revert'] is True:
                     self.has_reverts = True
                     action['cluster_profiles'][load_balancer['name']] = load_balancer['client'].get_profile().get(action['cluster'])
 
-            for action in group['actions']:
+            for action in step['actions']:
                 load_balancer['client'].set_profile({
                     action['cluster']: action['cluster_profiles'].get(load_balancer['name'], {})
                 })
@@ -121,7 +123,7 @@ class Workflow(metaclass=ABCMeta):
                     load_balancer['client'].get_routes(cluster=action['cluster'])
                 )
 
-    def revert_changes(self, group):
+    def revert_changes(self, step):
 
         """ revert changes by enforcing the cluster profile taken before the changes were made """
 
@@ -130,8 +132,8 @@ class Workflow(metaclass=ABCMeta):
             self.exit(1)
         else:
             self.print()
-            for load_balancer in group['load_balancers']:
-                for action in group['actions']:
+            for load_balancer in step['load_balancers']:
+                for action in step['actions']:
                     if action['revert'] is True:
                         load_balancer['client'].set_profile({
                             action['cluster']: action['cluster_profiles'][load_balancer['name']]
