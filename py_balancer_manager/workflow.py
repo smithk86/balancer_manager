@@ -9,7 +9,6 @@ class Workflow(metaclass=ABCMeta):
     def __init__(self, workflow, username=None, password=None):
 
         self.workflow = workflow
-        self.has_reverts = None
         self.username = username
         self.password = password
 
@@ -56,8 +55,6 @@ class Workflow(metaclass=ABCMeta):
 
         for step in self.workflow:
 
-            self.has_reverts = False
-
             self.print_validation(step)
             self.print()
 
@@ -69,7 +66,7 @@ class Workflow(metaclass=ABCMeta):
             self.execute_changes(step)
             self.print()
 
-            if self.has_reverts:
+            if self.has_reverts(step):
                 self.revert_changes(step)
                 self.print()
 
@@ -104,7 +101,6 @@ class Workflow(metaclass=ABCMeta):
 
             for action in step['actions']:
                 if action['revert'] is True:
-                    self.has_reverts = True
                     action['cluster_profiles'][load_balancer['name']] = load_balancer['client'].get_profile().get(action['cluster'])
 
             for action in step['actions']:
@@ -122,6 +118,16 @@ class Workflow(metaclass=ABCMeta):
                 self.print_routes(
                     load_balancer['client'].get_routes(cluster=action['cluster'])
                 )
+
+    def has_reverts(self, step):
+
+        """ check to see if a step should be reverted """
+
+        for action in step['actions']:
+            if action['revert'] is True:
+                return True
+
+        return False
 
     def revert_changes(self, step):
 
