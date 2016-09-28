@@ -1,7 +1,11 @@
 import re
+import logging
 from abc import ABCMeta, abstractmethod
 
 from .validate import ValidationClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class Workflow(metaclass=ABCMeta):
@@ -14,14 +18,21 @@ class Workflow(metaclass=ABCMeta):
 
         # prepare data model
         for step in self.workflow:
-            for load_balancer in step['load_balancers']:
-                for load_balancer in step['load_balancers']:
+            for server in step['servers']:
+                for server in step['servers'].values():
+                    server['username'] = username
+                    server['password'] = password
                     for action in step['actions']:
                         # add cluster_profiles dictionary
                         action['cluster_profiles'] = {}
 
     @abstractmethod
     def print(self, *args, **kwargs):
+
+        pass
+
+    @abstractmethod
+    def print_routes(self, *args, **kwargs):
 
         pass
 
@@ -55,20 +66,36 @@ class Workflow(metaclass=ABCMeta):
 
         for step in self.workflow:
 
-            self.print_validation(step)
-            self.print()
+            try:
 
-            if not self.prompt(message='execute the above actions?'):
+                self.init_clients(step)
+                self.print_validation(step)
                 self.print()
-                self.exit()
 
-            self.print()
-            self.execute_changes(step)
-            self.print()
+                if not self.prompt(message='execute the above actions?'):
+                    self.print()
+                    self.exit()
 
-            if self.has_reverts(step):
-                self.revert_changes(step)
                 self.print()
+                self.execute_changes(step)
+                self.print()
+
+            except Exception as e:
+
+                logger.exception(e)
+                self.print()
+
+            finally:
+
+                if self.has_reverts(step):
+                    self.revert_changes(step)
+                    self.print()
+
+    def init_clients(self, step):
+
+        for name, server in step['servers'].items():
+            step['servers'][name] = ValidationClient(**server)
+            step['servers'][name].test()
 
     def print_validation(self, step):
 
@@ -76,11 +103,11 @@ class Workflow(metaclass=ABCMeta):
 
         self.print('workflow step: {name}'.format(name=step['name']))
         self.print('balancers:')
-        for i, load_balancer in enumerate(step['load_balancers']):
+        for i, (name, server) in enumerate(step['servers'].items()):
             self.print('    #{i}: {name} ({url})'.format(
                 i=i + 1,
-                name=load_balancer['name'],
-                url=load_balancer['url']
+                name=name,
+                url=server.url
             ))
         self.print('actions:')
         for i, action in enumerate(step['actions']):
@@ -96,27 +123,26 @@ class Workflow(metaclass=ABCMeta):
 
         """ do the work """
 
-        for load_balancer in step['load_balancers']:
-            load_balancer['client'] = ValidationClient(load_balancer['url'], username=self.username, password=self.password)
+        for name, server in step['servers'].items():
 
             for action in step['actions']:
                 if action['revert'] is True:
-                    action['cluster_profiles'][load_balancer['name']] = load_balancer['client'].get_profile().get(action['cluster'])
+                    action['cluster_profiles'][name] = server.get_profile().get(action['cluster'])
 
             for action in step['actions']:
-                load_balancer['client'].set_profile({
-                    action['cluster']: action['cluster_profiles'].get(load_balancer['name'], {})
+                server.set_profile({
+                    action['cluster']: action['cluster_profiles'].get(name, {})
                 })
                 for route in action['routes']:
                     changes = {}
                     for change in route['changes']:
                         status_name, enable = Workflow.parse_status_change(change)
                         changes[status_name] = enable
-                    load_balancer['client'].change_route_status(action['cluster'], route['name'], **changes)
+                    server.change_route_status(action['cluster'], route['name'], **changes)
 
-                self.print('URL: {url}'.format(url=load_balancer['url']))
+                self.print('URL: {url}'.format(url=server.url))
                 self.print_routes(
-                    load_balancer['client'].get_routes(cluster=action['cluster'])
+                    server.get_routes(cluster=action['cluster'])
                 )
 
     def has_reverts(self, step):
@@ -138,16 +164,16 @@ class Workflow(metaclass=ABCMeta):
             self.exit(1)
         else:
             self.print()
-            for load_balancer in step['load_balancers']:
+            for name, server in step['servers'].items():
                 for action in step['actions']:
                     if action['revert'] is True:
-                        load_balancer['client'].set_profile({
-                            action['cluster']: action['cluster_profiles'][load_balancer['name']]
+                        server.set_profile({
+                            action['cluster']: action['cluster_profiles'][name]
                         })
 
-                        load_balancer['client'].enforce()
+                        server.enforce()
 
-                        if load_balancer['client'].get_holistic_compliance_status() is False:
-                            raise ValueError('{url} is out of compliance'.format(url=load_balancer['client']))
+                        if server.get_holistic_compliance_status() is False:
+                            raise ValueError('{url} is out of compliance'.format(url=server))
 
-                        self.print('the balancer profiles has been enforced for {name} -> {cluster}'.format(name=load_balancer['name'], cluster=action['cluster']))
+                        self.print('the balancer profiles has been enforced for {name} -> {cluster}'.format(name=name, cluster=action['cluster']))
