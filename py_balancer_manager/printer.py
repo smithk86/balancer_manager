@@ -63,42 +63,42 @@ def print_routes(routes, verbose=False):
         for route in routes:
 
             rows.append([
-                PrettyString(_get_value(route['url']), 'cyan'),
-                _get_value(route['cluster']),
-                PrettyString(_get_value(route['worker']), 'yellow'),
-                _get_value(route['route']),
-                _get_value(route['elected']),
-                _get_value(route['to']),
-                _get_value(route['from']),
-                _get_value(route['status_ok']),
-                _get_value(route['taking_traffic']),
-                _get_value(route['status_error']),
-                _get_value(route['status_ignore_errors']),
-                _get_value(route['status_draining_mode']),
-                _get_value(route['status_disabled']),
-                _get_value(route['status_hot_standby']),
-                _get_value(route['route_redir']),
-                _get_value(route['factor']),
-                _get_value(route['set']),
-                _get_value(route['busy']),
-                _get_value(route['load'])
+                PrettyString(_get_value(route.cluster.client.url), 'cyan'),
+                _get_value(route.cluster.name),
+                PrettyString(_get_value(route.worker), 'yellow'),
+                _get_value(route.name),
+                _get_value(route.elected),
+                _get_value(route.traffic_to),
+                _get_value(route.traffic_from),
+                _get_value(route.status_ok),
+                _get_value(route.taking_traffic),
+                _get_value(route.status_error),
+                _get_value(route.status_ignore_errors),
+                _get_value(route.status_draining_mode),
+                _get_value(route.status_disabled),
+                _get_value(route.status_hot_standby),
+                _get_value(route.route_redir),
+                _get_value(route.factor),
+                _get_value(route.set),
+                _get_value(route.busy),
+                _get_value(route.load)
             ])
 
     else:
 
         for route in routes:
             rows.append([
-                PrettyString(_get_value(route['url']), 'cyan'),
-                _get_value(route['cluster']),
-                PrettyString(_get_value(route['worker']), 'yellow'),
-                _get_value(route['route']),
-                _get_value(route['status_ok']),
-                _get_value(route['taking_traffic']),
-                _get_value(route['status_error']),
-                _get_value(route['status_ignore_errors']),
-                _get_value(route['status_draining_mode']),
-                _get_value(route['status_disabled']),
-                _get_value(route['status_hot_standby'])
+                PrettyString(_get_value(route.cluster.client.url), 'cyan'),
+                _get_value(route.cluster.name),
+                PrettyString(_get_value(route.worker), 'yellow'),
+                _get_value(route.name),
+                _get_value(route.status_ok),
+                _get_value(route.taking_traffic),
+                _get_value(route.status_error),
+                _get_value(route.status_ignore_errors),
+                _get_value(route.status_draining_mode),
+                _get_value(route.status_disabled),
+                _get_value(route.status_hot_standby)
             ])
 
     widths = [max(map(len, col)) for col in zip(*rows)]
@@ -110,13 +110,13 @@ def print_validated_routes(routes, hide_compliant_routes=False, verbose=False):
 
     for route in list(routes):
 
-        if hide_compliant_routes is True and route['compliance_status'] is True:
+        if hide_compliant_routes is True and route.compliance_status is True:
             routes.remove(route)
             continue
 
-        for key, _ in route.items():
-            if key.startswith('status_') and key != 'status_ok' and key != 'status_error':
-                validation = route.get('validate_' + key)
+        for status, _ in route.get_statuses().items():
+            if status != 'status_ok' and status != 'status_error':
+                validation = route.status_validation.get(status)
                 if type(validation) is dict:
                     if validation['compliance'] is None:
                         char = ' X' if validation['value'] else ''
@@ -135,7 +135,11 @@ def print_validated_routes(routes, hide_compliant_routes=False, verbose=False):
 
                         color = 'green' if validation['compliance'] else 'red'
 
-                    route[key] = PrettyString(char, color)
+                    setattr(
+                        route,
+                        status,
+                        PrettyString(char, color)
+                    )
 
     print_routes(
         routes,

@@ -3,6 +3,7 @@ import logging
 from abc import ABCMeta, abstractmethod
 
 from .validate import ValidationClient
+from .errors import BalancerManagerError
 
 
 logger = logging.getLogger(__name__)
@@ -94,8 +95,13 @@ class Workflow(metaclass=ABCMeta):
     def init_clients(self, step):
 
         for name, server in step['servers'].items():
-            step['servers'][name] = ValidationClient(**server)
-            step['servers'][name].test()
+            if isinstance(server, ValidationClient):
+                server.test()
+            elif isinstance(server, dict):
+                step['servers'][name] = ValidationClient(**server)
+                step['servers'][name].test()
+            else:
+                raise BalancerManagerError('cannot convert server value into py_balancer_manager.ValidationClient')
 
     def print_validation(self, step):
 
@@ -138,7 +144,9 @@ class Workflow(metaclass=ABCMeta):
                     for change in route['changes']:
                         status_name, enable = Workflow.parse_status_change(change)
                         changes[status_name] = enable
-                    server.change_route_status(action['cluster'], route['name'], **changes)
+
+                    route = server.get_cluster(action['cluster']).get_route(route['name'])
+                    route.change_status(**changes)
 
                 self.print('URL: {url}'.format(url=server.url))
                 self.print_routes(

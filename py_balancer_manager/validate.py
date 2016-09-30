@@ -35,32 +35,35 @@ class ValidationClient(Client):
         if self.profile is None:
             return clusters
 
-        for cluster_name, cluster in clusters.items():
+        for cluster in clusters:
 
-            cluster_profile = self.profile.get(cluster_name, {})
+            cluster_profile = self.profile.get(cluster.name, {})
 
-            for route in cluster['routes']:
+            for route in cluster.get_routes():
 
-                route['compliance_status'] = True
-                route_profile = cluster_profile.get(route['route'])
+                route.compliance_status = True
+                route_profile = cluster_profile.get(route.name)
+                status_validation = {}
 
                 for status in allowed_statuses:
-                    key = 'validate_' + status
-                    route[key] = {
-                        'value': route[status],
+
+                    status_validation[status] = {
+                        'value': getattr(route, status),
                         'profile': None,
                         'compliance': None
                     }
 
                     if type(route_profile) is list:
-                        route[key]['profile'] = status in route_profile
+                        status_validation[status]['profile'] = status in route_profile
 
-                        if route[key]['value'] is route[key]['profile']:
-                            route[key]['compliance'] = True
+                        if status_validation[status]['value'] is status_validation[status]['profile']:
+                            status_validation[status]['compliance'] = True
                         else:
-                            route[key]['compliance'] = False
-                            route['compliance_status'] = False
+                            status_validation[status]['compliance'] = False
+                            route.compliance_status = False
                             self.holistic_compliance_status = False
+
+                setattr(route, 'status_validation', status_validation)
 
         return clusters
 
@@ -77,21 +80,16 @@ class ValidationClient(Client):
         allowed_statuses = _allowed_statuses_apache_22 if self.apache_version_is('2.2') else _allowed_statuses
 
         for route in self.get_routes():
+            if route.compliance_status is False:
 
-            if route.get('compliance_status') is False:
-
-                logger.info('enforcing profile for {cluster}->{route}'.format(**route))
+                logger.info('enforcing profile for {cluster}->{route}'.format(cluster=route.cluster.name, route=route.name))
 
                 # build status dictionary to enforce
                 route_statuses = {}
                 for status in allowed_statuses:
-                    route_statuses[status] = route['validate_' + status]['profile']
+                    route_statuses[status] = route.status_validation[status]['profile']
 
-                self.change_route_status(
-                    route['cluster'],
-                    route['route'],
-                    **route_statuses
-                )
+                route.change_status(**route_statuses)
 
     def set_profile(self, profile):
 
@@ -110,23 +108,23 @@ class ValidationClient(Client):
         # init empty list for the profile
         profile = OrderedDict()
 
-        for name, cluster in super(ValidationClient, self)._get_clusters_from_apache().items():
+        for cluster in super(ValidationClient, self)._get_clusters_from_apache():
 
             cluster_profile = OrderedDict()
 
-            for route in cluster['routes']:
+            for route in cluster.get_routes():
 
                 enabled_statuses = []
 
-                for key, status in route.items():
-                    if key.startswith('status_') and key in allowed_statuses:
-                        if type(status) is not bool:
+                for status, value in route.get_statuses().items():
+                    if status in allowed_statuses:
+                        if type(value) is not bool:
                             raise TypeError('status value must be boolean')
-                        if status is True:
-                            enabled_statuses.append(key)
+                        if value is True:
+                            enabled_statuses.append(status)
 
-                cluster_profile[route['route']] = enabled_statuses
+                cluster_profile[route.name] = enabled_statuses
 
-            profile[name] = cluster_profile
+            profile[cluster.name] = cluster_profile
 
         return profile

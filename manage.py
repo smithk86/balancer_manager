@@ -118,7 +118,10 @@ def main():
 
     else:
         client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), insecure=args.insecure, username=args.username, password=password)
-        routes = client.get_routes(cluster=args.cluster)
+        if args.cluster:
+            routes = client.get_cluster(args.cluster).get_routes()
+        else:
+            routes = client.get_routes()
 
     if args.list_routes:
         print_routes(routes, args.verbose)
@@ -130,6 +133,8 @@ def main():
 
         if args.cluster is None or args.route is None:
             raise ValueError('--cluster and --route are required')
+
+        route = client.get_cluster(args.cluster).get_route(args.route)
 
         _kwargs = {}
         try:
@@ -144,7 +149,7 @@ def main():
         except ValueError:
             raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
 
-        client.change_route_status(args.cluster, args.route, **_kwargs)
+        route.change_status(args.cluster, args.route, **_kwargs)
 
     else:
         print('no actionable arguments were provided')
