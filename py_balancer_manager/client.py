@@ -122,8 +122,6 @@ class Route:
     def get_statuses(self):
 
         return {
-            'status_ok': self.status_ok,
-            'status_error': self.status_error,
             'status_ignore_errors': self.status_ignore_errors,
             'status_draining_mode': self.status_draining_mode,
             'status_disabled': self.status_disabled,
@@ -166,9 +164,9 @@ class Route:
             pass
         elif self.cluster.eligible_routes <= 1:
             if new_route_statuses['status_disabled'] is True:
-                raise BalancerManagerError('cannot enable the "disabled" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(**locals()))
+                raise BalancerManagerError('cannot enable the "disabled" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
             elif new_route_statuses['status_draining_mode'] is True:
-                raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(**locals()))
+                raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
         if self.cluster.client.apache_version_is('2.4.'):
             post_data = {
