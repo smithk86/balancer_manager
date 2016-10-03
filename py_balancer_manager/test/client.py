@@ -1,9 +1,10 @@
 import re
 import pytest
 import random
+from uuid import UUID
 
 from get_vars import get_var
-from py_balancer_manager import Client
+from py_balancer_manager import Client, Cluster, Route
 
 
 @pytest.fixture(
@@ -37,9 +38,11 @@ class TestClient():
 
     def test_routes(self):
 
-        assert type(self.client.get_routes()) is list
+        for route in self.client.get_routes():
+            assert type(route) is Route
 
     def test_route_update(self):
+
         """ insure timestamp is update when use_cache is False """
 
         old_time = self.client.cache_clusters_time
@@ -52,39 +55,40 @@ class TestClient():
 
         uuid_pattern = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 
-        for _, cluster in self.client.get_clusters().items():
-            assert cluster['max_members'] is None or type(cluster['max_members']) == int
-            assert cluster['max_members_used'] is None or type(cluster['max_members_used']) == int
-            assert type(cluster['sticky_session']) == str
-            assert cluster['disable_failover'] is None or type(cluster['disable_failover']) == bool
-            assert type(cluster['timeout']) == int
-            assert type(cluster['failover_attempts']) == int
-            assert type(cluster['method']) == str
-            assert cluster['path'] is None or type(cluster['path']) == str
-            assert cluster['active'] is None or type(cluster['active']) == bool
+        for cluster in self.client.get_clusters():
+            assert type(self.client) is Client
+            assert cluster.max_members is None or type(cluster.max_members) == int
+            assert cluster.max_members_used is None or type(cluster.max_members_used) == int
+            assert type(cluster.sticky_session) == str
+            assert cluster.disable_failover is None or type(cluster.disable_failover) == bool
+            assert type(cluster.timeout) == int
+            assert type(cluster.failover_attempts) == int
+            assert type(cluster.method) == str
+            assert cluster.path is None or type(cluster.path) == str
+            assert cluster.active is None or type(cluster.active) == bool
 
-            for route in cluster['routes']:
-                assert type(route['worker']) == str
-                assert type(route['route']) == str
-                assert type(route['priority']) == int
-                assert type(route['route_redir']) == str
-                assert type(route['factor']) == int
-                assert type(route['set']) == int
-                assert type(route['status_ok']) == bool
-                assert type(route['status_error']) == bool
-                assert route['status_ignore_errors'] is None or type(route['status_ignore_errors']) == bool
-                assert route['status_draining_mode'] is None or type(route['status_draining_mode']) == bool
-                assert type(route['status_disabled']) == bool
-                assert type(route['status_hot_standby']) == bool
-                assert type(route['elected']) == int
-                assert route['busy'] is None or type(route['busy']) == int
-                assert route['load'] is None or type(route['load']) == int
-                assert type(route['to']) == str
-                assert type(route['to_raw']) == int
-                assert type(route['from']) == str
-                assert type(route['from_raw']) == int
-                assert uuid_pattern.match(route['session_nonce_uuid'])
-                assert type(route['cluster']) == str
+            for route in cluster.get_routes():
+                assert type(route.cluster) == Cluster
+                assert type(route.worker) == str
+                assert type(route.name) == str
+                assert type(route.priority) == int
+                assert type(route.route_redir) == str
+                assert type(route.factor) == int
+                assert type(route.set) == int
+                assert type(route.status_ok) == bool
+                assert type(route.status_error) == bool
+                assert route.status_ignore_errors is None or type(route.status_ignore_errors) == bool
+                assert route.status_draining_mode is None or type(route.status_draining_mode) == bool
+                assert type(route.status_disabled) == bool
+                assert type(route.status_hot_standby) == bool
+                assert type(route.elected) == int
+                assert route.busy is None or type(route.busy) == int
+                assert route.load is None or type(route.load) == int
+                assert type(route.traffic_to) == str
+                assert type(route.traffic_to_raw) == int
+                assert type(route.traffic_from) == str
+                assert type(route.traffic_from_raw) == int
+                assert type(route.session_nonce_uuid) is UUID
 
     def test_route_status_changes(self):
 
@@ -99,19 +103,21 @@ class TestClient():
             if self.client.apache_version_is('2.2') and status != 'status_disabled':
                 continue
 
-            status_value = route[status]
+            status_value = getattr(route, status)
 
             # toggle status to the oposite value
             kwargs = {status: not status_value}
-            self.client.change_route_status(route['cluster'], route['route'], **kwargs)
-            updated_route = self.client.get_route(route['cluster'], route['route'])
-            assert updated_route[status] is not status_value
+            route.change_status(**kwargs)
+
+            updated_route = self.client.get_cluster(route.cluster.name).get_route(route.name)
+            assert getattr(updated_route, status) is not status_value
 
             # toggle status back to original value
             kwargs = {status: status_value}
-            self.client.change_route_status(route['cluster'], route['route'], **kwargs)
-            updated_route = self.client.get_route(route['cluster'], route['route'])
-            assert updated_route[status] is status_value
+            updated_route.change_status(**kwargs)
+
+            updated_route2 = self.client.get_cluster(route.cluster.name).get_route(route.name)
+            assert getattr(updated_route2, status) is status_value
 
     def _get_random_route(self):
 
