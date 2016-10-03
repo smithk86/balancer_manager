@@ -118,11 +118,11 @@ class Workflow(metaclass=ABCMeta):
         self.print('actions:')
         for i, action in enumerate(step['actions']):
             self.print('    #{i}: (revert={revert})'.format(i=i + 1, revert='yes' if action['revert'] else 'no'))
-            for route in action['routes']:
+            for route_name, route_changes in action['routes'].items():
                 self.print('        {cluster} -> {route} [{changes}]'.format(
                     cluster=action['cluster'],
-                    route=route['name'],
-                    changes=','.join(route['changes'])
+                    route=route_name,
+                    changes=','.join(route_changes)
                 ))
 
     def execute_changes(self, step):
@@ -139,18 +139,18 @@ class Workflow(metaclass=ABCMeta):
                 server.set_profile({
                     action['cluster']: action['cluster_profiles'].get(name, {})
                 })
-                for route in action['routes']:
+                for route_name, route_changes in action['routes'].items():
                     changes = {}
-                    for change in route['changes']:
-                        status_name, enable = Workflow.parse_status_change(change)
-                        changes[status_name] = enable
+                    for change in route_changes:
+                        status_name, enabled = Workflow.parse_status_change(change)
+                        changes[status_name] = enabled
 
-                    route = server.get_cluster(action['cluster']).get_route(route['name'])
-                    route.change_status(**changes)
+                    print(changes)
+                    server.get_cluster(action['cluster']).get_route(route_name).change_status(**changes)
 
                 self.print('URL: {url}'.format(url=server.url))
                 self.print_routes(
-                    server.get_routes(cluster=action['cluster'])
+                    server.get_cluster(action['cluster']).get_routes()
                 )
 
     def has_reverts(self, step):
