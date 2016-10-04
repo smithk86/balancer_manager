@@ -11,9 +11,12 @@ from py_balancer_manager import Workflow, print_validated_routes
 
 class WorkflowCLI(Workflow):
 
-    def print(self, *args, **kwargs):
+    def print(self, msg=None):
 
-        print(*args, **kwargs)
+        if msg:
+            print(msg)
+        else:
+            print()
 
     def print_routes(self, routes):
 
@@ -22,10 +25,6 @@ class WorkflowCLI(Workflow):
     def prompt(self, message):
 
         return prompt(message)
-
-    def exit(self, retval=0):
-
-        sys.exit(retval)
 
 
 parser = argparse.ArgumentParser()

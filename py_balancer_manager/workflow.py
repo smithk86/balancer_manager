@@ -1,3 +1,4 @@
+import sys
 import re
 import logging
 from abc import ABCMeta, abstractmethod
@@ -7,6 +8,10 @@ from .errors import BalancerManagerError
 
 
 logger = logging.getLogger(__name__)
+
+
+class EndWorkflow(Exception):
+    pass
 
 
 class Workflow(metaclass=ABCMeta):
@@ -30,7 +35,7 @@ class Workflow(metaclass=ABCMeta):
                         action['cluster_profiles'] = {}
 
     @abstractmethod
-    def print(self, *args, **kwargs):
+    def print(self, msg=None):
 
         pass
 
@@ -41,11 +46,6 @@ class Workflow(metaclass=ABCMeta):
 
     @abstractmethod
     def prompt(self, *args, **kwargs):
-
-        pass
-
-    @abstractmethod
-    def exit(self, *args, **kwargs):
 
         pass
 
@@ -67,32 +67,39 @@ class Workflow(metaclass=ABCMeta):
 
         self.print()
 
-        for step in self.workflow:
+        try:
 
-            try:
+            for step in self.workflow:
 
-                self.init_clients(step)
-                self.print_validation(step)
-                self.print()
+                try:
 
-                if not self.prompt(message='execute the above actions?'):
+                    self.init_clients(step)
+                    self.print_validation(step)
                     self.print()
-                    self.exit()
 
-                self.print()
-                self.execute_changes(step)
-                self.print()
+                    if self.prompt(message='execute the above actions?') is False:
+                        raise EndWorkflow()
 
-            except Exception as e:
+                    self.print()
+                    self.execute_changes(step)
+                    self.print()
 
-                logger.exception(e)
-                self.print()
-
-            finally:
+                except KeyboardInterrupt:
+                    raise EndWorkflow()
 
                 if self.has_reverts(step):
-                    self.revert_changes(step)
-                    self.print()
+
+                    if self.prompt(message='are the soapui tests passing and routes ready to be enabled?'):
+                        self.revert_changes(step)
+                        self.print()
+                    else:
+                        raise EndWorkflow()
+
+        except EndWorkflow:
+            self.print()
+            self.print('exiting workflow')
+            self.print()
+            sys.exit(1)
 
     def init_clients(self, step):
 
@@ -169,21 +176,17 @@ class Workflow(metaclass=ABCMeta):
 
         """ revert changes by enforcing the cluster profile taken before the changes were made """
 
-        if not self.prompt(message='are the soapui tests passing and routes ready to be enabled?'):
-            self.print()
-            self.exit(1)
-        else:
-            self.print()
-            for name, server in step['servers'].items():
-                for action in step['actions']:
-                    if action['revert'] is True:
-                        server.set_profile({
-                            action['cluster']: action['cluster_profiles'][name]
-                        })
+        self.print()
+        for name, server in step['servers'].items():
+            for action in step['actions']:
+                if action['revert'] is True:
+                    server.set_profile({
+                        action['cluster']: action['cluster_profiles'][name]
+                    })
 
-                        server.enforce()
+                    server.enforce()
 
-                        if server.get_holistic_compliance_status() is False:
-                            raise ValueError('{url} is out of compliance'.format(url=server))
+                    if server.get_holistic_compliance_status() is False:
+                        raise ValueError('{url} is out of compliance'.format(url=server))
 
-                        self.print('the balancer profiles has been enforced for {name} -> {cluster}'.format(name=name, cluster=action['cluster']))
+                    self.print('the balancer profiles has been enforced for {name} -> {cluster}'.format(name=name, cluster=action['cluster']))
