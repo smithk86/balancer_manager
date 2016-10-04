@@ -21,8 +21,10 @@ class Workflow(metaclass=ABCMeta):
         for step in self.workflow:
             for server in step['servers']:
                 for server in step['servers'].values():
-                    server['username'] = username
-                    server['password'] = password
+                    if username:
+                        server['username'] = username
+                    if password:
+                        server['password'] = password
                     for action in step['actions']:
                         # add cluster_profiles dictionary
                         action['cluster_profiles'] = {}
