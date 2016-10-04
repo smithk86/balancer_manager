@@ -154,7 +154,6 @@ class Workflow(metaclass=ABCMeta):
                         status_name, enabled = Workflow.parse_status_change(change)
                         changes[status_name] = enabled
 
-                    print(changes)
                     server.get_cluster(action['cluster']).get_route(route_name).change_status(**changes)
 
                 self.print('URL: {url}'.format(url=server.url))
