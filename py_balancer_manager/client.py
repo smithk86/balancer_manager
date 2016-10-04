@@ -68,6 +68,22 @@ class Cluster:
         self.eligible_routes = None
         self.routes = list()
 
+    def __iter__(self):
+
+        yield ('name', self.name)
+        yield ('max_members', self.max_members)
+        yield ('max_members_used', self.max_members_used)
+        yield ('sticky_session', self.sticky_session)
+        yield ('route_redir', self.route_redir)
+        yield ('timeout', self.timeout)
+        yield ('failover_attempts', self.failover_attempts)
+        yield ('method', self.method)
+        yield ('path', self.path)
+        yield ('active', self.active)
+        yield ('standby_activated', self.standby_activated)
+        yield ('eligible_routes', self.eligible_routes)
+        yield ('routes', [dict(r) for r in self.routes])
+
     def add_route(self, route):
 
         if not isinstance(route, Route):
@@ -118,6 +134,28 @@ class Route:
         self.status_disabled = None
         self.status_hot_standby = None
         self.taking_traffic = None
+
+    def __iter__(self):
+
+        yield ('name', self.name)
+        yield ('worker', self.worker)
+        yield ('priority', self.priority)
+        yield ('route_redir', self.route_redir)
+        yield ('factor', self.factor)
+        yield ('set', self.set)
+        yield ('elected', self.elected)
+        yield ('traffic_to', self.traffic_to)
+        yield ('traffic_to_raw', self.traffic_to_raw)
+        yield ('traffic_from', self.traffic_from)
+        yield ('traffic_from_raw', self.traffic_from_raw)
+        yield ('session_nonce_uuid', self.session_nonce_uuid)
+        yield ('status_ok', self.status_ok)
+        yield ('status_error', self.status_error)
+        yield ('status_ignore_errors', self.status_ignore_errors)
+        yield ('status_draining_mode', self.status_draining_mode)
+        yield ('status_disabled', self.status_disabled)
+        yield ('status_hot_standby', self.status_hot_standby)
+        yield ('taking_traffic', self.taking_traffic)
 
     def get_statuses(self):
 
@@ -229,6 +267,14 @@ class Client:
 
         if username and password:
             self.session.auth = (username, password)
+
+    def __iter__(self):
+
+        yield ('url', self.url)
+        yield ('insecure', self.insecure)
+        yield ('apache_version', self.apache_version)
+        yield ('request_exception', str(self.request_exception))
+        yield ('clusters', [dict(c) for c in self.cache_clusters] if self.cache_clusters else None)
 
     def close(self):
 
