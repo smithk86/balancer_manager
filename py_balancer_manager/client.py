@@ -74,7 +74,6 @@ class Cluster:
         yield ('max_members', self.max_members)
         yield ('max_members_used', self.max_members_used)
         yield ('sticky_session', self.sticky_session)
-        yield ('route_redir', self.route_redir)
         yield ('timeout', self.timeout)
         yield ('failover_attempts', self.failover_attempts)
         yield ('method', self.method)
@@ -273,7 +272,7 @@ class Client:
         yield ('url', self.url)
         yield ('insecure', self.insecure)
         yield ('apache_version', self.apache_version)
-        yield ('request_exception', str(self.request_exception))
+        yield ('request_exception', str(self.request_exception) if self.request_exception else None)
         yield ('clusters', [dict(c) for c in self.cache_clusters] if self.cache_clusters else None)
 
     def close(self):
