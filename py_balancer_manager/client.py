@@ -13,33 +13,6 @@ from .errors import BalancerManagerError
 logger = logging.getLogger(__name__)
 
 
-def _decode_data_useage(usage_string):
-
-    usage_string = usage_string.strip()
-
-    try:
-        # match string from manager page to number + kilo/mega/giga/tera-byte
-        match = re.match('([\d\.]*)([KMGT]?)', usage_string)
-        if match:
-            num = float(match.group(1))
-            scale_code = match.group(2)
-            if scale_code == 'K':
-                return int(num * 1000)
-            elif scale_code == 'M':
-                return int(num * 1000000)
-            elif scale_code == 'G':
-                return int(num * 1000000000)
-            elif scale_code == 'T':
-                return int(num * 1000000000000)
-            else:
-                return int(num)
-        elif usage_string == '0':
-            return 0
-
-    except Exception as e:
-        logger.exception(e)
-
-    return 'NaN'
 
 
 class ApacheVersionError(BalancerManagerError):
@@ -520,9 +493,9 @@ class Client:
                     route.busy = int(cells[7].text)
                     route.load = int(cells[8].text)
                     route.traffic_to = cells[9].text
-                    route.traffic_to_raw = _decode_data_useage(cells[9].text)
+                    route.traffic_to_raw = Client._decode_data_useage(cells[9].text)
                     route.traffic_from = cells[10].text
-                    route.traffic_from_raw = _decode_data_useage(cells[10].text)
+                    route.traffic_from_raw = Client._decode_data_useage(cells[10].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
 
                 elif self.apache_version_is('2.2.'):
@@ -542,9 +515,9 @@ class Client:
                     route.busy = None
                     route.load = None
                     route.traffic_to = cells[7].text
-                    route.traffic_to_raw = _decode_data_useage(cells[7].text)
+                    route.traffic_to_raw = Client._decode_data_useage(cells[7].text)
                     route.traffic_from = cells[8].text
-                    route.traffic_from_raw = _decode_data_useage(cells[8].text)
+                    route.traffic_from_raw = Client._decode_data_useage(cells[8].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
 
                 else:
@@ -573,3 +546,32 @@ class Client:
                     cluster.eligible_routes += 1
 
         return clusters
+
+    @staticmethod
+    def _decode_data_useage(value):
+
+        value = value.strip()
+
+        try:
+            # match string from manager page to number + kilo/mega/giga/tera-byte
+            match = re.match('([\d\.]*)([KMGT]?)', value)
+            if match:
+                num = float(match.group(1))
+                scale_code = match.group(2)
+                if scale_code == 'K':
+                    return int(num * 1000)
+                elif scale_code == 'M':
+                    return int(num * 1000000)
+                elif scale_code == 'G':
+                    return int(num * 1000000000)
+                elif scale_code == 'T':
+                    return int(num * 1000000000000)
+                else:
+                    return int(num)
+            elif value == '0':
+                return 0
+
+        except Exception as e:
+            logger.exception(e)
+
+        return None
