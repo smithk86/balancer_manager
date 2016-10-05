@@ -13,10 +13,13 @@ from .errors import BalancerManagerError
 logger = logging.getLogger(__name__)
 
 
+class BalancerManagerParseError(BalancerManagerError):
+    pass
 
 
 class ApacheVersionError(BalancerManagerError):
     pass
+
 
 class RouteNotFound(BalancerManagerError):
     pass
@@ -297,15 +300,17 @@ class Client:
 
         page = self._get_soup_html()
 
-        full_version_string = page.find('dt').text
+        try:
+            full_version_string = page.find('dt').text
+        except AttributeError:
+            raise BalancerManagerParseError('could not parse text from the first "dt" element')
+
         match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', full_version_string)
         if match:
             self.apache_version = match.group(1)
-
-        logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
-
-        if self.apache_version is None:
-            raise TypeError('apache version parse failed')
+            logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
+        else:
+            raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of Apache')
 
     def apache_version_is(self, version):
 
@@ -318,7 +323,7 @@ class Client:
 
     def test(self):
 
-        self._request_session_get()
+        self.set_apache_version()
 
     def _get_soup_html(self):
 

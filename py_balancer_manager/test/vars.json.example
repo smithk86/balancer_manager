@@ -13,5 +13,7 @@
 			"username": "user",
 			"password": "passwd"
 		}
-	]
+	],
+	"url_with_bad_hostname": "http://localh0st/balancer-manager",
+	"url_for_non-balancer-manager": "http://www.google.com"
 }

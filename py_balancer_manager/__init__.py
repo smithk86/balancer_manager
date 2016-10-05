@@ -1,4 +1,4 @@
-from .client import Client, Route, Cluster
+from .client import Client, Route, Cluster, BalancerManagerParseError
 from .validate import ValidationClient
 from .thread import ClientRefreshRouteThread
 from .workflow import Workflow

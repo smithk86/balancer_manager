@@ -4,7 +4,7 @@ import random
 from uuid import UUID
 
 from get_vars import get_var
-from py_balancer_manager import Client, Cluster, Route
+from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError
 
 
 @pytest.fixture(
@@ -99,14 +99,19 @@ class TestClient():
             if route is None:
                 raise ValueError('no route was returned; please check the server')
 
-            # only test status_disabled with apache 2.2
-            if self.client.apache_version_is('2.2') and status != 'status_disabled':
-                continue
-
             status_value = getattr(route, status)
 
             # toggle status to the oposite value
             kwargs = {status: not status_value}
+
+            # ensure only status_disable can be changed with apache 2.2
+            if self.client.apache_version_is('2.2') and status != 'status_disabled':
+                with pytest.raises(BalancerManagerError) as excinfo:
+                    route.change_status(**kwargs)
+                assert 'is not supported in apache 2.2' in str(excinfo.value)
+                continue
+
+            # continue with route testing
             route.change_status(**kwargs)
 
             updated_route = self.client.get_cluster(route.cluster.name).get_route(route.name)
@@ -127,3 +132,33 @@ class TestClient():
             return routes[random_index]
         else:
             return None
+
+def test_bad_url():
+
+    client = Client(
+        get_var('url_with_bad_hostname'),
+        timeout=5
+    )
+
+    with pytest.raises(BalancerManagerError):
+        client.test()
+
+
+def test_bad_balancer_manager():
+
+    client = Client(
+        get_var('url_for_non-balancer-manager'),
+        timeout=5
+    )
+
+    with pytest.raises(BalancerManagerParseError) as excinfo:
+        client.set_apache_version()
+    assert 'could not parse text from the first "dt" element' in str(excinfo.value)
+
+
+def test_bad_auth():
+
+    for server_url in [s.get('url') for s in get_var('servers')]:
+        with pytest.raises(BalancerManagerError) as excinfo:
+            Client(server_url).test()
+        assert '401 Client Error' in str(excinfo.value)
