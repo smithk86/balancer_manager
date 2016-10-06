@@ -20,9 +20,9 @@ def main():
 
         if value is None:
             return False
-        elif value.lower() in ['true', '1', 'y', 'yes']:
+        elif value.lower() in ['true', '1', 'y', 'yes', 'enabled']:
             return True
-        elif value.lower() in ['false', '0', 'n', 'no']:
+        elif value.lower() in ['false', '0', 'n', 'no', 'disabled']:
             return False
         else:
             raise ValueError('could not parse "{value}" to boolean'.format(**locals()))
