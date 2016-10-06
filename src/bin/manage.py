@@ -4,64 +4,14 @@ import os
 import argparse
 import requests
 import logging
-import threading
 from getpass import getpass
 
 import py_balancer_manager
 from py_balancer_manager import print_routes
 
+
 # disable warnings
 requests.packages.urllib3.disable_warnings()
-
-
-class ClientThread(threading.Thread):
-
-    def __init__(self, client):
-        threading.Thread.__init__(self)
-
-        if type(client) is not Client:
-            raise TypeError('first argument must be of type py_balancer_manager.Client')
-
-        self.client = client
-        self.routes = None
-
-    def run(self):
-
-        self.routes = self.client.get_routes()
-
-
-class ClientAggregator:
-
-    def __init__(self):
-        self.clients = {}
-
-    def add_client(self, client, client_id=None):
-
-        if type(client) is Client:
-
-            if client_id:
-                self.clients.client_id = client_id
-
-            self.clients.append(client)
-
-    def get_servers(self):
-
-        servers = []
-        threads = []
-
-        for client in self.clients:
-            threads.append(ClientThread(client))
-
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join()
-
-        for thread in threads:
-            servers.append(thread.routes)
-
-        return servers
 
 
 def main():
@@ -103,25 +53,11 @@ def main():
     else:
         password = None
 
-    urls = getattr(args, 'balance-manager-url').split(',')
-
-    if len(urls) > 1:
-
-        clients = ClientAggregator()
-
-        for url in urls:
-            clients.add_client(
-                py_balancer_manager.Client(url, insecure=args.insecure, username=args.username, password=password)
-            )
-
-        routes = clients.get_routes()
-
+    client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), insecure=args.insecure, username=args.username, password=password)
+    if args.cluster:
+        routes = client.get_cluster(args.cluster).get_routes()
     else:
-        client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), insecure=args.insecure, username=args.username, password=password)
-        if args.cluster:
-            routes = client.get_cluster(args.cluster).get_routes()
-        else:
-            routes = client.get_routes()
+        routes = client.get_routes()
 
     if args.list_routes:
         print_routes(routes, args.verbose)
