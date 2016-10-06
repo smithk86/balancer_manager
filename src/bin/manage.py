@@ -60,7 +60,10 @@ def main():
         routes = client.get_routes()
 
     if args.list_routes:
+        print()
+        print('URL: {url}'.format(url=client.url))
         print_routes(routes, args.verbose)
+        print()
 
     elif (args.ignore_errors is not None or
             args.draining_mode is not None or

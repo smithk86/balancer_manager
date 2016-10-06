@@ -21,7 +21,6 @@ def print_routes(routes, verbose=False):
     if verbose:
 
         rows.append([
-            PrettyString('URL', 'bold'),
             PrettyString('Cluster', 'bold'),
             PrettyString('Worker URL', 'bold'),
             PrettyString('Route', 'bold'),
@@ -45,7 +44,6 @@ def print_routes(routes, verbose=False):
     else:
 
         rows.append([
-            PrettyString('URL', 'bold'),
             PrettyString('Cluster', 'bold'),
             PrettyString('Worker URL', 'bold'),
             PrettyString('Route', 'bold'),
@@ -63,8 +61,7 @@ def print_routes(routes, verbose=False):
         for route in routes:
 
             rows.append([
-                PrettyString(_get_value(route.cluster.client.url), 'cyan'),
-                _get_value(route.cluster.name),
+                PrettyString(_get_value(route.cluster.name), 'cyan'),
                 PrettyString(_get_value(route.worker), 'yellow'),
                 _get_value(route.name),
                 _get_value(route.elected),
@@ -88,8 +85,7 @@ def print_routes(routes, verbose=False):
 
         for route in routes:
             rows.append([
-                PrettyString(_get_value(route.cluster.client.url), 'cyan'),
-                _get_value(route.cluster.name),
+                PrettyString(_get_value(route.cluster.name), 'cyan'),
                 PrettyString(_get_value(route.worker), 'yellow'),
                 _get_value(route.name),
                 _get_value(route.status_ok),
