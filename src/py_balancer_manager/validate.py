@@ -96,7 +96,7 @@ class ValidationClient(Client):
         # set new profile
         self.profile = profile
         # expire cache to force refresh
-        self.expire_route_cache()
+        self.expire_clusters()
 
     def get_profile(self):
 

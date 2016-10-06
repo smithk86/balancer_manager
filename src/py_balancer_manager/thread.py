@@ -19,7 +19,7 @@ class ClientRefreshRouteThread(threading.Thread):
 
         try:
 
-            self.client.get_routes(use_cache=False)
+            self.client.get_routes(refresh=True)
 
         except Exception as e:
 

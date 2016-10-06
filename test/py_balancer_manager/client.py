@@ -43,13 +43,13 @@ class TestClient():
 
     def test_route_update(self):
 
-        """ insure timestamp is update when use_cache is False """
+        """ insure timestamp is update when refresh is True """
 
-        old_time = self.client.cache_clusters_time
-        self.client.get_routes(use_cache=False)
-        new_time = self.client.cache_clusters_time
+        current_datetime = self.client.clusters_refresh_datetime
+        self.client.get_routes(refresh=True)
+        new_datetime = self.client.clusters_refresh_datetime
 
-        assert old_time < new_time
+        assert current_datetime < new_datetime
 
     def test_validate_clusters_and_routes(self):
 

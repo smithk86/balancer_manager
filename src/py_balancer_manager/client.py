@@ -1,8 +1,8 @@
 import re
-import time
 import logging
 from collections import OrderedDict
 from uuid import UUID
+from datetime import datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
@@ -58,6 +58,10 @@ class Cluster:
         yield ('standby_activated', self.standby_activated)
         yield ('eligible_routes', self.eligible_routes)
         yield ('routes', [dict(r) for r in self.routes])
+
+    def refresh(self):
+
+        self.client.refresh()
 
     def add_route(self, route):
 
@@ -131,6 +135,10 @@ class Route:
         yield ('status_disabled', self.status_disabled)
         yield ('status_hot_standby', self.status_hot_standby)
         yield ('taking_traffic', self.taking_traffic)
+
+    def refresh(self):
+
+        self.cluster.client.refresh()
 
     def get_statuses(self):
 
@@ -211,7 +219,7 @@ class Route:
             self.cluster.client._request_session_get(params=get_data)
 
         # expire cache to force refresh
-        self.cluster.client.expire_route_cache()
+        self.cluster.client.expire_clusters()
 
 
 class Client:
@@ -231,9 +239,9 @@ class Client:
         self.apache_version = None
         self.request_exception = None
 
-        self.cache_ttl = cache_ttl
-        self.cache_clusters = None
-        self.cache_clusters_time = 0
+        self.clusters_ttl = cache_ttl
+        self.clusters = None
+        self.clusters_refresh_datetime = None
 
         self.session = requests.Session()
         self.session.headers.update({
@@ -249,7 +257,7 @@ class Client:
         yield ('insecure', self.insecure)
         yield ('apache_version', self.apache_version)
         yield ('request_exception', str(self.request_exception) if self.request_exception else None)
-        yield ('clusters', [dict(c) for c in self.cache_clusters] if self.cache_clusters else None)
+        yield ('clusters', [dict(c) for c in self.clusters] if self.clusters else None)
 
     def close(self):
 
@@ -334,30 +342,32 @@ class Client:
 
         return BeautifulSoup(req.text, 'html.parser')
 
-    def get_clusters(self, use_cache=True):
+    def refresh(self):
 
+        logger.debug('refreshing clusters')
+
+        # ensure apache version is set
         self.set_apache_version()
+        # save timestamp before apache is accessed
+        now = datetime.now()
+        # do work
+        self.clusters = self._get_clusters_from_apache()
+        # update timestamp
+        self.clusters_refresh_datetime = now
 
-        now = time.time()
+    def get_clusters(self, refresh=False):
 
-        # if cache is expired
-        if self.cache_clusters_time < (now - self.cache_ttl):
-            self.cache_clusters = None
+        # if there are no clusters or refresh=True or cluster ttl is reached
+        if self.clusters is None or refresh is True or \
+                self.clusters_refresh_datetime is None or \
+                (self.clusters_refresh_datetime < (datetime.now() - timedelta(seconds=self.clusters_ttl))):
+            self.refresh()
 
-        # if use_cache has been set to False
-        if use_cache is False:
-            self.cache_clusters = None
+        return self.clusters
 
-        if not self.cache_clusters:
-            logger.debug('refreshing route cache')
-            self.cache_clusters = self._get_clusters_from_apache()
-            self.cache_clusters_time = now
+    def get_cluster(self, name, refresh=False):
 
-        return self.cache_clusters
-
-    def get_cluster(self, name, use_cache=True):
-
-        clusters = self.get_clusters(use_cache=use_cache)
+        clusters = self.get_clusters(refresh=refresh)
 
         # find the cluster object for this route
         cluster = list(
@@ -369,16 +379,18 @@ class Client:
 
         return cluster.pop()
 
-    def get_routes(self, use_cache=True):
+    def get_routes(self, refresh=False):
 
         routes = []
-        for cluster in self.get_clusters(use_cache=use_cache):
+        for cluster in self.get_clusters(refresh=refresh):
             routes += cluster.get_routes()
         return routes
 
-    def expire_route_cache(self):
-        # expire cache to force refresh
-        self.cache_clusters_time = 0
+    def expire_clusters(self):
+
+        """ expire cache to force refresh """
+
+        self.clusters_refresh_datetime = None
 
     def _get_clusters_from_apache(self):
 
