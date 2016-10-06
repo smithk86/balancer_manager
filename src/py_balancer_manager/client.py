@@ -9,9 +9,6 @@ from bs4 import BeautifulSoup
 from .errors import BalancerManagerError
 
 
-logger = logging.getLogger(__name__)
-
-
 class BalancerManagerParseError(BalancerManagerError):
     pass
 
@@ -225,11 +222,13 @@ class Client:
 
     def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30):
 
+        self.logger = logging.getLogger(__name__)
+
         if type(insecure) is not bool:
             raise TypeError('insecure must be type bool')
 
         if insecure is True:
-            logger.warning('ssl certificate verification is disabled')
+            self.logger.warning('ssl certificate verification is disabled')
 
         self.url = url
         self.timeout = timeout
@@ -315,7 +314,7 @@ class Client:
         match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', full_version_string)
         if match:
             self.apache_version = match.group(1)
-            logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
+            self.logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
         else:
             raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of Apache')
 
@@ -343,7 +342,7 @@ class Client:
 
     def refresh(self):
 
-        logger.debug('refreshing clusters')
+        self.logger.debug('refreshing')
 
         # ensure apache version is set
         self.set_apache_version()
@@ -588,6 +587,6 @@ class Client:
                 return 0
 
         except Exception as e:
-            logger.exception(e)
+            logging.exception(e)
 
         return None
