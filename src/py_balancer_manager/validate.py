@@ -1,6 +1,5 @@
 import threading
 import logging
-from collections import OrderedDict
 
 from .client import Client
 
@@ -106,11 +105,11 @@ class ValidationClient(Client):
         allowed_statuses = _allowed_statuses_apache_22 if self.apache_version_is('2.2') else _allowed_statuses
 
         # init empty list for the profile
-        profile = OrderedDict()
+        profile = dict()
 
         for cluster in super(ValidationClient, self)._get_clusters_from_apache():
 
-            cluster_profile = OrderedDict()
+            cluster_profile = dict()
 
             for route in cluster.get_routes():
 
