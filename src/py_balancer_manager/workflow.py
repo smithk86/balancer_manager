@@ -1,4 +1,3 @@
-import sys
 import re
 import logging
 from abc import ABCMeta, abstractmethod
@@ -95,11 +94,12 @@ class Workflow(metaclass=ABCMeta):
                     else:
                         raise EndWorkflow()
 
+            self.print('done')
+
         except EndWorkflow:
             self.print()
             self.print('exiting workflow')
             self.print()
-            sys.exit(1)
 
     def init_clients(self, step):
 
