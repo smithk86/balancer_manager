@@ -21,6 +21,10 @@ class RouteNotFound(BalancerManagerError):
     pass
 
 
+class RouteChangeValidationError(BalancerManagerError):
+    pass
+
+
 class Cluster:
 
     def __init__(self, client):
@@ -59,12 +63,11 @@ class Cluster:
 
         self.client.refresh()
 
-    def add_route(self, route):
+    def new_route(self):
 
-        if not isinstance(route, Route):
-            raise TypeError('argument 2 must be a Route object')
-
+        route = Route(self)
         self.routes.append(route)
+        return route
 
     def get_routes(self):
 
@@ -147,25 +150,21 @@ class Route:
 
     def change_status(self, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
 
-        if self.cluster.client.apache_version_is('2.4.'):
-            new_route_statuses = {
-                'status_ignore_errors': self.status_ignore_errors,
-                'status_draining_mode': self.status_draining_mode,
-                'status_disabled': self.status_disabled,
-                'status_hot_standby': self.status_hot_standby
-            }
-        elif self.cluster.client.apache_version_is('2.2.'):
-            new_route_statuses = {
-                'status_disabled': self.status_disabled
-            }
+        # create new statuses dict using the exiting values
+        new_route_statuses = {
+            'status_ignore_errors': self.status_ignore_errors,
+            'status_draining_mode': self.status_draining_mode,
+            'status_disabled': self.status_disabled,
+            'status_hot_standby': self.status_hot_standby
+        }
+
+        if self.cluster.client.apache_version_is('2.2.'):
             if status_ignore_errors is not None:
                 raise ApacheVersionError('status_ignore_errors is not supported in apache 2.2')
             if status_draining_mode is not None:
                 raise ApacheVersionError('status_draining_mode is not supported in apache 2.2')
             if status_hot_standby is not None:
                 raise ApacheVersionError('status_hot_standby is not supported in apache 2.2')
-        else:
-            raise BalancerManagerError('py_balancer_manager only supports apache 2.2 and 2.4')
 
         if type(status_ignore_errors) is bool:
             new_route_statuses['status_ignore_errors'] = status_ignore_errors
@@ -185,8 +184,19 @@ class Route:
             elif new_route_statuses['status_draining_mode'] is True:
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
-        if self.cluster.client.apache_version_is('2.4.'):
-            post_data = {
+        if self.cluster.client.apache_version_is('2.2.'):
+            self.cluster.client._request_session_get(params={
+                'lf': '1',
+                'ls': '0',
+                'wr': self.name,
+                'rr': '',
+                'dw': 'Disable' if new_route_statuses['status_disabled'] else 'Enable',
+                'w': self.worker,
+                'b': self.cluster.name,
+                'nonce': str(self.session_nonce_uuid)
+            })
+        else:
+            self.cluster.client._request_session_post(data={
                 'w_lf': '1',
                 'w_ls': '0',
                 'w_wr': self.name,
@@ -198,24 +208,20 @@ class Route:
                 'w': self.worker,
                 'b': self.cluster.name,
                 'nonce': str(self.session_nonce_uuid)
-            }
-            self.cluster.client._request_session_post(data=post_data)
+            })
 
-        elif self.cluster.client.apache_version_is('2.2.'):
-            get_data = {
-                'lf': '1',
-                'ls': '0',
-                'wr': self.name,
-                'rr': '',
-                'dw': 'Disable' if new_route_statuses['status_disabled'] else 'Enable',
-                'w': self.worker,
-                'b': self.cluster.name,
-                'nonce': str(self.session_nonce_uuid)
-            }
-            self.cluster.client._request_session_get(params=get_data)
+        # refresh clusters/routes for validation
+        self.refresh()
 
-        # expire cache to force refresh
-        self.cluster.client.expire_clusters()
+        # validate new value
+        if new_route_statuses['status_ignore_errors'] is not self.status_ignore_errors:
+            raise RouteChangeValidationError('status value for "ignore errors" is incorrect')
+        elif new_route_statuses['status_draining_mode'] is not self.status_draining_mode:
+            raise RouteChangeValidationError('status value for "draining mode" is incorrect')
+        elif new_route_statuses['status_disabled'] is not self.status_disabled:
+            raise RouteChangeValidationError('status value for "disabled" is incorrect')
+        elif new_route_statuses['status_hot_standby'] is not self.status_hot_standby:
+            raise RouteChangeValidationError('status value for "hot standby" is incorrect')
 
 
 class Client:
@@ -238,8 +244,8 @@ class Client:
         self.request_exception = None
 
         self.clusters_ttl = cache_ttl
-        self.clusters = None
-        self.clusters_refresh_datetime = None
+        self.clusters = list()
+        self.clusters_refresh_datetime = datetime.now() - timedelta(seconds=self.clusters_ttl)
 
         self.session = requests.Session()
         self.session.headers.update({
@@ -349,15 +355,20 @@ class Client:
         # save timestamp before apache is accessed
         now = datetime.now()
         # do work
-        self.clusters = self._get_clusters_from_apache()
+        self._update_clusters_from_apache()
         # update timestamp
         self.clusters_refresh_datetime = now
+
+    def new_cluster(self):
+
+        cluster = Cluster(self)
+        self.clusters.append(cluster)
+        return cluster
 
     def get_clusters(self, refresh=False):
 
         # if there are no clusters or refresh=True or cluster ttl is reached
         if self.clusters is None or refresh is True or \
-                self.clusters_refresh_datetime is None or \
                 (self.clusters_refresh_datetime < (datetime.now() - timedelta(seconds=self.clusters_ttl))):
             self.refresh()
 
@@ -384,13 +395,7 @@ class Client:
             routes += cluster.get_routes()
         return routes
 
-    def expire_clusters(self):
-
-        """ expire cache to force refresh """
-
-        self.clusters_refresh_datetime = None
-
-    def _get_clusters_from_apache(self):
+    def _update_clusters_from_apache(self):
 
         def parse_max_members(value):
 
@@ -403,6 +408,28 @@ class Client:
 
             raise ValueError('MaxMembers value from Apache could not be parsed')
 
+        def _get_cluster(name):
+
+            cluster = list(
+                filter(lambda c: c.name == name, self.clusters)
+            )
+
+            if len(cluster) == 1:
+                return cluster[0]
+            else:
+                return None
+
+        def _get_route(cluster, name):
+
+            route = list(
+                filter(lambda c: c.name == name, cluster.routes)
+            )
+
+            if len(route) == 1:
+                return route[0]
+            else:
+                return None
+
         page = self._get_soup_html()
         session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
         cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
@@ -411,12 +438,8 @@ class Client:
         page_cluster_tables = _tables[::2]
         page_route_tables = _tables[1::2]
 
-        clusters = list()
-
         # only iterate through odd tables which contain cluster data
         for table in page_cluster_tables:
-
-            cluster = Cluster(self)
 
             header = table.findPreviousSiblings('h3', limit=1)[0]
             balancer_uri_pattern = re.compile('balancer://(.*)')
@@ -424,12 +447,17 @@ class Client:
 
             m = balancer_uri_pattern.search(header_text)
             if m:
-                cluster.name = m.group(1)
+                cluster_name = m.group(1)
             else:
                 raise ValueError('cluster name could not be parsed from <h3> tag')
 
-            if cluster.name in [c.name for c in clusters]:
-                continue
+            # attempt to get cluster from list
+            cluster = _get_cluster(cluster_name)
+
+            # if cluster does not exist, create a new Cluster object for it
+            if cluster is None:
+                cluster = self.new_cluster()
+                cluster.name = cluster_name
 
             for row in table.find_all('tr'):
                 cells = row.find_all('td')
@@ -456,8 +484,6 @@ class Client:
                     cluster.failover_attempts = int(cells[2].text)
                     cluster.method = cells[3].text
 
-            clusters.append(cluster)
-
         # only iterate through even tables which contain route data
         for table in page_route_tables:
             for i, row in enumerate(table.find_all('tr')):
@@ -466,6 +492,7 @@ class Client:
                 if len(cells) == 0:
                     continue
 
+                route_name = cells[1].text
                 worker_url = cells[0].find('a')['href']
                 session_nonce_uuid = None
 
@@ -479,21 +506,24 @@ class Client:
                 if not cluster_name_match:
                     raise BalancerManagerError("could not determine route's cluster")
 
-                # find the cluster object for this route
-                cluster = list(
-                    filter(lambda c: c.name == cluster_name_match.group(1), clusters)
-                )
+                cluster_name = cluster_name_match.group(1)
 
-                if len(cluster) != 1:
+                # find the cluster object for this route
+                cluster = _get_cluster(cluster_name)
+
+                if cluster is None:
                     raise BalancerManagerError('could not locate cluster name in list of clusters: {name}'.format(name=cluster_name_match.group(1)))
 
-                cluster = cluster.pop()
+                route = _get_route(cluster, route_name)
 
-                route = Route(cluster)
+                # if cluster does not exist, create a new Cluster object for it
+                if route is None:
+                    route = cluster.new_route()
+                    route.name = route_name
 
                 if self.apache_version_is('2.4.'):
                     route.worker = cells[0].find('a').text
-                    route.name = cells[1].text
+                    route.name = route_name
                     route.priority = i
                     route.route_redir = cells[2].text
                     route.factor = int(cells[3].text)
@@ -538,10 +568,8 @@ class Client:
                 else:
                     raise ValueError('this module only supports apache 2.2 and 2.4')
 
-                cluster.add_route(route)
-
         # iterate clusters for post-parse processing
-        for cluster in clusters:
+        for cluster in self.clusters:
             # determine if standby routes are active for cluster
             cluster.standby_activated = True
             for route in cluster.routes:
@@ -559,8 +587,6 @@ class Client:
             for route in cluster.routes:
                 if route.status_error is False and route.status_disabled is False and route.status_draining_mode is not True:
                     cluster.eligible_routes += 1
-
-        return clusters
 
     @staticmethod
     def _decode_data_useage(value):

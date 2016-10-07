@@ -20,7 +20,7 @@ class ValidationClient(Client):
 
         super(ValidationClient, self).__init__(url, **kwargs)
 
-    def _get_clusters_from_apache(self):
+    def _update_clusters_from_apache(self):
 
         global _allowed_statuses
         global _allowed_statuses_apache_22
@@ -29,12 +29,12 @@ class ValidationClient(Client):
 
         self.holistic_compliance_status = True
 
-        clusters = super(ValidationClient, self)._get_clusters_from_apache()
+        super(ValidationClient, self)._update_clusters_from_apache()
 
         if self.profile is None:
-            return clusters
+            return
 
-        for cluster in clusters:
+        for cluster in self.clusters:
 
             cluster_profile = self.profile.get(cluster.name, {})
 
@@ -64,8 +64,6 @@ class ValidationClient(Client):
 
                 setattr(route, 'status_validation', status_validation)
 
-        return clusters
-
     def get_holistic_compliance_status(self):
 
         self.get_clusters()
@@ -94,8 +92,8 @@ class ValidationClient(Client):
 
         # set new profile
         self.profile = profile
-        # expire cache to force refresh
-        self.expire_clusters()
+        # refresh routes to include profile information
+        self.refresh()
 
     def get_profile(self):
 
@@ -107,7 +105,7 @@ class ValidationClient(Client):
         # init empty list for the profile
         profile = dict()
 
-        for cluster in super(ValidationClient, self)._get_clusters_from_apache():
+        for cluster in self.get_clusters():
 
             cluster_profile = dict()
 
