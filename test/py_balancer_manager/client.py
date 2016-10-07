@@ -114,15 +114,16 @@ class TestClient():
             # continue with route testing
             route.change_status(**kwargs)
 
-            updated_route = self.client.get_cluster(route.cluster.name).get_route(route.name)
-            assert getattr(updated_route, status) is not status_value
+            # assert new status value
+            assert getattr(route, status) is not status_value
 
             # toggle status back to original value
-            kwargs = {status: status_value}
-            updated_route.change_status(**kwargs)
+            route.change_status(**{
+                status: status_value
+            })
 
-            updated_route2 = self.client.get_cluster(route.cluster.name).get_route(route.name)
-            assert getattr(updated_route2, status) is status_value
+            # assert original status value
+            assert getattr(route, status) is status_value
 
     def _get_random_route(self):
 
