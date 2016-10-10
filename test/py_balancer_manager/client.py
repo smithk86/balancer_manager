@@ -1,6 +1,7 @@
 import re
 import pytest
 import random
+from datetime import datetime
 from uuid import UUID
 
 from get_vars import get_var
@@ -45,9 +46,9 @@ class TestClient():
 
         """ insure timestamp is update when refresh is True """
 
-        current_datetime = self.client.clusters_refresh_datetime
+        current_datetime = self.client.updated_datetime
         self.client.get_routes(refresh=True)
-        new_datetime = self.client.clusters_refresh_datetime
+        new_datetime = self.client.updated_datetime
 
         assert current_datetime < new_datetime
 
@@ -125,14 +126,58 @@ class TestClient():
             # assert original status value
             assert getattr(route, status) is status_value
 
+    def test_purge_oudated_cluster(self):
+
+        # create new cluster which will not be updated in a refresh
+        cluster = self.client.new_cluster()
+        cluster.name = '__testing_cluster__'
+        cluster.updated_datetime = datetime.now()
+
+        # get cluster without refresh
+        cluster = self.client.get_cluster(cluster.name, refresh=False)
+        assert type(cluster) is Cluster
+
+        # get cluster with refresh
+        with pytest.raises(BalancerManagerError) as excinfo:
+            self.client.get_cluster(cluster.name, refresh=True)
+        assert 'could not locate cluster name in list of clusters: __testing_cluster__' in str(excinfo.value)
+
+    def test_purge_oudated_route(self):
+
+        cluster = self._get_random_cluster()
+
+        # create new route which will not be updated in a refresh
+        route = cluster.new_route()
+        route.name = '__testing_route__'
+        route.updated_datetime = datetime.now()
+
+        # get route without refresh
+        route = self.client.get_cluster(cluster.name, refresh=False).get_route(route.name)
+        assert type(route) is Route
+
+        # get route with refresh
+        with pytest.raises(BalancerManagerError) as excinfo:
+            self.client.get_cluster(cluster.name, refresh=True).get_route(route.name)
+        assert 'could not locate route name in list of routes: __testing_route__' in str(excinfo.value)
+
+    def _get_random_cluster(self):
+
+        clusters = self.client.get_clusters()
+        if len(clusters) > 0:
+            random_index = random.randrange(0, len(clusters) - 1) if len(clusters) > 1 else 0
+            return clusters[random_index]
+
+        raise ValueError('no clusters were found')
+
     def _get_random_route(self):
 
         routes = self.client.get_routes()
         if len(routes) > 0:
             random_index = random.randrange(0, len(routes) - 1) if len(routes) > 1 else 0
             return routes[random_index]
-        else:
-            return None
+
+        raise ValueError('no routes were found')
+
 
 def test_bad_url():
 

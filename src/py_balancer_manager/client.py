@@ -30,6 +30,7 @@ class Cluster:
     def __init__(self, client):
 
         self.client = client
+        self.updated_datetime = None
         self.name = None
         self.max_members = None
         self.max_members_used = None
@@ -46,6 +47,7 @@ class Cluster:
 
     def __iter__(self):
 
+        yield ('updated_datetime', self.updated_datetime)
         yield ('name', self.name)
         yield ('max_members', self.max_members)
         yield ('max_members_used', self.max_members_used)
@@ -91,6 +93,7 @@ class Route:
     def __init__(self, cluster):
 
         self.cluster = cluster
+        self.updated_datetime = None
         self.name = None
         self.worker = None
         self.priority = None
@@ -115,6 +118,7 @@ class Route:
 
     def __iter__(self):
 
+        yield ('updated_datetime', self.updated_datetime)
         yield ('name', self.name)
         yield ('worker', self.worker)
         yield ('priority', self.priority)
@@ -238,6 +242,7 @@ class Client:
 
         self.url = url
         self.timeout = timeout
+        self.updated_datetime = None
 
         self.insecure = insecure
         self.apache_version = None
@@ -245,7 +250,6 @@ class Client:
 
         self.clusters_ttl = cache_ttl
         self.clusters = list()
-        self.clusters_refresh_datetime = datetime.now() - timedelta(seconds=self.clusters_ttl)
 
         self.session = requests.Session()
         self.session.headers.update({
@@ -257,6 +261,7 @@ class Client:
 
     def __iter__(self):
 
+        yield ('updated_datetime', self.updated_datetime)
         yield ('url', self.url)
         yield ('insecure', self.insecure)
         yield ('apache_version', self.apache_version)
@@ -352,12 +357,12 @@ class Client:
 
         # ensure apache version is set
         self.set_apache_version()
-        # save timestamp before apache is accessed
-        now = datetime.now()
-        # do work
-        self._update_clusters_from_apache()
         # update timestamp
-        self.clusters_refresh_datetime = now
+        self.updated_datetime = datetime.now()
+        # update routes
+        self._update_clusters_from_apache()
+        # purge defunct clusters/routes
+        self._purge_outdated()
 
     def new_cluster(self):
 
@@ -368,8 +373,8 @@ class Client:
     def get_clusters(self, refresh=False):
 
         # if there are no clusters or refresh=True or cluster ttl is reached
-        if self.clusters is None or refresh is True or \
-                (self.clusters_refresh_datetime < (datetime.now() - timedelta(seconds=self.clusters_ttl))):
+        if self.updated_datetime is None or self.clusters is None or refresh is True or \
+                (self.updated_datetime < (datetime.now() - timedelta(seconds=self.clusters_ttl))):
             self.refresh()
 
         return self.clusters
@@ -384,7 +389,7 @@ class Client:
         )
 
         if len(cluster) != 1:
-            raise BalancerManagerError('could not locate route name in list of routes: {name}'.format(**locals()))
+            raise BalancerManagerError('could not locate cluster name in list of clusters: {name}'.format(**locals()))
 
         return cluster.pop()
 
@@ -484,6 +489,8 @@ class Client:
                     cluster.failover_attempts = int(cells[2].text)
                     cluster.method = cells[3].text
 
+            cluster.updated_datetime = datetime.now()
+
         # only iterate through even tables which contain route data
         for table in page_route_tables:
             for i, row in enumerate(table.find_all('tr')):
@@ -568,6 +575,8 @@ class Client:
                 else:
                     raise ValueError('this module only supports apache 2.2 and 2.4')
 
+                route.updated_datetime = datetime.now()
+
         # iterate clusters for post-parse processing
         for cluster in self.clusters:
             # determine if standby routes are active for cluster
@@ -587,6 +596,19 @@ class Client:
             for route in cluster.routes:
                 if route.status_error is False and route.status_disabled is False and route.status_draining_mode is not True:
                     cluster.eligible_routes += 1
+
+    def _purge_outdated(self):
+
+        for cluster in self.clusters:
+            if self.updated_datetime > cluster.updated_datetime:
+                self.logger.info('removing defunct cluster: {}'.format(cluster.name))
+                self.clusters.remove(cluster)
+                continue
+
+            for route in cluster.routes:
+                if self.updated_datetime > route.updated_datetime:
+                    self.logger.info('removing defunct route: {}'.format(route.name))
+                    cluster.routes.remove(route)
 
     @staticmethod
     def _decode_data_useage(value):
