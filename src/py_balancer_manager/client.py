@@ -7,6 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .errors import BalancerManagerError
+from .helpers import find_object
 
 
 class BalancerManagerParseError(BalancerManagerError):
@@ -78,14 +79,7 @@ class Cluster:
     def get_route(self, name):
 
         # find the route object in the route list
-        route = list(
-            filter(lambda r: r.name == name, self.routes)
-        )
-
-        if len(route) != 1:
-            raise BalancerManagerError('could not locate route name in list of routes: {name}'.format(**locals()))
-
-        return route.pop()
+        return find_object(self.routes, 'name', name)
 
 
 class Route:
@@ -381,17 +375,12 @@ class Client:
 
     def get_cluster(self, name, refresh=False):
 
-        clusters = self.get_clusters(refresh=refresh)
-
         # find the cluster object for this route
-        cluster = list(
-            filter(lambda c: c.name == name, clusters)
+        return find_object(
+            self.get_clusters(refresh=refresh),
+            'name',
+            name
         )
-
-        if len(cluster) != 1:
-            raise BalancerManagerError('could not locate cluster name in list of clusters: {name}'.format(**locals()))
-
-        return cluster.pop()
 
     def get_routes(self, refresh=False):
 
@@ -415,24 +404,16 @@ class Client:
 
         def _get_cluster(name):
 
-            cluster = list(
-                filter(lambda c: c.name == name, self.clusters)
-            )
-
-            if len(cluster) == 1:
-                return cluster[0]
-            else:
+            try:
+                return find_object(self.clusters, 'name', name)
+            except ValueError:
                 return None
 
         def _get_route(cluster, name):
 
-            route = list(
-                filter(lambda c: c.name == name, cluster.routes)
-            )
-
-            if len(route) == 1:
-                return route[0]
-            else:
+            try:
+                return find_object(cluster.routes, 'name', name)
+            except ValueError:
                 return None
 
         page = self._get_soup_html()
