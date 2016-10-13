@@ -1,7 +1,7 @@
 import re
 
 
-def object_filter(list_of_objects, prop_name, value, regex=False):
+def filter_objects(list_of_objects, prop_name, value, regex=False):
 
     if regex:
         if type(value) is not str:
@@ -19,7 +19,7 @@ def object_filter(list_of_objects, prop_name, value, regex=False):
 
 def find_object(list_of_objects, prop_name, value, regex=False):
 
-    objects = object_filter(list_of_objects, prop_name, value, regex=regex)
+    objects = filter_objects(list_of_objects, prop_name, value, regex=regex)
 
     if len(objects) == 1:
         return objects[0]
