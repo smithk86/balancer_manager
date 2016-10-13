@@ -349,7 +349,7 @@ class Client:
         if req.status_code is not requests.codes.ok:
             req.raise_for_status()
 
-        return BeautifulSoup(req.text, 'html.parser')
+        return BeautifulSoup(req.text, 'lxml')
 
     def refresh(self):
 
