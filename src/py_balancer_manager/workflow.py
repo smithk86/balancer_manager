@@ -48,6 +48,10 @@ class Workflow(metaclass=ABCMeta):
 
         pass
 
+    def tearDown(self):
+
+        pass
+
     @staticmethod
     def parse_status_change(value):
 
@@ -100,6 +104,8 @@ class Workflow(metaclass=ABCMeta):
             self.print()
             self.print('exiting workflow')
             self.print()
+
+        self.tearDown()
 
     def init_clients(self, step):
 
