@@ -4,6 +4,7 @@ import sys
 import os
 import json
 import argparse
+import logging
 from lib.ask import prompt
 
 from py_balancer_manager import Workflow, print_validated_routes
@@ -29,7 +30,11 @@ class WorkflowCLI(Workflow):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('json-file')
+parser.add_argument('-d', '--debug', action='store_true', default=False)
 args = parser.parse_args()
+
+if args.debug:
+    logging.basicConfig(level=logging.DEBUG)
 
 try:
     with open(getattr(args, 'json-file'), 'r') as fh:
