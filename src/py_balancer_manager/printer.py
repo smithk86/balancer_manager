@@ -1,7 +1,7 @@
 from .prettystring import PrettyString
 
 
-def print_routes(routes, verbose=False):
+def get_formated_routes(routes, verbose=False):
 
     def _get_value(val):
         if val is None:
@@ -97,12 +97,10 @@ def print_routes(routes, verbose=False):
                 _get_value(route.status_hot_standby)
             ])
 
-    widths = [max(map(len, col)) for col in zip(*rows)]
-    for row in rows:
-        print(' | '.join((val.ljust(width) for val, width in zip(row, widths))))
+    return rows
 
 
-def print_validated_routes(routes, hide_compliant_routes=False, verbose=False):
+def get_formated_validated_routes(routes, hide_compliant_routes=False, verbose=False):
 
     for route in list(routes):
 
@@ -137,7 +135,32 @@ def print_validated_routes(routes, hide_compliant_routes=False, verbose=False):
                         PrettyString(char, color)
                     )
 
-    print_routes(
-        routes,
-        verbose
+    return get_formated_routes(routes, verbose)
+
+
+def print_routes(routes, verbose=False):
+
+    _print_table(
+        get_formated_routes(
+            routes,
+            verbose
+        )
     )
+
+
+def print_validated_routes(routes, hide_compliant_routes=False, verbose=False):
+
+    _print_table(
+        get_formated_validated_routes(
+            routes,
+            hide_compliant_routes=hide_compliant_routes,
+            verbose=verbose
+        )
+    )
+
+
+def _print_table(rows):
+
+    widths = [max(map(len, col)) for col in zip(*rows)]
+    for row in rows:
+        print(' | '.join((val.ljust(width) for val, width in zip(row, widths))))
