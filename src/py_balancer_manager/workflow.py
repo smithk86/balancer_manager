@@ -183,9 +183,15 @@ class Workflow(metaclass=ABCMeta):
                         action['cluster']: action['cluster_profiles'][name]
                     })
 
+                    self.print('enforcing the profile for {name} -> {cluster}'.format(name=name, cluster=action['cluster']))
+                    self.print()
+
                     server.enforce()
+
+                    self.print('URL: {url}'.format(url=server.url))
+                    self.print_routes(
+                        server.get_cluster(action['cluster']).get_routes()
+                    )
 
                     if server.get_holistic_compliance_status() is False:
                         raise ValueError('{url} is out of compliance'.format(url=server))
-
-                    self.print('the balancer profiles has been enforced for {name} -> {cluster}'.format(name=name, cluster=action['cluster']))
