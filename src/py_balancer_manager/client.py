@@ -109,6 +109,7 @@ class Route:
         self.status_disabled = None
         self.status_hot_standby = None
         self.taking_traffic = None
+        self.immutable_statuses = []
 
     def __iter__(self):
 
@@ -146,32 +147,32 @@ class Route:
             'status_hot_standby': self.status_hot_standby
         }
 
-    def change_status(self, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
-
-        # create new statuses dict using the exiting values
-        new_route_statuses = {
-            'status_ignore_errors': self.status_ignore_errors,
-            'status_draining_mode': self.status_draining_mode,
-            'status_disabled': self.status_disabled,
-            'status_hot_standby': self.status_hot_standby
-        }
+    def get_immutable_statuses(self):
 
         if self.cluster.client.apache_version_is('2.2.'):
-            if status_ignore_errors is not None:
-                raise ApacheVersionError('status_ignore_errors is not supported in apache 2.2')
-            if status_draining_mode is not None:
-                raise ApacheVersionError('status_draining_mode is not supported in apache 2.2')
-            if status_hot_standby is not None:
-                raise ApacheVersionError('status_hot_standby is not supported in apache 2.2')
+            return [
+                'status_hot_standby',
+                'status_draining_mode',
+                'status_ignore_errors'
+            ]
+        else:
+            return []
 
-        if type(status_ignore_errors) is bool:
-            new_route_statuses['status_ignore_errors'] = status_ignore_errors
-        if type(status_draining_mode) is bool:
-            new_route_statuses['status_draining_mode'] = status_draining_mode
-        if type(status_disabled) is bool:
-            new_route_statuses['status_disabled'] = status_disabled
-        if type(status_hot_standby) is bool:
-            new_route_statuses['status_hot_standby'] = status_hot_standby
+    def change_status(self, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
+
+        # confirm no immutable statuses are trying to be changed
+        for key, val in locals().items():
+            if key in self.get_immutable_statuses():
+                if val is not None:
+                    raise ApacheVersionError('{} is immutable for this version of apache'.format(key))
+
+        # create dictionary of existing values which are allowed by the apache version
+        new_route_statuses = self.get_statuses()
+        for status_name in new_route_statuses.keys():
+            if status_name in self.get_immutable_statuses():
+                new_route_statuses.pop(status_name)
+            elif type(locals().get(status_name)) is bool:
+                new_route_statuses[status_name] = locals().get(status_name)
 
         # except routes with errors from throwing the "last-route" error
         if self.status_error is True or self.status_disabled is True or self.status_draining_mode is True:
