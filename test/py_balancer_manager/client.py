@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from get_vars import get_var
-from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError
+from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError, NotFound
 
 
 @pytest.fixture(
@@ -105,11 +105,11 @@ class TestClient():
             # toggle status to the oposite value
             kwargs = {status: not status_value}
 
-            # ensure only status_disable can be changed with apache 2.2
+            # ensure immutable statuses cannot be modified
             if self.client.apache_version_is('2.2') and status != 'status_disabled':
                 with pytest.raises(BalancerManagerError) as excinfo:
                     route.change_status(**kwargs)
-                assert 'is not supported in apache 2.2' in str(excinfo.value)
+                assert 'is immutable for this version of apache' in str(excinfo.value)
                 continue
 
             # continue with route testing
@@ -138,7 +138,7 @@ class TestClient():
         assert type(cluster) is Cluster
 
         # get cluster with refresh
-        with pytest.raises(BalancerManagerError) as excinfo:
+        with pytest.raises(NotFound) as excinfo:
             self.client.get_cluster(cluster.name, refresh=True)
         assert 'could not locate cluster name in list of clusters: __testing_cluster__' in str(excinfo.value)
 
@@ -156,7 +156,7 @@ class TestClient():
         assert type(route) is Route
 
         # get route with refresh
-        with pytest.raises(BalancerManagerError) as excinfo:
+        with pytest.raises(NotFound) as excinfo:
             self.client.get_cluster(cluster.name, refresh=True).get_route(route.name)
         assert 'could not locate route name in list of routes: __testing_route__' in str(excinfo.value)
 

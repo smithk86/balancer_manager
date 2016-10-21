@@ -1,4 +1,5 @@
 import re
+from .errors import BalancerManagerError, ResultsError
 
 
 def filter_objects(list_of_objects, prop_name, value, regex=False):
@@ -24,4 +25,4 @@ def find_object(list_of_objects, prop_name, value, regex=False):
     if len(objects) == 1:
         return objects[0]
     else:
-        raise ValueError('object_filter() must return only one object; {} objects found'.format(len(objects)))
+        raise ResultsError('filter_objects() must return only one object; {} objects found'.format(len(objects)))

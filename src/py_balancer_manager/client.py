@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 
-from .errors import BalancerManagerError
+from .errors import BalancerManagerError, ResultsError, NotFound
 from .helpers import find_object
 
 
@@ -15,10 +15,6 @@ class BalancerManagerParseError(BalancerManagerError):
 
 
 class ApacheVersionError(BalancerManagerError):
-    pass
-
-
-class RouteNotFound(BalancerManagerError):
     pass
 
 
@@ -79,7 +75,10 @@ class Cluster:
     def get_route(self, name):
 
         # find the route object in the route list
-        return find_object(self.routes, 'name', name)
+        try:
+            return find_object(self.routes, 'name', name)
+        except ResultsError:
+            raise NotFound('could not locate route name in list of routes: {}'.format(name))
 
 
 class Route:
@@ -168,7 +167,7 @@ class Route:
 
         # create dictionary of existing values which are allowed by the apache version
         new_route_statuses = self.get_statuses()
-        for status_name in new_route_statuses.keys():
+        for status_name in new_route_statuses.copy().keys(): # use copy to avoid a "dictionary was modified during iteration" error
             if status_name in self.get_immutable_statuses():
                 new_route_statuses.pop(status_name)
             elif type(locals().get(status_name)) is bool:
@@ -212,15 +211,10 @@ class Route:
         # refresh clusters/routes for validation
         self.refresh()
 
-        # validate new value
-        if new_route_statuses['status_ignore_errors'] is not self.status_ignore_errors:
-            raise RouteChangeValidationError('status value for "ignore errors" is incorrect')
-        elif new_route_statuses['status_draining_mode'] is not self.status_draining_mode:
-            raise RouteChangeValidationError('status value for "draining mode" is incorrect')
-        elif new_route_statuses['status_disabled'] is not self.status_disabled:
-            raise RouteChangeValidationError('status value for "disabled" is incorrect')
-        elif new_route_statuses['status_hot_standby'] is not self.status_hot_standby:
-            raise RouteChangeValidationError('status value for "hot standby" is incorrect')
+        # validate new values against load balancer
+        for status_name in new_route_statuses.keys():
+            if new_route_statuses[status_name] is not getattr(self, status_name):
+                raise RouteChangeValidationError('status value for "{}" is incorrect'.format(status_name))
 
 
 class Client:
@@ -377,11 +371,10 @@ class Client:
     def get_cluster(self, name, refresh=False):
 
         # find the cluster object for this route
-        return find_object(
-            self.get_clusters(refresh=refresh),
-            'name',
-            name
-        )
+        try:
+            return find_object(self.get_clusters(refresh=refresh), 'name', name)
+        except ResultsError:
+            raise NotFound('could not locate cluster name in list of clusters: {}'.format(name))
 
     def get_routes(self, refresh=False):
 
@@ -407,14 +400,14 @@ class Client:
 
             try:
                 return find_object(self.clusters, 'name', name)
-            except ValueError:
+            except ResultsError:
                 return None
 
         def _get_route(cluster, name):
 
             try:
                 return find_object(cluster.routes, 'name', name)
-            except ValueError:
+            except ResultsError:
                 return None
 
         page = self._get_soup_html()

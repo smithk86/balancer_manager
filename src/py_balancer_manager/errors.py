@@ -4,3 +4,11 @@ class BalancerManagerError(Exception):
 
 class ValidationClientError(BalancerManagerError):
     pass
+
+
+class ResultsError(BalancerManagerError):
+	pass
+
+
+class NotFound(ResultsError):
+    pass
