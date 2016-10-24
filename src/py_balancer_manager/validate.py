@@ -142,7 +142,7 @@ class ValidationClient(Client):
                 enabled_statuses = []
 
                 for status_name, value in route.get_statuses().items():
-                    if status_name not in self.get_immutable_statuses():
+                    if status_name not in route.get_immutable_statuses():
                         if type(value) is not bool:
                             raise TypeError('status value must be boolean')
                         if value is True:
