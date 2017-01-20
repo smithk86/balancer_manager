@@ -126,7 +126,7 @@ class ValidationClient(Client):
         # set new profile
         self.profile = profile
         # refresh routes to include profile information
-        self.refresh()
+        self.update()
 
     def get_profile(self):
 

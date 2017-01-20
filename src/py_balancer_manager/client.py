@@ -253,14 +253,14 @@ class Client:
     def request_get(self, **kwargs):
 
         kwargs['method'] = 'get'
-        self.refresh(**kwargs)
+        self.update(**kwargs)
 
     def request_post(self, **kwargs):
 
         kwargs['method'] = 'post'
-        self.refresh(**kwargs)
+        self.update(**kwargs)
 
-    def refresh(self, **kwargs):
+    def update(self, **kwargs):
 
         self.logger.info('updating routes')
 
@@ -312,7 +312,7 @@ class Client:
         # if there are no clusters or refresh=True or cluster ttl is reached
         if self.updated_datetime is None or self.clusters is None or refresh is True or \
                 (self.updated_datetime < (datetime.now() - timedelta(seconds=self.clusters_ttl))):
-            self.refresh()
+            self.update()
 
         return self.clusters
 

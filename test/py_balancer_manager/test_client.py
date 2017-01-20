@@ -23,7 +23,7 @@ def fixture_client(request):
         password=server.get('password', None)
     )
 
-    client.refresh()
+    client.update()
 
     def fin():
         client.close()
@@ -189,7 +189,7 @@ def test_bad_url():
     )
 
     with pytest.raises(BalancerManagerError):
-        client.refresh()
+        client.update()
 
 
 def test_bad_balancer_manager():
@@ -200,7 +200,7 @@ def test_bad_balancer_manager():
     )
 
     with pytest.raises(BalancerManagerParseError) as excinfo:
-        client.refresh()
+        client.update()
     assert 'could not parse text from the first "dt" element' in str(excinfo.value)
 
 
@@ -208,5 +208,5 @@ def test_bad_auth():
 
     for server_url in [s.get('url') for s in get_var('servers')]:
         with pytest.raises(BalancerManagerError) as excinfo:
-            Client(server_url).refresh()
+            Client(server_url).update()
         assert '401 Client Error' in str(excinfo.value)
