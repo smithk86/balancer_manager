@@ -65,11 +65,11 @@ class ValidationClient(Client):
         self.clusters.append(cluster)
         return cluster
 
-    def _update_clusters_from_apache(self):
+    def _parse(self, bsoup):
 
         self.holistic_compliance_status = True
 
-        super(ValidationClient, self)._update_clusters_from_apache()
+        super(ValidationClient, self)._parse(bsoup)
 
         if self.profile is None:
             return

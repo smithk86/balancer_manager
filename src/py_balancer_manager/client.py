@@ -58,10 +58,6 @@ class Cluster:
         yield ('eligible_routes', self.eligible_routes)
         yield ('routes', [dict(r) for r in self.routes])
 
-    def refresh(self):
-
-        self.client.refresh()
-
     def new_route(self):
 
         route = Route(self)
@@ -133,10 +129,6 @@ class Route:
         yield ('status_hot_standby', self.status_hot_standby)
         yield ('taking_traffic', self.taking_traffic)
 
-    def refresh(self):
-
-        self.cluster.client.refresh()
-
     def get_statuses(self):
 
         return {
@@ -183,7 +175,7 @@ class Route:
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
         if self.cluster.client.apache_version_is('2.2.'):
-            self.cluster.client._request_session_get(params={
+            self.cluster.client.request_get(params={
                 'lf': '1',
                 'ls': '0',
                 'wr': self.name,
@@ -194,7 +186,7 @@ class Route:
                 'nonce': str(self.session_nonce_uuid)
             })
         else:
-            self.cluster.client._request_session_post(data={
+            self.cluster.client.request_post(data={
                 'w_lf': '1',
                 'w_ls': '0',
                 'w_wr': self.name,
@@ -208,13 +200,10 @@ class Route:
                 'nonce': str(self.session_nonce_uuid)
             })
 
-        # refresh clusters/routes for validation
-        self.refresh()
-
         # validate new values against load balancer
         for status_name in new_route_statuses.keys():
             if new_route_statuses[status_name] is not getattr(self, status_name):
-                raise RouteChangeValidationError('status value for "{}" is incorrect'.format(status_name))
+                raise RouteChangeValidationError('status value for "{}" is incorrect (should be {})'.format(status_name, getattr(self, status_name)))
 
 
 class Client:
@@ -261,17 +250,19 @@ class Client:
 
         self.session.close()
 
-    def _request_session_get(self, **kwargs):
+    def request_get(self, **kwargs):
 
         kwargs['method'] = 'get'
-        return self._request_session(**kwargs)
+        self.refresh(**kwargs)
 
-    def _request_session_post(self, **kwargs):
+    def request_post(self, **kwargs):
 
         kwargs['method'] = 'post'
-        return self._request_session(**kwargs)
+        self.refresh(**kwargs)
 
-    def _request_session(self, **kwargs):
+    def refresh(self, **kwargs):
+
+        self.logger.info('updating routes')
 
         if 'timeout' not in kwargs:
             kwargs['timeout'] = self.timeout
@@ -279,8 +270,6 @@ class Client:
             kwargs['verify'] = not self.insecure
 
         request_method = kwargs.pop('method', 'get')
-
-        response = None
 
         try:
 
@@ -296,62 +285,21 @@ class Client:
             self.request_exception = e
             raise BalancerManagerError(e)
 
-        return response
-
-    def set_apache_version(self):
-
-        if self.apache_version:
-            # do not re-poll if self.apache_version is already set
-            return True
-
-        page = self._get_soup_html()
-
-        try:
-            full_version_string = page.find('dt').text
-        except AttributeError:
-            raise BalancerManagerParseError('could not parse text from the first "dt" element')
-
-        match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', full_version_string)
-        if match:
-            self.apache_version = match.group(1)
-            self.logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
-        else:
-            raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of Apache')
+        # update timestamp
+        self.updated_datetime = datetime.now()
+        # process text with beautiful soup
+        bsoup = BeautifulSoup(response.text, 'lxml')
+        # update routes
+        self._parse(bsoup)
+        # purge defunct clusters/routes
+        self._purge_outdated()
 
     def apache_version_is(self, version):
-
-        self.set_apache_version()
 
         if self.apache_version:
             return self.apache_version.startswith(version)
         else:
             raise ApacheVersionError('no apache version has been set')
-
-    def test(self):
-
-        self.set_apache_version()
-
-    def _get_soup_html(self):
-
-        req = self._request_session_get()
-
-        if req.status_code is not requests.codes.ok:
-            req.raise_for_status()
-
-        return BeautifulSoup(req.text, 'lxml')
-
-    def refresh(self):
-
-        self.logger.debug('refreshing')
-
-        # ensure apache version is set
-        self.set_apache_version()
-        # update timestamp
-        self.updated_datetime = datetime.now()
-        # update routes
-        self._update_clusters_from_apache()
-        # purge defunct clusters/routes
-        self._purge_outdated()
 
     def new_cluster(self):
 
@@ -383,7 +331,21 @@ class Client:
             routes += cluster.get_routes()
         return routes
 
-    def _update_clusters_from_apache(self):
+    def _parse(self, bsoup):
+
+        def _set_apache_version():
+
+            try:
+                full_version_string = bsoup.find('dt').text
+            except AttributeError:
+                raise BalancerManagerParseError('could not parse text from the first "dt" element')
+
+            match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', full_version_string)
+            if match:
+                self.apache_version = match.group(1)
+                self.logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
+            else:
+                raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of Apache')
 
         def _parse_max_members(value):
 
@@ -410,18 +372,32 @@ class Client:
             except ResultsError:
                 return None
 
-        page = self._get_soup_html()
+        # remove form from page -- this contains extra tables which do not contain clusters or routes
+        for form in bsoup.find_all('form'):
+            form.extract()
+
+        # check/set apache version
+        if not self.apache_version:
+            _set_apache_version()
+
+        # compile patterns
         session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
         cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
 
-        _tables = page.find_all('table')
+        # parse out tables
+        _tables = bsoup.find_all('table')
         page_cluster_tables = _tables[::2]
         page_route_tables = _tables[1::2]
 
         # only iterate through odd tables which contain cluster data
         for table in page_cluster_tables:
 
-            header = table.findPreviousSiblings('h3', limit=1)[0]
+            header_elements = table.findPreviousSiblings('h3', limit=1)
+            if len(header_elements) == 1:
+                header = header_elements[0]
+            else:
+                raise BalancerManagerParseError('single h3 element is required but not found')
+
             balancer_uri_pattern = re.compile('balancer://(.*)')
             header_text = header.a.text if header.a else header.text
 

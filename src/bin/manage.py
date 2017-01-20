@@ -29,7 +29,6 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('balance-manager-url')
-    parser.add_argument('-l', '--list', dest='list_routes', action='store_true', default=False)
     parser.add_argument('-c', '--cluster')
     parser.add_argument('-r', '--route')
     parser.add_argument('--ignore-errors', dest='ignore_errors', default=None)
@@ -54,18 +53,8 @@ def main():
         password = None
 
     client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), insecure=args.insecure, username=args.username, password=password)
-    if args.cluster:
-        routes = client.get_cluster(args.cluster).get_routes()
-    else:
-        routes = client.get_routes()
 
-    if args.list_routes:
-        print()
-        print('URL: {url}'.format(url=client.url))
-        print_routes(routes, args.verbose)
-        print()
-
-    elif (args.ignore_errors is not None or
+    if (args.ignore_errors is not None or
             args.draining_mode is not None or
             args.disabled is not None or
             args.hot_standby is not None):
@@ -90,8 +79,15 @@ def main():
 
         route.change_status(args.cluster, args.route, **_kwargs)
 
+    if args.cluster:
+        routes = client.get_cluster(args.cluster).get_routes()
     else:
-        print('no actionable arguments were provided')
+        routes = client.get_routes()
+
+    print()
+    print('URL: {url}'.format(url=client.url))
+    print_routes(routes, args.verbose)
+    print()
 
 
 if __name__ == '__main__':
