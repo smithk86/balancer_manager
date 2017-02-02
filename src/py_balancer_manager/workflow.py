@@ -111,9 +111,10 @@ class Workflow(metaclass=ABCMeta):
 
         for name, server in step['servers'].items():
             if isinstance(server, ValidationClient):
-                pass
+                server.test()
             elif isinstance(server, dict):
                 step['servers'][name] = ValidationClient(**server)
+                step['servers'][name].test()
             else:
                 raise BalancerManagerError('cannot convert server value into py_balancer_manager.ValidationClient')
 
