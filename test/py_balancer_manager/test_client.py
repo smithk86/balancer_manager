@@ -1,8 +1,12 @@
 import re
 import pytest
 import random
+import logging
 from datetime import datetime
 from uuid import UUID
+from datetime import datetime
+
+import requests
 
 from get_vars import get_var
 from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError, NotFound
@@ -54,43 +58,52 @@ class TestClient():
 
         assert current_datetime < new_datetime
 
-    def test_validate_clusters_and_routes(self):
+    def test_properties(self):
 
-        uuid_pattern = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+        assert type(self.client.logger) is logging.Logger
+        assert type(self.client.url) is str
+        assert type(self.client.timeout) is int
+        assert type(self.client.updated_datetime) is datetime
+        assert type(self.client.insecure) is bool
+        assert type(self.client.apache_version) is str
+        assert self.client.request_exception is None
+        assert type(self.client.clusters_ttl) is int
+        assert type(self.client.session) is requests.Session
+        assert type(self.client.holistic_error_status) is bool
 
         for cluster in self.client.get_clusters():
             assert type(self.client) is Client
             assert cluster.max_members is None or type(cluster.max_members) == int
             assert cluster.max_members_used is None or type(cluster.max_members_used) == int
-            assert type(cluster.sticky_session) == str
+            assert type(cluster.sticky_session) is str or cluster.sticky_session is False
             assert cluster.disable_failover is None or type(cluster.disable_failover) == bool
-            assert type(cluster.timeout) == int
+            assert type(cluster.timeout) is int
             assert type(cluster.failover_attempts) == int
-            assert type(cluster.method) == str
+            assert type(cluster.method) is str
             assert cluster.path is None or type(cluster.path) == str
             assert cluster.active is None or type(cluster.active) == bool
 
             for route in cluster.get_routes():
-                assert type(route.cluster) == Cluster
-                assert type(route.worker) == str
-                assert type(route.name) == str
-                assert type(route.priority) == int
-                assert type(route.route_redir) == str
-                assert type(route.factor) == int
-                assert type(route.set) == int
-                assert type(route.status_ok) == bool
-                assert type(route.status_error) == bool
-                assert route.status_ignore_errors is None or type(route.status_ignore_errors) == bool
-                assert route.status_draining_mode is None or type(route.status_draining_mode) == bool
-                assert type(route.status_disabled) == bool
-                assert type(route.status_hot_standby) == bool
-                assert type(route.elected) == int
-                assert route.busy is None or type(route.busy) == int
-                assert route.load is None or type(route.load) == int
-                assert type(route.traffic_to) == str
-                assert type(route.traffic_to_raw) == int
-                assert type(route.traffic_from) == str
-                assert type(route.traffic_from_raw) == int
+                assert type(route.cluster) is Cluster
+                assert type(route.worker) is str
+                assert type(route.name) is str
+                assert type(route.priority) is int
+                assert type(route.route_redir) is str
+                assert type(route.factor) is int
+                assert type(route.set) is int
+                assert type(route.status_ok) is bool
+                assert type(route.status_error) is bool
+                assert route.status_ignore_errors is None or type(route.status_ignore_errors) is bool
+                assert route.status_draining_mode is None or type(route.status_draining_mode) is bool
+                assert type(route.status_disabled) is bool
+                assert type(route.status_hot_standby)is bool
+                assert type(route.elected) is int
+                assert route.busy is None or type(route.busy) is int
+                assert route.load is None or type(route.load) is int
+                assert type(route.traffic_to) is str
+                assert type(route.traffic_to_raw) is int
+                assert type(route.traffic_from) is str
+                assert type(route.traffic_from_raw) is int
                 assert type(route.session_nonce_uuid) is UUID
 
     def test_route_status_changes(self):
