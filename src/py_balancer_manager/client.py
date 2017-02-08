@@ -237,6 +237,8 @@ class Client:
         if username and password:
             self.session.auth = (username, password)
 
+        self.holistic_error_status = None
+
     def __iter__(self):
 
         yield ('updated_datetime', self.updated_datetime)
@@ -244,6 +246,7 @@ class Client:
         yield ('insecure', self.insecure)
         yield ('apache_version', self.apache_version)
         yield ('request_exception', str(self.request_exception) if self.request_exception else None)
+        yield ('holistic_error_status', self.holistic_error_status)
         yield ('clusters', [dict(c) for c in self.clusters] if self.clusters else None)
 
     def close(self):
@@ -547,6 +550,16 @@ class Client:
             for route in cluster.routes:
                 if route.status_error is False and route.status_disabled is False and route.status_draining_mode is not True:
                     cluster.eligible_routes += 1
+
+        # set holistic_error_status
+        self.holistic_error_status = False
+        for cluster in self.clusters:
+            if self.holistic_error_status is True:
+                break
+            for route in cluster.routes:
+                if route.status_error is True:
+                    self.holistic_error_status = True
+                    break
 
     def _purge_outdated(self):
 
