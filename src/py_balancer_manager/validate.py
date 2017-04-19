@@ -2,7 +2,7 @@ import threading
 import logging
 
 from .client import Client, Route, Cluster
-
+from .errors import MultipleBalancerManagerErrors
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +108,8 @@ class ValidationClient(Client):
 
     def enforce(self):
 
+        exceptions = []
+
         for route in self.get_routes():
             if route.compliance_status is False:
 
@@ -119,7 +121,13 @@ class ValidationClient(Client):
                     if status_name not in route.get_immutable_statuses():
                         route_statuses[status_name] = route.status_validation[status_name]['profile']
 
-                route.change_status(**route_statuses)
+                try:
+                    route.change_status(**route_statuses)
+                except Exception as e:
+                    exceptions.append(e)
+
+        if len(exceptions) > 0:
+            raise MultipleBalancerManagerErrors({'exceptions': exceptions})
 
     def set_profile(self, profile):
 
