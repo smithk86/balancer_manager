@@ -2,12 +2,16 @@ class BalancerManagerError(Exception):
     pass
 
 
+class MultipleBalancerManagerErrors(BalancerManagerError):
+    pass
+
+
 class ValidationClientError(BalancerManagerError):
     pass
 
 
 class ResultsError(BalancerManagerError):
-	pass
+    pass
 
 
 class NotFound(ResultsError):

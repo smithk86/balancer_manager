@@ -1,13 +1,13 @@
 import re
 import logging
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import requests
 from bs4 import BeautifulSoup
 
 from .errors import BalancerManagerError, ResultsError, NotFound
-from .helpers import find_object
+from .helpers import now, find_object
 
 
 class BalancerManagerParseError(BalancerManagerError):
@@ -289,7 +289,7 @@ class Client:
             raise BalancerManagerError(e)
 
         # update timestamp
-        self.updated_datetime = self._datetime_now()
+        self.updated_datetime = now()
         # process text with beautiful soup
         bsoup = BeautifulSoup(response.text, 'lxml')
         # update routes
@@ -314,7 +314,7 @@ class Client:
 
         # if there are no clusters or refresh=True or cluster ttl is reached
         if self.updated_datetime is None or self.clusters is None or refresh is True or \
-                (self.updated_datetime < (self._datetime_now() - timedelta(seconds=self.clusters_ttl))):
+                (self.updated_datetime < (now() - timedelta(seconds=self.clusters_ttl))):
             self.update()
 
         return self.clusters
@@ -443,7 +443,7 @@ class Client:
                     cluster.failover_attempts = int(cells[2].text)
                     cluster.method = cells[3].text
 
-            cluster.updated_datetime = self._datetime_now()
+            cluster.updated_datetime = now()
 
         # only iterate through even tables which contain route data
         for table in page_route_tables:
@@ -529,7 +529,7 @@ class Client:
                 else:
                     raise ValueError('this module only supports apache 2.2 and 2.4')
 
-                route.updated_datetime = self._datetime_now()
+                route.updated_datetime = now()
 
         # iterate clusters for post-parse processing
         for cluster in self.clusters:
@@ -602,9 +602,3 @@ class Client:
             logging.exception(e)
 
         return None
-
-    def _datetime_now(self):
-
-        """ modify datetime in parent class [IE: make timezone aware] """
-
-        return datetime.now()

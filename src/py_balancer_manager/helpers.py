@@ -1,5 +1,16 @@
 import re
+from datetime import datetime
+
+import pytz
 from .errors import BalancerManagerError, ResultsError
+
+
+datetime_timezone_utc = pytz.timezone('UTC')
+
+
+def now():
+
+    return datetime_timezone_utc.localize(datetime.utcnow())
 
 
 def filter_objects(list_of_objects, prop_name, value, regex=False):
