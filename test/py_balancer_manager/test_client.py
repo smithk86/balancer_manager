@@ -2,14 +2,19 @@ import re
 import pytest
 import random
 import logging
-from datetime import datetime
 from uuid import UUID
 from datetime import datetime
 
 import requests
+import pytz
 
 from get_vars import get_var
 from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError, NotFound
+
+
+def now():
+
+    return pytz.timezone('UTC').localize(datetime.utcnow())
 
 
 @pytest.fixture(
@@ -146,7 +151,7 @@ class TestClient():
         # create new cluster which will not be updated in a refresh
         cluster = self.client.new_cluster()
         cluster.name = '__testing_cluster__'
-        cluster.updated_datetime = datetime.now()
+        cluster.updated_datetime = now()
 
         # get cluster without refresh
         cluster = self.client.get_cluster(cluster.name, refresh=False)
@@ -164,7 +169,7 @@ class TestClient():
         # create new route which will not be updated in a refresh
         route = cluster.new_route()
         route.name = '__testing_route__'
-        route.updated_datetime = datetime.now()
+        route.updated_datetime = now()
 
         # get route without refresh
         route = self.client.get_cluster(cluster.name, refresh=False).get_route(route.name)
