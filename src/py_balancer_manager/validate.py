@@ -25,14 +25,6 @@ class ValidatedRoute(Route):
         self.compliance_status = None
         self.status_validation = dict()
 
-        for status_name in self.get_statuses().keys():
-            if status_name not in self.get_immutable_statuses():
-                self.status_validation[status_name] = {
-                    'value': None,
-                    'profile': None,
-                    'compliance': None
-                }
-
     def __iter__(self):
 
         for key, value in super(ValidatedRoute, self).__iter__():
