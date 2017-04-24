@@ -23,7 +23,19 @@ class ValidatedRoute(Route):
         super(ValidatedRoute, self).__init__(cluster)
 
         self.compliance_status = None
-        self.status_validation = dict()
+        self.status_validation = None
+
+    def _parse(self):
+
+        if self.status_validation is None:
+            self.status_validation = dict()
+            for status_name in self.get_statuses().keys():
+                if status_name not in self.get_immutable_statuses():
+                    self.status_validation[status_name] = {
+                        'value': None,
+                        'profile': None,
+                        'compliance': None
+                    }
 
     def __iter__(self):
 
@@ -71,6 +83,8 @@ class ValidationClient(Client):
             cluster_profile = self.profile.get(cluster.name, {})
 
             for route in cluster.get_routes():
+
+                route._parse()
 
                 route.compliance_status = True
                 route_profile = cluster_profile.get(route.name)
