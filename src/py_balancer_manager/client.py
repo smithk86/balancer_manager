@@ -27,6 +27,7 @@ class Cluster:
     def __init__(self, client):
 
         self.client = client
+        self.updated_datetime = None
         self.name = None
         self.max_members = None
         self.max_members_used = None
@@ -43,6 +44,7 @@ class Cluster:
 
     def __iter__(self):
 
+        yield ('updated_datetime', self.updated_datetime)
         yield ('name', self.name)
         yield ('max_members', self.max_members)
         yield ('max_members_used', self.max_members_used)
@@ -80,6 +82,7 @@ class Route:
     def __init__(self, cluster):
 
         self.cluster = cluster
+        self.updated_datetime = None
         self.name = None
         self.worker = None
         self.priority = None
@@ -105,6 +108,7 @@ class Route:
 
     def __iter__(self):
 
+        yield ('updated_datetime', self.updated_datetime)
         yield ('name', self.name)
         yield ('worker', self.worker)
         yield ('priority', self.priority)
