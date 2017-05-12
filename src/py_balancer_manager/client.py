@@ -564,13 +564,13 @@ class Client:
     def _purge_outdated(self):
 
         for cluster in self.clusters:
-            if self.updated_datetime > cluster.updated_datetime:
+            if cluster.updated_datetime is None or self.updated_datetime > cluster.updated_datetime:
                 self.logger.info('removing defunct cluster: {}'.format(cluster.name))
                 self.clusters.remove(cluster)
                 continue
 
             for route in cluster.routes:
-                if self.updated_datetime > route.updated_datetime:
+                if route.updated_datetime is None or self.updated_datetime > route.updated_datetime:
                     self.logger.info('removing defunct route: {}'.format(route.name))
                     cluster.routes.remove(route)
 
