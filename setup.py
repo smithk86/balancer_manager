@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='py_balancer_manager',
-    version='2.3.4',
+    version='2.3.5',
     description="Library for programatically interacting with Apache's mod_proxy_balancer management interface",
     author='Kyle Smith',
     author_email='smithk86@gmail.com',

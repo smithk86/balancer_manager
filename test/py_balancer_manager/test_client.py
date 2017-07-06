@@ -71,7 +71,7 @@ class TestClient():
         assert type(self.client.updated_datetime) is datetime
         assert type(self.client.insecure) is bool
         assert type(self.client.apache_version) is str
-        assert self.client.request_exception is None
+        assert self.client.error is None
         assert type(self.client.clusters_ttl) is int
         assert type(self.client.session) is requests.Session
         assert type(self.client.holistic_error_status) is bool

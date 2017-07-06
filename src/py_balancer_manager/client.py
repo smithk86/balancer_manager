@@ -224,7 +224,7 @@ class Client:
 
         self.insecure = insecure
         self.apache_version = None
-        self.request_exception = None
+        self.error = None
 
         self.clusters_ttl = cache_ttl
         self.clusters = list()
@@ -245,7 +245,7 @@ class Client:
         yield ('url', self.url)
         yield ('insecure', self.insecure)
         yield ('apache_version', self.apache_version)
-        yield ('request_exception', str(self.request_exception) if self.request_exception else None)
+        yield ('error', str(self.error) if self.error else None)
         yield ('holistic_error_status', self.holistic_error_status)
         yield ('clusters', [dict(c) for c in self.clusters] if self.clusters else None)
 
@@ -281,11 +281,11 @@ class Client:
             if response.status_code is not requests.codes.ok:
                 response.raise_for_status()
             else:
-                self.request_exception = None
+                self.error = None
 
         except requests.exceptions.RequestException as e:
 
-            self.request_exception = e
+            self.error = e
             raise BalancerManagerError(e)
 
         # update timestamp
