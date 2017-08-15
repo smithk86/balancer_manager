@@ -7,7 +7,7 @@ import logging
 from getpass import getpass
 
 import py_balancer_manager
-from py_balancer_manager import print_routes
+from py_balancer_manager import PrettyString, print_routes
 
 
 # disable warnings
@@ -85,7 +85,26 @@ def main():
         routes = client.get_routes()
 
     print()
-    print('URL: {url}'.format(url=client.url))
+    print('{label}: {val}'.format(
+        label=PrettyString('url', 'blue'),
+        val=client.url
+    ))
+    print('{label}: {val}'.format(
+        label=PrettyString('httpd version', 'blue'),
+        val=client.apache_version
+    ))
+    print('{label}: {val}'.format(
+        label=PrettyString('httpd build time', 'blue'),
+        val=client.apache_compile_datetime
+    ))
+
+    if client.openssl_version:
+        print('{label}: {val}'.format(
+            label=PrettyString('openssl version', 'blue'),
+            val=client.openssl_version
+        ))
+
+    print()
     print_routes(routes, args.verbose)
     print()
 

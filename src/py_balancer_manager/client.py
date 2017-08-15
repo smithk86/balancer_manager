@@ -1,7 +1,7 @@
 import re
 import logging
 from uuid import UUID
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
@@ -224,6 +224,8 @@ class Client:
 
         self.insecure = insecure
         self.apache_version = None
+        self.apache_compile_datetime = None
+        self.openssl_version = None
         self.error = None
 
         self.clusters_ttl = cache_ttl
@@ -245,6 +247,8 @@ class Client:
         yield ('url', self.url)
         yield ('insecure', self.insecure)
         yield ('apache_version', self.apache_version)
+        yield ('apache_compile_datetime', self.apache_compile_datetime)
+        yield ('openssl_version', self.openssl_version)
         yield ('error', str(self.error) if self.error else None)
         yield ('holistic_error_status', self.holistic_error_status)
         yield ('clusters', [dict(c) for c in self.clusters] if self.clusters else None)
@@ -336,20 +340,6 @@ class Client:
 
     def _parse(self, bsoup):
 
-        def _set_apache_version():
-
-            try:
-                full_version_string = bsoup.find('dt').text
-            except AttributeError:
-                raise BalancerManagerParseError('could not parse text from the first "dt" element')
-
-            match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', full_version_string)
-            if match:
-                self.apache_version = match.group(1)
-                self.logger.info('apache version: {apache_version}'.format(apache_version=self.apache_version))
-            else:
-                raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of Apache')
-
         def _parse_max_members(value):
 
             m = re.match(r'^(\d*) \[(\d*) Used\]$', value)
@@ -375,17 +365,47 @@ class Client:
             except ResultsError:
                 return None
 
+        # compile patterns
+        session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
+        cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
+
         # remove form from page -- this contains extra tables which do not contain clusters or routes
         for form in bsoup.find_all('form'):
             form.extract()
 
-        # check/set apache version
-        if not self.apache_version:
-            _set_apache_version()
+        # get all dt elements
+        _bs_dt = bsoup.find_all('dt')
 
-        # compile patterns
-        session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
-        cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
+        if len(_bs_dt) >= 1:
+
+            # set/update apache version
+            match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', _bs_dt[0].text)
+            if match:
+                self.apache_version = match.group(1)
+            else:
+                raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of Apache')
+
+            # set/update openssl version
+            match = re.search(r'OpenSSL\/([0-9\.a-z]*)', _bs_dt[0].text)
+            if match:
+                self.openssl_version = match.group(1)
+
+        else:
+            raise BalancerManagerParseError('could not parse text from the first "dt" element')
+
+        if len(_bs_dt) >= 2:
+
+            # set/update apache compile datetime
+            match = re.match(r'Server Built:\ (\w{3})\ {1,2}(\d{1,2})\ (\d{4})\ (\d{2}):(\d{2}):(\d{2})', _bs_dt[1].text)
+            if match:
+                self.apache_compile_datetime = datetime(
+                    year=int(match.group(3)),
+                    month=datetime.strptime(match.group(1), '%b').month,
+                    day=int(match.group(2)),
+                    hour=int(match.group(4)),
+                    minute=int(match.group(5)),
+                    second=int(match.group(6))
+                )
 
         # parse out tables
         _tables = bsoup.find_all('table')
