@@ -368,13 +368,17 @@ class Client:
         # compile patterns
         session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
         cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
+        balancer_uri_pattern = re.compile('balancer://(.*)')
 
         # remove form from page -- this contains extra tables which do not contain clusters or routes
         for form in bsoup.find_all('form'):
             form.extract()
 
-        # get all dt elements
+        # initial bs4 parsing
         _bs_dt = bsoup.find_all('dt')
+        _bs_tables = bsoup.find_all('table')
+        _bs_table_clusters = _bs_tables[::2]
+        _bs_table_routes = _bs_tables[1::2]
 
         if len(_bs_dt) >= 1:
 
@@ -407,13 +411,8 @@ class Client:
                     second=int(match.group(6))
                 )
 
-        # parse out tables
-        _tables = bsoup.find_all('table')
-        page_cluster_tables = _tables[::2]
-        page_route_tables = _tables[1::2]
-
         # only iterate through odd tables which contain cluster data
-        for table in page_cluster_tables:
+        for table in _bs_table_clusters:
 
             header_elements = table.findPreviousSiblings('h3', limit=1)
             if len(header_elements) == 1:
@@ -421,7 +420,6 @@ class Client:
             else:
                 raise BalancerManagerParseError('single h3 element is required but not found')
 
-            balancer_uri_pattern = re.compile('balancer://(.*)')
             header_text = header.a.text if header.a else header.text
 
             m = balancer_uri_pattern.search(header_text)
@@ -466,7 +464,7 @@ class Client:
             cluster.updated_datetime = now()
 
         # only iterate through even tables which contain route data
-        for table in page_route_tables:
+        for table in _bs_table_routes:
             for i, row in enumerate(table.find_all('tr')):
                 cells = row.find_all('td')
 
