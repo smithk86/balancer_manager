@@ -1,17 +1,26 @@
 import re
+import time
 from datetime import datetime
 
 import pytz
+from tzlocal import get_localzone
 from .errors import BalancerManagerError, ResultsError
 
 
 datetime_timezone_utc = pytz.timezone('UTC')
+datetime_timezone_local = get_localzone()
 
 
 def now():
 
     return datetime_timezone_utc.localize(datetime.utcnow())
 
+
+def local_datetime(**kwargs):
+
+    return datetime_timezone_local.localize(
+        datetime(**kwargs)
+    )
 
 def filter_objects(list_of_objects, prop_name, value, regex=False):
 

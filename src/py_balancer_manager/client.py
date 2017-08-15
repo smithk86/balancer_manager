@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .errors import BalancerManagerError, ResultsError, NotFound
-from .helpers import now, find_object
+from .helpers import now, find_object, local_datetime
 
 
 class BalancerManagerParseError(BalancerManagerError):
@@ -398,7 +398,7 @@ class Client:
             # set/update httpd compile datetime
             match = re.match(r'Server Built:\ (\w{3})\ {1,2}(\d{1,2})\ (\d{4})\ (\d{2}):(\d{2}):(\d{2})', _bs_dt[1].text)
             if match:
-                self.httpd_compile_datetime = datetime(
+                self.httpd_compile_datetime = local_datetime(
                     year=int(match.group(3)),
                     month=datetime.strptime(match.group(1), '%b').month,
                     day=int(match.group(2)),

@@ -14,6 +14,7 @@ setup(
         'requests',
         'beautifulsoup4',
         'lxml',
-        'pytz'
+        'pytz',
+        'tzlocal'
     ]
 )
