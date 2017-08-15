@@ -131,7 +131,7 @@ class TestClient():
             if self.client.httpd_version_is('2.2') and status != 'status_disabled':
                 with pytest.raises(BalancerManagerError) as excinfo:
                     route.change_status(**kwargs)
-                assert 'is immutable for this version of apache' in str(excinfo.value)
+                assert 'is immutable for this version of httpd' in str(excinfo.value)
                 continue
 
             # continue with route testing

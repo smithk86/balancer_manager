@@ -14,7 +14,7 @@ class BalancerManagerParseError(BalancerManagerError):
     pass
 
 
-class ApacheVersionError(BalancerManagerError):
+class HttpdVersionError(BalancerManagerError):
     pass
 
 
@@ -155,9 +155,9 @@ class Route:
         for key, val in locals().items():
             if key in self.get_immutable_statuses():
                 if val is not None:
-                    raise ApacheVersionError('{} is immutable for this version of apache'.format(key))
+                    raise HttpdVersionError('{} is immutable for this version of httpd'.format(key))
 
-        # create dictionary of existing values which are allowed by the apache version
+        # create dictionary of existing values which are allowed by the httpd version
         new_route_statuses = self.get_statuses()
         for status_name in new_route_statuses.copy().keys(): # use copy to avoid a "dictionary was modified during iteration" error
             if status_name in self.get_immutable_statuses():
@@ -306,7 +306,7 @@ class Client:
         if self.httpd_version:
             return self.httpd_version.startswith(version)
         else:
-            raise ApacheVersionError('no apache version has been set')
+            raise HttpdVersionError('no httpd version has been set')
 
     def new_cluster(self):
 
@@ -349,7 +349,7 @@ class Client:
                     int(m.group(2))
                 )
 
-            raise ValueError('MaxMembers value from Apache could not be parsed')
+            raise ValueError('MaxMembers value from httpd could not be parsed')
 
         def _get_cluster(name):
 
@@ -378,12 +378,12 @@ class Client:
 
         if len(_bs_dt) >= 1:
 
-            # set/update apache version
+            # set/update httpd version
             match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', _bs_dt[0].text)
             if match:
                 self.httpd_version = match.group(1)
             else:
-                raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of Apache')
+                raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of httpd')
 
             # set/update openssl version
             match = re.search(r'OpenSSL\/([0-9\.a-z]*)', _bs_dt[0].text)
@@ -395,7 +395,7 @@ class Client:
 
         if len(_bs_dt) >= 2:
 
-            # set/update apache compile datetime
+            # set/update httpd compile datetime
             match = re.match(r'Server Built:\ (\w{3})\ {1,2}(\d{1,2})\ (\d{4})\ (\d{2}):(\d{2}):(\d{2})', _bs_dt[1].text)
             if match:
                 self.httpd_compile_datetime = datetime(
@@ -446,7 +446,7 @@ class Client:
 
                 if self.httpd_version_is('2.4.'):
                     cluster.max_members, cluster.max_members_used = _parse_max_members(cells[0].text)
-                    # below is a workaround for a bug in the html formatting in apache 2.4.20 in which the StickySession cell closing tag comes after DisableFailover
+                    # below is a workaround for a bug in the html formatting in httpd 2.4.20 in which the StickySession cell closing tag comes after DisableFailover
                     # HTML = <td>JSESSIONID<td>Off</td></td>
                     sticky_session_value = cells[1].find(text=True, recursive=False).strip()
                     cluster.sticky_session = False if sticky_session_value == '(None)' else sticky_session_value
@@ -547,7 +547,7 @@ class Client:
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
 
                 else:
-                    raise ValueError('this module only supports apache 2.2 and 2.4')
+                    raise ValueError('this module only supports httpd 2.2 and 2.4')
 
                 route.updated_datetime = now()
 
