@@ -91,11 +91,11 @@ def main():
     ))
     print('{label}: {val}'.format(
         label=PrettyString('httpd version', 'blue'),
-        val=client.apache_version
+        val=client.httpd_version
     ))
     print('{label}: {val}'.format(
         label=PrettyString('httpd build time', 'blue'),
-        val=client.apache_compile_datetime
+        val=client.httpd_compile_datetime
     ))
 
     if client.openssl_version:

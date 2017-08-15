@@ -46,7 +46,7 @@ class TestClient():
 
     def test_version(self):
 
-        assert self.client.apache_version_is(self.server['version'])
+        assert self.client.httpd_version_is(self.server['version'])
 
     def test_routes(self):
 
@@ -70,8 +70,8 @@ class TestClient():
         assert type(self.client.timeout) is int
         assert type(self.client.updated_datetime) is datetime
         assert type(self.client.insecure) is bool
-        assert type(self.client.apache_version) is str
-        assert type(self.client.apache_compile_datetime) is datetime
+        assert type(self.client.httpd_version) is str
+        assert type(self.client.httpd_compile_datetime) is datetime
         assert type(self.client.openssl_version) is str
         assert self.client.error is None
         assert type(self.client.clusters_ttl) is int
@@ -128,7 +128,7 @@ class TestClient():
             kwargs = {status: not status_value}
 
             # ensure immutable statuses cannot be modified
-            if self.client.apache_version_is('2.2') and status != 'status_disabled':
+            if self.client.httpd_version_is('2.2') and status != 'status_disabled':
                 with pytest.raises(BalancerManagerError) as excinfo:
                     route.change_status(**kwargs)
                 assert 'is immutable for this version of apache' in str(excinfo.value)

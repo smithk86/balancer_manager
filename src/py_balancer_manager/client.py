@@ -140,7 +140,7 @@ class Route:
 
     def get_immutable_statuses(self):
 
-        if self.cluster.client.apache_version_is('2.2.'):
+        if self.cluster.client.httpd_version_is('2.2.'):
             return [
                 'status_hot_standby',
                 'status_draining_mode',
@@ -174,7 +174,7 @@ class Route:
             elif new_route_statuses['status_draining_mode'] is True:
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
-        if self.cluster.client.apache_version_is('2.2.'):
+        if self.cluster.client.httpd_version_is('2.2.'):
             self.cluster.client.request_get(params={
                 'lf': '1',
                 'ls': '0',
@@ -223,8 +223,8 @@ class Client:
         self.updated_datetime = None
 
         self.insecure = insecure
-        self.apache_version = None
-        self.apache_compile_datetime = None
+        self.httpd_version = None
+        self.httpd_compile_datetime = None
         self.openssl_version = None
         self.error = None
 
@@ -246,8 +246,8 @@ class Client:
         yield ('updated_datetime', self.updated_datetime)
         yield ('url', self.url)
         yield ('insecure', self.insecure)
-        yield ('apache_version', self.apache_version)
-        yield ('apache_compile_datetime', self.apache_compile_datetime)
+        yield ('httpd_version', self.httpd_version)
+        yield ('httpd_compile_datetime', self.httpd_compile_datetime)
         yield ('openssl_version', self.openssl_version)
         yield ('error', str(self.error) if self.error else None)
         yield ('holistic_error_status', self.holistic_error_status)
@@ -301,10 +301,10 @@ class Client:
         # purge defunct clusters/routes
         self._purge_outdated()
 
-    def apache_version_is(self, version):
+    def httpd_version_is(self, version):
 
-        if self.apache_version:
-            return self.apache_version.startswith(version)
+        if self.httpd_version:
+            return self.httpd_version.startswith(version)
         else:
             raise ApacheVersionError('no apache version has been set')
 
@@ -381,7 +381,7 @@ class Client:
             # set/update apache version
             match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', _bs_dt[0].text)
             if match:
-                self.apache_version = match.group(1)
+                self.httpd_version = match.group(1)
             else:
                 raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of Apache')
 
@@ -398,7 +398,7 @@ class Client:
             # set/update apache compile datetime
             match = re.match(r'Server Built:\ (\w{3})\ {1,2}(\d{1,2})\ (\d{4})\ (\d{2}):(\d{2}):(\d{2})', _bs_dt[1].text)
             if match:
-                self.apache_compile_datetime = datetime(
+                self.httpd_compile_datetime = datetime(
                     year=int(match.group(3)),
                     month=datetime.strptime(match.group(1), '%b').month,
                     day=int(match.group(2)),
@@ -444,7 +444,7 @@ class Client:
                 if len(cells) == 0:
                     continue
 
-                if self.apache_version_is('2.4.'):
+                if self.httpd_version_is('2.4.'):
                     cluster.max_members, cluster.max_members_used = _parse_max_members(cells[0].text)
                     # below is a workaround for a bug in the html formatting in apache 2.4.20 in which the StickySession cell closing tag comes after DisableFailover
                     # HTML = <td>JSESSIONID<td>Off</td></td>
@@ -457,7 +457,7 @@ class Client:
                     cluster.path = cells[6].text
                     cluster.active = 'Yes' in cells[7].text
 
-                elif self.apache_version_is('2.2.'):
+                elif self.httpd_version_is('2.2.'):
                     cluster.sticky_session = False if cells[0].text == '(None)' else cells[0].text
                     cluster.timeout = int(cells[1].text)
                     cluster.failover_attempts = int(cells[2].text)
@@ -502,7 +502,7 @@ class Client:
                     route = cluster.new_route()
                     route.name = route_name
 
-                if self.apache_version_is('2.4.'):
+                if self.httpd_version_is('2.4.'):
                     route.worker = cells[0].find('a').text
                     route.name = route_name
                     route.priority = i
@@ -524,7 +524,7 @@ class Client:
                     route.traffic_from_raw = Client._decode_data_useage(cells[10].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
 
-                elif self.apache_version_is('2.2.'):
+                elif self.httpd_version_is('2.2.'):
                     route.worker = cells[0].find('a').text
                     route.name = cells[1].text
                     route.priority = i
