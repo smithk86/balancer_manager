@@ -2,25 +2,21 @@ import re
 import time
 from datetime import datetime
 
-import pytz
+from pytz import utc
 from tzlocal import get_localzone
+from dateutil.parser import parse as date_parser
 from .errors import BalancerManagerError, ResultsError
-
-
-datetime_timezone_utc = pytz.timezone('UTC')
-datetime_timezone_local = get_localzone()
 
 
 def now():
 
-    return datetime_timezone_utc.localize(datetime.utcnow())
+    return datetime.now(utc)
 
 
-def local_datetime(**kwargs):
+def parse_from_local_timezone(date_string):
 
-    return datetime_timezone_local.localize(
-        datetime(**kwargs)
-    )
+    return get_localzone().localize(date_parser(date_string)).astimezone(utc)
+
 
 def filter_objects(list_of_objects, prop_name, value, regex=False):
 

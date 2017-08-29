@@ -1,19 +1,32 @@
 {
-	"servers": [
-		{
-			"url": "http://192.168.1.100/balancer-manager",
-			"version": "2.2",
-			"username": "user",
-			"password": "passwd"
-		},
-		{
-			"url": "https://192.168.1.101/balancer-manager",
-			"insecure": true,
-			"version": "2.4",
-			"username": "user",
-			"password": "passwd"
-		}
-	],
-	"url_with_bad_hostname": "http://localh0st/balancer-manager",
-	"url_for_non-balancer-manager": "http://www.google.com"
+    "servers": [
+        {
+            "id": "mock-httpd-2.4",
+            "url": "mock://localhost/balancer-manager",
+            "version": "2.4",
+            "data_file": "httpd_balancer_manager_2.4.23.html"
+        },
+        {
+            "id": "mock-httpd-2.2",
+            "url": "mock://localhost/balancer-manager",
+            "version": "2.2",
+            "data_file": "httpd_balancer_manager_2.2.31.html"
+        },
+        {
+            "id": "192.168.1.10",
+            "url": "http://192.168.1.10/balancer-manager",
+            "version": "2.4",
+            "username": "admin",
+            "password": "1234"
+        },
+        {
+            "id": "192.168.1.10",
+            "url": "http://192.168.1.11/balancer-manager",
+            "version": "2.2",
+            "username": "admin",
+            "password": "1234"
+        }
+    ],
+    "url_with_bad_hostname": "http://localh0st/balancer-manager",
+    "url_for_non-balancer-manager": "http://www.google.com"
 }

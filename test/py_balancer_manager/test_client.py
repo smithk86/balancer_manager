@@ -1,3 +1,4 @@
+import os.path
 import re
 import pytest
 import random
@@ -6,30 +7,49 @@ from uuid import UUID
 from datetime import datetime
 
 import requests
-import pytz
+from pytz import utc
+from tzlocal import get_localzone
 
 from get_vars import get_var
 from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError, NotFound
+import requests_mock
 
 
 def now():
 
-    return pytz.timezone('UTC').localize(datetime.utcnow())
+    return utc.localize(datetime.utcnow())
+
+
+def skip_mock_server(server):
+
+    if server.get('url')[:4] == 'mock':
+        pytest.skip('mock adapter')
 
 
 @pytest.fixture(
     scope='class',
-    params=get_var('servers')
+    params=get_var('servers'),
+    ids=[s['id'] for s in get_var('servers')]
 )
-def fixture_client(request):
+def client(request):
 
+    module_directory = os.path.abspath(os.path.dirname(__file__))
     server = request.param
+
+    if server.get('url')[:4] == 'mock':
+        mock_adapter = requests_mock.Adapter()
+        data_file = '{module_directory}/data/{data_file}'.format(module_directory=module_directory, data_file=server['data_file'])
+        with open(data_file, 'r') as fh:
+            mock_adapter.register_uri('GET', '/balancer-manager', text=fh.read())
+    else:
+        mock_adapter = None
 
     client = Client(
         server['url'],
         insecure=server.get('insecure', False),
         username=server.get('username', None),
-        password=server.get('password', None)
+        password=server.get('password', None),
+        requests_adapter=mock_adapter
     )
 
     client.update()
@@ -41,8 +61,12 @@ def fixture_client(request):
     request.cls.client = client
 
 
-@pytest.mark.usefixtures("fixture_client")
+@pytest.mark.usefixtures('client')
 class TestClient():
+
+    def skip_mock_server(self):
+
+        skip_mock_server(self.server)
 
     def test_version(self):
 
@@ -114,6 +138,8 @@ class TestClient():
                 assert type(route.session_nonce_uuid) is UUID
 
     def test_route_status_changes(self):
+
+        self.skip_mock_server()
 
         for status in ['status_disabled', 'status_hot_standby', 'status_draining_mode', 'status_ignore_errors']:
 
@@ -226,7 +252,8 @@ def test_bad_balancer_manager():
 
 def test_bad_auth():
 
-    for server_url in [s.get('url') for s in get_var('servers')]:
+    for server in get_var('servers'):
+        skip_mock_server(server)
         with pytest.raises(BalancerManagerError) as excinfo:
-            Client(server_url).update()
+            Client(server['url']).update()
         assert '401 Client Error' in str(excinfo.value)

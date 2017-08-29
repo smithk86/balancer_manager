@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .errors import BalancerManagerError, ResultsError, NotFound
-from .helpers import now, find_object, local_datetime
+from .helpers import now, parse_from_local_timezone, find_object
 
 
 class BalancerManagerParseError(BalancerManagerError):
@@ -208,7 +208,7 @@ class Route:
 
 class Client:
 
-    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30):
+    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30, requests_adapter=None):
 
         self.logger = logging.getLogger(__name__)
 
@@ -235,7 +235,8 @@ class Client:
         self.session.headers.update({
             'User-agent': 'py_balancer_manager.Client'
         })
-
+        if requests_adapter:
+            self.session.mount('mock', requests_adapter)
         if username and password:
             self.session.auth = (username, password)
 
@@ -400,16 +401,9 @@ class Client:
         if len(_bs_dt) >= 2:
 
             # set/update httpd compile datetime
-            match = re.match(r'Server Built:\ (\w{3})\ {1,2}(\d{1,2})\ (\d{4})\ (\d{2}):(\d{2}):(\d{2})', _bs_dt[1].text)
+            match = re.match(r'Server Built:\ (.*)', _bs_dt[1].text)
             if match:
-                self.httpd_compile_datetime = local_datetime(
-                    year=int(match.group(3)),
-                    month=datetime.strptime(match.group(1), '%b').month,
-                    day=int(match.group(2)),
-                    hour=int(match.group(4)),
-                    minute=int(match.group(5)),
-                    second=int(match.group(6))
-                )
+                self.httpd_compile_datetime = parse_from_local_timezone(match.group(1))
 
         # only iterate through odd tables which contain cluster data
         for table in _bs_table_clusters:

@@ -1,23 +1,37 @@
+import os.path
+
 import pytest
 import random
 
 from get_vars import get_var
 from py_balancer_manager import ValidationClient, ValidatedRoute, ValidatedCluster
+import requests_mock
 
 
 @pytest.fixture(
     scope='class',
-    params=get_var('servers')
+    params=get_var('servers'),
+    ids=[s['id'] for s in get_var('servers')]
 )
-def fixture_client(request):
+def client(request):
 
+    module_directory = os.path.abspath(os.path.dirname(__file__))
     server = request.param
+
+    if server.get('url')[:4] == 'mock':
+        mock_adapter = requests_mock.Adapter()
+        data_file = '{module_directory}/data/{data_file}'.format(module_directory=module_directory, data_file=server['data_file'])
+        with open(data_file, 'r') as fh:
+            mock_adapter.register_uri('GET', '/balancer-manager', text=fh.read())
+    else:
+        mock_adapter = None
 
     client = ValidationClient(
         server['url'],
         insecure=server.get('insecure', False),
         username=server.get('username', None),
-        password=server.get('password', None)
+        password=server.get('password', None),
+        requests_adapter=mock_adapter
     )
 
     profile = client.get_profile()
@@ -31,8 +45,13 @@ def fixture_client(request):
     request.cls.client = client
 
 
-@pytest.mark.usefixtures("fixture_client")
+@pytest.mark.usefixtures('client')
 class TestValidationClient():
+
+    def skip_mock_server(self):
+
+        if self.server.get('url')[:4] == 'mock':
+            pytest.skip('mock adapter')
 
     def test_routes(self):
 
@@ -41,6 +60,8 @@ class TestValidationClient():
             assert type(route) is ValidatedRoute
 
     def test_validate_clusters_and_routes(self):
+
+        self.skip_mock_server()
 
         assert self.client.holistic_compliance_status is True
         assert type(self.client.profile) is dict
@@ -56,6 +77,8 @@ class TestValidationClient():
                 assert type(route.status_validation) is dict
 
     def test_compliance_manually(self):
+
+        self.skip_mock_server()
 
         for route in self._get_random_routes():
 
@@ -78,6 +101,8 @@ class TestValidationClient():
             assert self.client.holistic_compliance_status is True
 
     def test_compliance_with_enforce(self):
+
+        self.skip_mock_server()
 
         assert self.client.holistic_compliance_status is True
 
