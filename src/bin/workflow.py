@@ -10,24 +10,6 @@ from lib.ask import prompt
 from py_balancer_manager import Workflow, print_validated_routes
 
 
-class WorkflowCLI(Workflow):
-
-    def print(self, msg=None):
-
-        if msg:
-            print(msg)
-        else:
-            print()
-
-    def print_routes(self, routes):
-
-        print_validated_routes(routes)
-
-    def prompt(self, message):
-
-        return prompt(message)
-
-
 parser = argparse.ArgumentParser()
 parser.add_argument('json-file')
 parser.add_argument('-d', '--debug', action='store_true', default=False)
@@ -43,4 +25,4 @@ except FileNotFoundError:
     print('json file does not exist: {file}'.format(file=getattr(args, 'json-file')))
     sys.exit(1)
 
-WorkflowCLI(workflow, username='admin', password=os.environ.get('PASSWORD')).run()
+Workflow(workflow, username='admin', password=os.environ.get('PASSWORD')).run()

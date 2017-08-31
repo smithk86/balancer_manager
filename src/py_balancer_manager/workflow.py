@@ -1,6 +1,7 @@
+from __future__ import print_function
+
 import re
 import logging
-from abc import ABCMeta, abstractmethod
 
 from .validate import ValidationClient
 from .errors import BalancerManagerError
@@ -13,7 +14,7 @@ class EndWorkflow(Exception):
     pass
 
 
-class Workflow(metaclass=ABCMeta):
+class Workflow(object):
 
     def __init__(self, workflow, username=None, password=None):
 
@@ -33,20 +34,20 @@ class Workflow(metaclass=ABCMeta):
                         # add cluster_profiles dictionary
                         action['cluster_profiles'] = {}
 
-    @abstractmethod
     def print(self, msg=None):
 
-        pass
+        if msg:
+            print(msg)
+        else:
+            print()
 
-    @abstractmethod
-    def print_routes(self, *args, **kwargs):
+    def print_routes(self, routes):
 
-        pass
+        print_validated_routes(routes)
 
-    @abstractmethod
-    def prompt(self, *args, **kwargs):
+    def prompt(self, message):
 
-        pass
+        return prompt(message)
 
     def tearDown(self):
 

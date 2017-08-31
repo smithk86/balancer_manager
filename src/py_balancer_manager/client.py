@@ -22,7 +22,7 @@ class RouteChangeValidationError(BalancerManagerError):
     pass
 
 
-class Cluster:
+class Cluster(object):
 
     def __init__(self, client):
 
@@ -77,7 +77,7 @@ class Cluster:
             raise NotFound('could not locate route name in list of routes: {}'.format(name))
 
 
-class Route:
+class Route(object):
 
     def __init__(self, cluster):
 
@@ -206,7 +206,7 @@ class Route:
                 raise RouteChangeValidationError('status value for "{}" is incorrect (should be {})'.format(status_name, getattr(self, status_name)))
 
 
-class Client:
+class Client(object):
 
     def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30, requests_adapter=None):
 

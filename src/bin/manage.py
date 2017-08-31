@@ -6,6 +6,8 @@ import requests
 import logging
 from getpass import getpass
 
+from tzlocal import get_localzone
+
 import py_balancer_manager
 from py_balancer_manager import PrettyString, print_routes
 
@@ -95,7 +97,9 @@ def main():
     ))
     print('{label}: {val}'.format(
         label=PrettyString('httpd build time', 'blue'),
-        val=client.httpd_compile_datetime
+        val=get_localzone().localize(
+            client.httpd_compile_datetime
+        ).strftime('%Y-%m-%d %I:%M:%S%p %Z')
     ))
 
     if client.openssl_version:

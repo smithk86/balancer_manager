@@ -1,3 +1,4 @@
+import sys
 import os.path
 import re
 import pytest
@@ -13,6 +14,10 @@ from tzlocal import get_localzone
 from get_vars import get_var
 from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError, NotFound
 import requests_mock
+
+
+if sys.version_info < (3, 0):
+    str = unicode
 
 
 def now():
