@@ -4,6 +4,7 @@ from uuid import UUID
 from datetime import datetime, timedelta
 
 import requests
+import requests_mock
 from bs4 import BeautifulSoup
 
 from .errors import BalancerManagerError, ResultsError, NotFound
@@ -208,7 +209,7 @@ class Route(object):
 
 class Client(object):
 
-    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30, requests_adapter=None):
+    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30, mock_data=None):
 
         self.logger = logging.getLogger(__name__)
 
@@ -219,6 +220,7 @@ class Client(object):
             self.logger.warning('ssl certificate verification is disabled')
 
         self.url = url
+        self.last_response = None
         self.timeout = timeout
         self.updated_datetime = None
 
@@ -235,12 +237,18 @@ class Client(object):
         self.session.headers.update({
             'User-agent': 'py_balancer_manager.Client'
         })
-        if requests_adapter:
-            self.session.mount('mock', requests_adapter)
+        if mock_data:
+            self.init_mock_adapter(data=mock_data)
         if username and password:
             self.session.auth = (username, password)
 
         self.holistic_error_status = None
+
+    def init_mock_adapter(self, data):
+
+        mock_adapter = requests_mock.Adapter()
+        mock_adapter.register_uri('GET', '/balancer-manager', text=data)
+        self.session.mount('mock', mock_adapter)
 
     def __iter__(self):
 
@@ -268,23 +276,19 @@ class Client(object):
         kwargs['method'] = 'post'
         self.update(**kwargs)
 
-    def update(self, **kwargs):
+    def update(self, method='get', timeout=None, verify=None, **kwargs):
 
         self.logger.info('updating routes')
 
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = self.timeout
-        if 'verify' not in kwargs:
-            kwargs['verify'] = not self.insecure
-
-        request_method = kwargs.pop('method', 'get')
+        timeout = timeout if timeout else self.timeout
+        verify = verify if verify else not self.insecure
 
         try:
 
-            response = getattr(self.session, request_method)(self.url, **kwargs)
+            self.last_response = getattr(self.session, method)(self.url, timeout=timeout, verify=verify, **kwargs)
 
-            if response.status_code is not requests.codes.ok:
-                response.raise_for_status()
+            if self.last_response.status_code is not requests.codes.ok:
+                self.last_response.raise_for_status()
             else:
                 self.error = None
 
@@ -296,7 +300,7 @@ class Client(object):
         # update timestamp
         self.updated_datetime = now()
         # process text with beautiful soup
-        bsoup = BeautifulSoup(response.text, 'lxml')
+        bsoup = BeautifulSoup(self.last_response.text, 'lxml')
         # update routes
         self._parse(bsoup)
         # purge defunct clusters/routes

@@ -13,7 +13,6 @@ from tzlocal import get_localzone
 
 from get_vars import get_var
 from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError, NotFound
-import requests_mock
 
 
 if sys.version_info < (3, 0):
@@ -42,19 +41,17 @@ def client(request):
     server = request.param
 
     if server.get('url')[:4] == 'mock':
-        mock_adapter = requests_mock.Adapter()
-        data_file = '{module_directory}/data/{data_file}'.format(module_directory=module_directory, data_file=server['data_file'])
-        with open(data_file, 'r') as fh:
-            mock_adapter.register_uri('GET', '/balancer-manager', text=fh.read())
+        with open('{module_directory}/data/{data_file}'.format(module_directory=module_directory, data_file=server['data_file'])) as fh:
+            mock_data = fh.read()
     else:
-        mock_adapter = None
+        mock_data = None
 
     client = Client(
         server['url'],
         insecure=server.get('insecure', False),
         username=server.get('username', None),
         password=server.get('password', None),
-        requests_adapter=mock_adapter
+        mock_data=mock_data
     )
 
     client.update()
