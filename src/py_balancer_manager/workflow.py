@@ -5,9 +5,24 @@ import logging
 
 from .validate import ValidationClient
 from .errors import BalancerManagerError
+from .printer import print_validated_routes
 
 
 logger = logging.getLogger(__name__)
+
+
+def prompt(message=None):
+    if message:
+        message = '{0} [press enter]'.format(message)
+    else:
+        message = '[press enter]'
+
+    try:
+        input(message)
+        return True
+    except KeyboardInterrupt:
+        print()
+        return False
 
 
 class EndWorkflow(Exception):

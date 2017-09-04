@@ -5,9 +5,8 @@ import os
 import json
 import argparse
 import logging
-from lib.ask import prompt
 
-from py_balancer_manager import Workflow, print_validated_routes
+from py_balancer_manager import Workflow
 
 
 parser = argparse.ArgumentParser()
