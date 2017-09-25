@@ -15,6 +15,12 @@ class ValidatedCluster(Cluster):
         self.routes.append(route)
         return route
 
+    def all_routes_are_profiled(self):
+
+        for route in self.get_routes():
+            if not route.has_profile():
+                return False
+        return True
 
 class ValidatedRoute(Route):
 
@@ -24,6 +30,14 @@ class ValidatedRoute(Route):
 
         self.compliance_status = None
         self.status_validation = None
+
+    def has_profile(self):
+
+        if self.status_validation is not None:
+            for status_validation in self.status_validation.values():
+                if status_validation['profile'] is None:
+                    return False
+        return True
 
     def _parse(self):
 
@@ -50,7 +64,7 @@ class ValidationClient(Client):
 
     def __init__(self, url, **kwargs):
 
-        self.holistic_compliance_status = False
+        self.holistic_compliance_status = None
         self.profile = kwargs.pop('profile', None)
 
         super(ValidationClient, self).__init__(url, **kwargs)
@@ -109,8 +123,16 @@ class ValidationClient(Client):
 
     def get_holistic_compliance_status(self):
 
-        self.get_clusters()
+        if self.holistic_compliance_status is None:
+            self.update()
         return self.holistic_compliance_status
+
+    def all_routes_are_profiled(self):
+
+        for cluster in self.get_clusters():
+            if not cluster.all_routes_are_profiled():
+                return False
+        return True
 
     def enforce(self):
 
