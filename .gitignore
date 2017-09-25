@@ -1,7 +1,7 @@
-/test/py_balancer_manager/vars.json
 *.pyc
 /*egg-info*
 /dist
 /build
 /.cache
 /scripts
+/test/vars.json
