@@ -64,6 +64,7 @@ class ValidationClient(Client):
 
     def __init__(self, url, **kwargs):
 
+        self.all_routes_are_profiled = None
         self.holistic_compliance_status = None
         self.profile = kwargs.pop('profile', None)
 
@@ -74,6 +75,7 @@ class ValidationClient(Client):
         for key, value in super(ValidationClient, self).__iter__():
             yield(key, value)
 
+        yield ('all_routes_are_profiled', self.all_routes_are_profiled)
         yield ('holistic_compliance_status', self.holistic_compliance_status)
         yield ('profile', self.profile)
 
@@ -85,6 +87,7 @@ class ValidationClient(Client):
 
     def _parse(self, bsoup):
 
+        self.all_routes_are_profiled = True
         self.holistic_compliance_status = True
 
         super(ValidationClient, self)._parse(bsoup)
@@ -121,18 +124,14 @@ class ValidationClient(Client):
                             route.compliance_status = False
                             self.holistic_compliance_status = False
 
+            if not cluster.all_routes_are_profiled():
+                self.all_routes_are_profiled = False
+
     def get_holistic_compliance_status(self):
 
         if self.holistic_compliance_status is None:
             self.update()
         return self.holistic_compliance_status
-
-    def all_routes_are_profiled(self):
-
-        for cluster in self.get_clusters():
-            if not cluster.all_routes_are_profiled():
-                return False
-        return True
 
     def enforce(self):
 
