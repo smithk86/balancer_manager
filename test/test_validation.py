@@ -63,7 +63,7 @@ class TestValidationClient():
 
         assert self.client.holistic_compliance_status is True
         assert type(self.client.profile) is dict
-        assert self.client.all_routes_are_profiled() is True
+        assert self.client.all_routes_are_profiled is True
         # there should be a entry per cluster
         assert len(self.client.profile) == len(self.client.get_clusters())
 
