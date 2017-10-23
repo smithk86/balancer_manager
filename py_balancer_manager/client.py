@@ -503,7 +503,7 @@ class Client(object):
                     route.name = route_name
                     route.priority = i
                     route.route_redir = cells[2].text
-                    route.factor = int(cells[3].text)
+                    route.factor = float(cells[3].text)
                     route.set = int(cells[4].text)
                     route.status_ok = 'Ok' in cells[5].text
                     route.status_error = 'Err' in cells[5].text
@@ -525,7 +525,7 @@ class Client(object):
                     route.name = cells[1].text
                     route.priority = i
                     route.route_redir = cells[2].text
-                    route.factor = int(cells[3].text)
+                    route.factor = float(cells[3].text)
                     route.set = int(cells[4].text)
                     route.status_ok = 'Ok' in cells[5].text
                     route.status_error = 'Err' in cells[5].text

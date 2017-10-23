@@ -122,7 +122,7 @@ class TestClient():
                 assert type(route.name) is str
                 assert type(route.priority) is int
                 assert type(route.route_redir) is str
-                assert type(route.factor) is int
+                assert type(route.factor) is float
                 assert type(route.set) is int
                 assert type(route.status_ok) is bool
                 assert type(route.status_error) is bool
