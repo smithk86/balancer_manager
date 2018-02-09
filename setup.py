@@ -12,6 +12,7 @@ setup(
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     install_requires=[
         'requests',
+        'requests_mock',
         'beautifulsoup4',
         'lxml',
         'pytz',
