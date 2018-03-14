@@ -4,4 +4,4 @@
 /build
 /.cache
 /scripts
-/test/vars.json
+/test/vars.json*

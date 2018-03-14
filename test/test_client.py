@@ -176,6 +176,27 @@ class TestClient():
             # assert original status value
             assert getattr(route, status) is status_value
 
+    def test_route_disable_last(self):
+
+        self.skip_mock_server()
+
+        cluster = self._get_random_cluster()
+        try:
+            with pytest.raises(BalancerManagerError) as excinfo:
+                for route in cluster.get_routes():
+                    route.change_status(status_disabled=True)
+            assert 'cannot enable the "disabled" status for the last available route' in str(excinfo.value)
+        finally:
+            for route in cluster.get_routes():
+                route.change_status(status_disabled=False)
+
+        try:
+            for route in cluster.get_routes():
+                route.change_status(force=True, status_disabled=True)
+        finally:
+            for route in cluster.get_routes():
+                route.change_status(status_disabled=False)
+
     def test_purge_oudated_cluster(self):
 
         # create new cluster which will not be updated in a refresh

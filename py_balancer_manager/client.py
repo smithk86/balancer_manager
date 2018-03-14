@@ -150,7 +150,7 @@ class Route(object):
         else:
             return []
 
-    def change_status(self, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
+    def change_status(self, force=False, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
 
         # confirm no immutable statuses are trying to be changed
         for key, val in locals().items():
@@ -167,7 +167,7 @@ class Route(object):
                 new_route_statuses[status_name] = locals().get(status_name)
 
         # except routes with errors from throwing the "last-route" error
-        if self.status_error is True or self.status_disabled is True or self.status_draining_mode is True:
+        if force is True or self.status_error is True or self.status_disabled is True or self.status_draining_mode is True:
             pass
         elif self.cluster.eligible_routes <= 1:
             if new_route_statuses['status_disabled'] is True:
