@@ -97,9 +97,7 @@ def main():
     ))
     print('{label}: {val}'.format(
         label=PrettyString('httpd build time', 'blue'),
-        val=get_localzone().localize(
-            client.httpd_compile_datetime
-        ).strftime('%Y-%m-%d %I:%M:%S%p %Z')
+        val=client.httpd_compile_datetime.astimezone(get_localzone())
     ))
 
     if client.openssl_version:
