@@ -11,7 +11,7 @@ if os.path.isfile(var_json):
     with open(var_json) as fh:
         var_dict.update(json.load(fh))
 else:
-    self.logger.warning('var.conf does not exit')
+    logger.warning('var.conf does not exit')
 
 
 def get_var(key, default=None):
