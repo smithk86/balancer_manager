@@ -87,13 +87,13 @@ class TestValidationClient():
             assert route.compliance_status is True
             assert self.client.holistic_compliance_status is True
 
-            route.change_status(status_disabled=not status_disabled)
+            route.change_status(force=True, status_disabled=not status_disabled)
 
             assert route.status_disabled is not status_disabled
             assert route.compliance_status is False
             assert self.client.holistic_compliance_status is False
 
-            route.change_status(status_disabled=status_disabled)
+            route.change_status(force=True, status_disabled=status_disabled)
 
             assert route.status_disabled is status_disabled
             assert route.compliance_status is True
@@ -107,7 +107,7 @@ class TestValidationClient():
 
         for route in self._get_random_routes():
             assert route.compliance_status is True
-            route.change_status(status_disabled=not route.status_disabled)
+            route.change_status(force=True, status_disabled=not route.status_disabled)
             assert route.compliance_status is False
 
         assert self.client.holistic_compliance_status is False

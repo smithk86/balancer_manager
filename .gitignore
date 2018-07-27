@@ -3,4 +3,5 @@
 /dist
 /build
 /.cache
+/.pytest_cache
 /test/vars.json*

@@ -170,6 +170,7 @@ class TestClient():
 
             # toggle status back to original value
             route.change_status(**{
+                'force': True,
                 status: status_value
             })
 
