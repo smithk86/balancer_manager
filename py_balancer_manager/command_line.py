@@ -1,6 +1,6 @@
-#!/usr/bin/env python
-
+import sys
 import os
+import json
 import argparse
 import requests
 import logging
@@ -8,15 +8,11 @@ from getpass import getpass
 
 from tzlocal import get_localzone
 
-import py_balancer_manager
-from py_balancer_manager import PrettyString, print_routes
+from . import Client, ValidationClient, Workflow, Workflow, print_routes, print_validated_routes
+from .prettystring import PrettyString
 
 
-# disable warnings
-requests.packages.urllib3.disable_warnings()
-
-
-def main():
+def manage():
 
     def get_bool(value):
 
@@ -54,7 +50,7 @@ def main():
     else:
         password = None
 
-    client = py_balancer_manager.Client(getattr(args, 'balance-manager-url'), insecure=args.insecure, username=args.username, password=password)
+    client = Client(getattr(args, 'balance-manager-url'), insecure=args.insecure, username=args.username, password=password)
 
     if (args.ignore_errors is not None or
             args.draining_mode is not None or
@@ -111,5 +107,99 @@ def main():
     print()
 
 
-if __name__ == '__main__':
-    main()
+def validate():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('action', help='validate, enforce, build')
+    parser.add_argument('balance-manager-url')
+    parser.add_argument('profile-json', nargs='?')
+    parser.add_argument('-u', '--username', default=None)
+    parser.add_argument('-p', '--password', action='store_true', default=False)
+    parser.add_argument('-k', '--insecure', help='ignore ssl certificate errors', action='store_true', default=False)
+    parser.add_argument('-v', '--verbose', help='print all route information', action='store_true', default=False)
+    parser.add_argument('-d', '--debug', action='store_true', default=False)
+    parser.add_argument('--pretty', action='store_true', default=False)
+    args = parser.parse_args()
+
+    log_level = logging.DEBUG if args.debug else logging.WARN
+    logging.basicConfig(level=log_level)
+
+    if args.action == 'validate' or args.action == 'enforce':
+
+        try:
+            with open(getattr(args, 'profile-json')) as fh:
+                profile_json = fh.read()
+
+            profile = json.loads(profile_json)
+
+        except FileNotFoundError:
+            print('file does not exist: {profile}'.format(profile=getattr(args, 'profile-json')))
+            sys.exit(1)
+    else:
+        profile = None
+
+    if args.password:
+        password = getpass('password # ')
+    elif os.environ.get('PASSWORD'):
+        password = os.environ.get('PASSWORD')
+    else:
+        password = None
+
+    client = ValidationClient(
+        getattr(args, 'balance-manager-url'),
+        username=args.username,
+        password=password,
+        insecure=args.insecure,
+        profile=profile
+    )
+
+    if args.action == 'validate' or args.action == 'enforce':
+
+        print_validated_routes(
+            client.get_routes()
+        )
+
+        if args.action == 'enforce' and client.holistic_compliance_status is False:
+
+            print()
+            print(PrettyString('***** compliance has been enforced *****', 'red'))
+
+            client.enforce()
+
+            print_validated_routes(
+                client.get_routes()
+            )
+
+            if client.holistic_compliance_status is False:
+                raise Exception('profile has been enforced but still not compliant')
+
+    elif args.action == 'build':
+
+        profile = client.get_profile()
+
+        if args.pretty:
+            print(json.dumps(profile, indent=4))
+        else:
+            print(json.dumps(profile))
+
+
+def workflow():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('json-file')
+    parser.add_argument('-d', '--debug', action='store_true', default=False)
+    args = parser.parse_args()
+
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+
+    try:
+        with open(getattr(args, 'json-file'), 'r') as fh:
+            workflow = json.load(fh)
+    except FileNotFoundError:
+        print('json file does not exist: {file}'.format(file=getattr(args, 'json-file')))
+        sys.exit(1)
+
+    Workflow(workflow, username='admin', password=os.environ.get('PASSWORD')).run()
+
+
