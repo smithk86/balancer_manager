@@ -4,7 +4,6 @@ from uuid import UUID
 from datetime import datetime, timedelta
 
 import requests
-import requests_mock
 from bs4 import BeautifulSoup
 
 from .errors import BalancerManagerError, ResultsError, NotFound
@@ -209,7 +208,7 @@ class Route(object):
 
 class Client(object):
 
-    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30, mock_data=None):
+    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30):
 
         self.logger = logging.getLogger(__name__)
 
@@ -237,18 +236,11 @@ class Client(object):
         self.session.headers.update({
             'User-agent': 'py_balancer_manager.Client'
         })
-        if mock_data:
-            self.init_mock_adapter(data=mock_data)
+
         if username and password:
             self.session.auth = (username, password)
 
         self.holistic_error_status = None
-
-    def init_mock_adapter(self, data):
-
-        mock_adapter = requests_mock.Adapter()
-        mock_adapter.register_uri('GET', '/balancer-manager', text=data)
-        self.session.mount('mock', mock_adapter)
 
     def __iter__(self):
 

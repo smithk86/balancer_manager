@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='py_balancer_manager',
-    version='2.6.0',
+    version='2.6.1',
     description="Library for programatically interacting with Apache's mod_proxy_balancer management interface",
     author='Kyle Smith',
     author_email='smithk86@gmail.com',
@@ -19,7 +19,6 @@ setup(
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     install_requires=[
         'requests',
-        'requests_mock',
         'beautifulsoup4',
         'lxml',
         'pytz',
