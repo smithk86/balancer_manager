@@ -1,28 +1,44 @@
 import os.path
 
+import json
 import pytest
 import random
 
-from get_vars import get_var
+from test_client import httpd_instance
 from py_balancer_manager import ValidationClient, ValidatedRoute, ValidatedCluster
 import requests_mock
 
 
 @pytest.fixture(
     scope='class',
-    params=get_var('servers'),
-    ids=[s['id'] for s in get_var('servers')]
+    params=[
+        {
+            'url': '__docker__',
+            'version': '2.2.34'
+        },
+        {
+            'url': '__docker__',
+            'version': '2.4.29'
+        }
+    ]
 )
-def client(request):
+def validation_client(request):
 
     module_directory = os.path.abspath(os.path.dirname(__file__))
     server = request.param
 
-    client = Client(
+    with open(f'{module_directory}/data/test_validation_profile.json') as fh:
+        profile = json.load(fh)
+
+    if server['url'] == '__docker__':
+        server['container_info'] = container_info = httpd_instance(server['version'])
+        server['url'] = f'http://{container_info.address}:{container_info.port}/balancer-manager'
+
+    client = ValidationClient(
         server['url'],
-        insecure=server.get('insecure', False),
-        username=server.get('username', None),
-        password=server.get('password', None)
+        username='admin',
+        password='password',
+        profile=profile
     )
 
     if server['url'].startswith('mock'):
@@ -33,24 +49,20 @@ def client(request):
         mock_adapter.register_uri('GET', '/balancer-manager', text=mock_data)
         client.session.mount('mock', mock_adapter)
 
-    profile = client.get_profile()
-    assert type(profile) is dict
-    client.set_profile(profile)
+    client.update()
 
-    def fin():
+    def teardown():
         client.close()
+        if 'container_info' in server:
+            container_info.container.stop()
+    request.addfinalizer(teardown)
 
     request.cls.server = server
     request.cls.client = client
 
 
-@pytest.mark.usefixtures('client')
+@pytest.mark.usefixtures('validation_client')
 class TestValidationClient():
-
-    def skip_mock_server(self):
-
-        if self.server.get('url')[:4] == 'mock':
-            pytest.skip('mock adapter')
 
     def test_routes(self):
 
@@ -59,8 +71,6 @@ class TestValidationClient():
             assert type(route) is ValidatedRoute
 
     def test_validate_clusters_and_routes(self):
-
-        self.skip_mock_server()
 
         assert self.client.holistic_compliance_status is True
         assert type(self.client.profile) is dict
@@ -77,8 +87,6 @@ class TestValidationClient():
                 assert type(route.status_validation) is dict
 
     def test_compliance_manually(self):
-
-        self.skip_mock_server()
 
         for route in self._get_random_routes():
 
@@ -101,8 +109,6 @@ class TestValidationClient():
             assert self.client.holistic_compliance_status is True
 
     def test_compliance_with_enforce(self):
-
-        self.skip_mock_server()
 
         assert self.client.holistic_compliance_status is True
 

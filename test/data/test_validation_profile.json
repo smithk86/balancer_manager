@@ -1,0 +1,32 @@
+{
+    "cluster0": {
+        "route00": [],
+        "route01": []
+    },
+    "cluster1": {
+        "route10": [],
+        "route11": []
+    },
+    "cluster2": {
+        "route20": [],
+        "route21": [],
+        "route22": [
+            "status_disabled"
+        ],
+        "route23": [
+            "status_disabled"
+        ]
+    },
+    "cluster3": {
+        "route30": [],
+        "route31": [],
+        "route32": [],
+        "route33": [],
+        "route34": [],
+        "route35": [],
+        "route36": [],
+        "route37": [],
+        "route38": [],
+        "route39": []
+    }
+}
