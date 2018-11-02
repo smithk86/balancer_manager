@@ -18,19 +18,20 @@ def client(request):
     module_directory = os.path.abspath(os.path.dirname(__file__))
     server = request.param
 
-    if server.get('url')[:4] == 'mock':
-        with open('{module_directory}/data/{data_file}'.format(module_directory=module_directory, data_file=server['data_file'])) as fh:
-            mock_data = fh.read()
-    else:
-        mock_data = None
-
-    client = ValidationClient(
+    client = Client(
         server['url'],
         insecure=server.get('insecure', False),
         username=server.get('username', None),
-        password=server.get('password', None),
-        mock_data=mock_data
+        password=server.get('password', None)
     )
+
+    if server['url'].startswith('mock'):
+        with open('{module_directory}/data/{data_file}'.format(module_directory=module_directory, data_file=server['data_file'])) as fh:
+            mock_data = fh.read()
+
+        mock_adapter = requests_mock.Adapter()
+        mock_adapter.register_uri('GET', '/balancer-manager', text=mock_data)
+        client.session.mount('mock', mock_adapter)
 
     profile = client.get_profile()
     assert type(profile) is dict

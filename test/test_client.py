@@ -4,18 +4,20 @@ import re
 import pytest
 import random
 import logging
+import docker
 from uuid import UUID
 from datetime import datetime
+from collections import namedtuple
 
 import requests
 import requests_mock
 from pytz import utc
 from tzlocal import get_localzone
 
-from get_vars import get_var
 from py_balancer_manager import Client, Cluster, Route, BalancerManagerError, BalancerManagerParseError, NotFound
 
 
+ContainerInfo = namedtuple('ContainerInfo', ['address', 'port', 'container'])
 if sys.version_info < (3, 0):
     str = unicode
 
@@ -29,21 +31,70 @@ def skip_mock_server(server):
         pytest.skip('mock adapter')
 
 
+def httpd_instance(version):
+    dir_ = os.path.dirname(os.path.abspath(__file__))
+    client = docker.from_env()
+    tag = f'pytest_httpd:{version}'
+
+    client.images.build(
+        path=f'{dir_}/httpd',
+        dockerfile='Dockerfile-2.2' if version.startswith('2.2') else 'Dockerfile',
+        tag=tag,
+        buildargs={
+            'FROM': f'httpd:{version}'
+        }
+    )
+    container = client.containers.run(
+        tag,
+        detach=True,
+        auto_remove=True,
+        ports={'80/tcp': ('127.0.0.1', None)}
+    )
+    ports = client.api.inspect_container(container.id)['NetworkSettings']['Ports']
+    port = ports['80/tcp'][0]
+    return ContainerInfo(
+        address=port['HostIp'],
+        port=int(port['HostPort']),
+        container=container
+    )
+
+
 @pytest.fixture(
     scope='class',
-    params=get_var('servers'),
-    ids=[s['id'] for s in get_var('servers')]
+    params=[
+        {
+            'url': 'mock://localhost/balancer-manager',
+            'version': '2.4',
+            'data_file': 'httpd_balancer_manager_2.4.23.html'
+        },
+        {
+            'url': 'mock://localhost/balancer-manager',
+            'version': '2.2',
+            "data_file": 'httpd_balancer_manager_2.2.31.html'
+        },
+        {
+            'url': '__docker__',
+            'version': '2.2.34'
+        },
+        {
+            'url': '__docker__',
+            'version': '2.4.29'
+        }
+    ]
 )
 def client(request):
 
     module_directory = os.path.abspath(os.path.dirname(__file__))
     server = request.param
 
+    if server['url'] == '__docker__':
+        server['container_info'] = container_info = httpd_instance(server['version'])
+        server['url'] = f'http://{container_info.address}:{container_info.port}/balancer-manager'
+
     client = Client(
         server['url'],
-        insecure=server.get('insecure', False),
-        username=server.get('username', None),
-        password=server.get('password', None)
+        username='admin',
+        password='password'
     )
 
     if server['url'].startswith('mock'):
@@ -56,8 +107,11 @@ def client(request):
 
     client.update()
 
-    def fin():
+    def teardown():
         client.close()
+        if 'container_info' in server:
+            container_info.container.stop()
+    request.addfinalizer(teardown)
 
     request.cls.server = server
     request.cls.client = client
@@ -254,7 +308,7 @@ class TestClient():
 def test_bad_url():
 
     client = Client(
-        get_var('url_with_bad_hostname'),
+        'http://tG62vFWzyKNpvmpZA275zZMbQvbtuGJu.com/balancer-manager',
         timeout=5
     )
 
@@ -265,19 +319,10 @@ def test_bad_url():
 def test_bad_balancer_manager():
 
     client = Client(
-        get_var('url_for_non-balancer-manager'),
+        'https://www.google.com',
         timeout=5
     )
 
     with pytest.raises(BalancerManagerParseError) as excinfo:
         client.update()
     assert 'could not parse text from the first "dt" element' in str(excinfo.value)
-
-
-def test_bad_auth():
-
-    for server in get_var('servers'):
-        skip_mock_server(server)
-        with pytest.raises(BalancerManagerError) as excinfo:
-            Client(server['url']).update()
-        assert '401 Client Error' in str(excinfo.value)
