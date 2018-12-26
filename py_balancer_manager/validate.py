@@ -1,8 +1,11 @@
 import threading
 import logging
 
-from .client import Client, Route, Cluster
+from .client import Client
+from .cluster import Cluster
 from .errors import MultipleBalancerManagerErrors
+from .route import Route
+
 
 logger = logging.getLogger(__name__)
 

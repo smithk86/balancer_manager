@@ -2,15 +2,19 @@ class BalancerManagerError(Exception):
     pass
 
 
+class HttpdVersionError(BalancerManagerError):
+    pass
+
+
 class MultipleBalancerManagerErrors(BalancerManagerError):
     pass
 
 
-class ValidationClientError(BalancerManagerError):
+class ResultsError(BalancerManagerError):
     pass
 
 
-class ResultsError(BalancerManagerError):
+class ValidationClientError(BalancerManagerError):
     pass
 
 
