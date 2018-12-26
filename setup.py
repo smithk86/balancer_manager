@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='py_balancer_manager',
-    version='2.6.1',
+    version='2.6.2',
     description="Library for programatically interacting with Apache's mod_proxy_balancer management interface",
     author='Kyle Smith',
     author_email='smithk86@gmail.com',
@@ -16,12 +16,22 @@ setup(
             'balancer-manager-workflow=py_balancer_manager.command_line:workflow'
         ]
     },
-    packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    packages=[
+        'py_balancer_manager'
+    ],
     install_requires=[
         'requests==2.21.0',
         'beautifulsoup4==4.6.3',
         'pytz==2018.7',
         'tzlocal==1.5.1',
         'python-dateutil==2.7.5'
+    ],
+    setup_requires=[
+        'pytest-runner'
+    ],
+    tests_require=[
+        'pytest',
+        'docker',
+        'requests_mock'
     ]
 )
