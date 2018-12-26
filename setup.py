@@ -18,10 +18,10 @@ setup(
     },
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     install_requires=[
-        'requests==2.19.1',
-        'beautifulsoup4==4.6.0',
-        'pytz==2018.5',
+        'requests==2.21.0',
+        'beautifulsoup4==4.6.3',
+        'pytz==2018.7',
         'tzlocal==1.5.1',
-        'python-dateutil==2.7.2'
+        'python-dateutil==2.7.5'
     ]
 )
