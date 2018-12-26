@@ -292,7 +292,7 @@ class Client(object):
         # update timestamp
         self.updated_datetime = now()
         # process text with beautiful soup
-        bsoup = BeautifulSoup(self.last_response.text, 'lxml')
+        bsoup = BeautifulSoup(self.last_response.text, 'html.parser')
         # update routes
         self._parse(bsoup)
         # purge defunct clusters/routes
@@ -589,7 +589,7 @@ class Client(object):
 
         try:
             # match string from manager page to number + kilo/mega/giga/tera-byte
-            match = re.match('([\d\.]*)([KMGT]?)', value)
+            match = re.match(r'([[0-9]\d\.]*)([KMGT]?)', value)
             if match:
                 num = float(match.group(1))
                 scale_code = match.group(2)
