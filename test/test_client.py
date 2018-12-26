@@ -79,6 +79,10 @@ def httpd_instance(version):
         {
             'url': '__docker__',
             'version': '2.4.29'
+        },
+        {
+            'url': '__docker__',
+            'version': '2.4.37'
         }
     ]
 )
