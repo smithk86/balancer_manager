@@ -187,6 +187,8 @@ def workflow():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('json-file')
+    parser.add_argument('-u', '--username', help='http username', default='admin')
+    parser.add_argument('-p', '--password', help='http password', default=None)
     parser.add_argument('-d', '--debug', action='store_true', default=False)
     args = parser.parse_args()
 
@@ -200,6 +202,15 @@ def workflow():
         print('json file does not exist: {file}'.format(file=getattr(args, 'json-file')))
         sys.exit(1)
 
-    Workflow(workflow, username='admin', password=os.environ.get('PASSWORD')).run()
+    if args.password is None:
+        password = getpass('password # ')
+    elif os.environ.get('PASSWORD'):
+        password = os.environ.get('PASSWORD')
+    else:
+        password = args.password
 
-
+    Workflow(
+        workflow,
+        username=args.username,
+        password=password
+    ).run()
