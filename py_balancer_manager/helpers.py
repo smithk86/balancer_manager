@@ -5,21 +5,18 @@ from datetime import datetime
 from pytz import utc
 from tzlocal import get_localzone
 from dateutil.parser import parse as date_parser
-from .errors import BalancerManagerError, ResultsError
+from .errors import BalancerManagerError
 
 
 def now():
-
     return datetime.now(utc)
 
 
 def parse_from_local_timezone(date_string):
-
     return get_localzone().localize(date_parser(date_string)).astimezone(utc)
 
 
 def filter_objects(list_of_objects, prop_name, value, regex=False):
-
     if regex:
         if type(value) is not str:
             raise ValueError('value must be a string when using regex')
@@ -35,10 +32,5 @@ def filter_objects(list_of_objects, prop_name, value, regex=False):
 
 
 def find_object(list_of_objects, prop_name, value, regex=False):
-
     objects = filter_objects(list_of_objects, prop_name, value, regex=regex)
-
-    if len(objects) == 1:
-        return objects[0]
-    else:
-        raise ResultsError('filter_objects() must return only one object; {} objects found'.format(len(objects)))
+    return objects[0] if len(objects) == 1 else None

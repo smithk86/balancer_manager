@@ -2,7 +2,6 @@ from .prettystring import PrettyString
 
 
 def get_formated_routes(routes, verbose=False):
-
     def _get_value(val):
         if val is None:
             return ''
@@ -19,7 +18,6 @@ def get_formated_routes(routes, verbose=False):
     rows = []
 
     if verbose:
-
         rows.append([
             PrettyString('Cluster', 'bold'),
             PrettyString('Worker URL', 'bold'),
@@ -40,9 +38,7 @@ def get_formated_routes(routes, verbose=False):
             PrettyString('Busy', 'bold'),
             PrettyString('Load', 'bold')
         ])
-
     else:
-
         rows.append([
             PrettyString('Cluster', 'bold'),
             PrettyString('Worker URL', 'bold'),
@@ -57,9 +53,7 @@ def get_formated_routes(routes, verbose=False):
         ])
 
     if verbose:
-
         for route in routes:
-
             rows.append([
                 PrettyString(_get_value(route.cluster.name), 'cyan'),
                 PrettyString(_get_value(route.worker), 'yellow'),
@@ -80,9 +74,7 @@ def get_formated_routes(routes, verbose=False):
                 _get_value(route.busy),
                 _get_value(route.load)
             ])
-
     else:
-
         for route in routes:
             rows.append([
                 PrettyString(_get_value(route.cluster.name), 'cyan'),
@@ -96,18 +88,14 @@ def get_formated_routes(routes, verbose=False):
                 _get_value(route.status_disabled),
                 _get_value(route.status_hot_standby)
             ])
-
     return rows
 
 
 def get_formated_validated_routes(routes, hide_compliant_routes=False, verbose=False):
-
     for route in list(routes):
-
         if hide_compliant_routes is True and route.compliance_status is True:
             routes.remove(route)
             continue
-
         for status, _ in route.get_statuses().items():
             if status != 'status_ok' and status != 'status_error':
                 validation = route.status_validation.get(status)
@@ -134,12 +122,10 @@ def get_formated_validated_routes(routes, hide_compliant_routes=False, verbose=F
                         status,
                         PrettyString(char, color)
                     )
-
     return get_formated_routes(routes, verbose)
 
 
 def print_routes(routes, verbose=False):
-
     _print_table(
         get_formated_routes(
             routes,
@@ -149,7 +135,6 @@ def print_routes(routes, verbose=False):
 
 
 def print_validated_routes(routes, hide_compliant_routes=False, verbose=False):
-
     _print_table(
         get_formated_validated_routes(
             routes,
@@ -160,7 +145,6 @@ def print_validated_routes(routes, hide_compliant_routes=False, verbose=False):
 
 
 def _print_table(rows):
-
     widths = [max(map(len, col)) for col in zip(*rows)]
     for row in rows:
         print(' | '.join((val.ljust(width) for val, width in zip(row, widths))))

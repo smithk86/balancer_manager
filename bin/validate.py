@@ -1,3 +1,4 @@
 #!/usr/bin/env python
-from py_balancer_manager.command_line import validate
-validate()
+import asyncio
+from py_balancer_manager.cli import validate
+asyncio.run(validate())

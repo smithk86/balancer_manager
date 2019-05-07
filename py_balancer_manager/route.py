@@ -1,8 +1,9 @@
-from .errors import BalancerManagerError, HttpdVersionError
+from packaging import version
+
+from .errors import BalancerManagerError
 
 
-class RouteChangeValidationError(BalancerManagerError):
-    pass
+VERSION_24 = version.parse('2.4')
 
 
 class Route(object):
@@ -32,7 +33,10 @@ class Route(object):
         self.taking_traffic = None
         self.immutable_statuses = []
 
-    def __iter__(self):
+    def __repr__(self):
+        return f'<py_balancer_manager.route.Route object: {self.cluster.name} -> {self.name}>'
+
+    def to_dict(self):
         yield ('updated_datetime', self.updated_datetime)
         yield ('name', self.name)
         yield ('worker', self.worker)
@@ -63,7 +67,7 @@ class Route(object):
         }
 
     def get_immutable_statuses(self):
-        if self.cluster.client.httpd_version_is('2.2.'):
+        if self.cluster.client.httpd_version < VERSION_24:
             return [
                 'status_hot_standby',
                 'status_draining_mode',
@@ -72,12 +76,12 @@ class Route(object):
         else:
             return []
 
-    def change_status(self, force=False, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
+    async def change_status(self, force=False, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
         # confirm no immutable statuses are trying to be changed
         for key, val in locals().items():
             if key in self.get_immutable_statuses():
                 if val is not None:
-                    raise HttpdVersionError('{} is immutable for this version of httpd'.format(key))
+                    raise BalancerManagerError(f'{key} is immutable for this version of httpd')
 
         # create dictionary of existing values which are allowed by the httpd version
         new_route_statuses = self.get_statuses()
@@ -96,8 +100,8 @@ class Route(object):
             elif new_route_statuses['status_draining_mode'] is True:
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
-        if self.cluster.client.httpd_version_is('2.2.'):
-            self.cluster.client.request_get(params={
+        if self.cluster.client.httpd_version < VERSION_24:
+            await self.cluster.client.session.get(params={
                 'lf': '1',
                 'ls': '0',
                 'wr': self.name,
@@ -108,7 +112,7 @@ class Route(object):
                 'nonce': str(self.session_nonce_uuid)
             })
         else:
-            self.cluster.client.request_post(data={
+            await self.cluster.client.session.post(data={
                 'w_lf': '1',
                 'w_ls': '0',
                 'w_wr': self.name,
@@ -125,4 +129,4 @@ class Route(object):
         # validate new values against load balancer
         for status_name in new_route_statuses.keys():
             if new_route_statuses[status_name] is not getattr(self, status_name):
-                raise RouteChangeValidationError('status value for "{}" is incorrect (should be {})'.format(status_name, getattr(self, status_name)))
+                raise BalancerManagerError('status value for "{}" is incorrect (should be {})'.format(status_name, getattr(self, status_name)))

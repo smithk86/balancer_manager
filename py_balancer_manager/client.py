@@ -1,22 +1,24 @@
-import re
+import asyncio
 import logging
-from uuid import UUID
+import re
 from datetime import datetime, timedelta
+from uuid import UUID
 
-import requests
+import aiohttp
 from bs4 import BeautifulSoup
+from packaging import version
 
 from .cluster import Cluster
-from .errors import BalancerManagerError, ResultsError, NotFound
+from .errors import BalancerManagerError
 from .helpers import now, parse_from_local_timezone, find_object
 
 
-class BalancerManagerParseError(BalancerManagerError):
-    pass
+VERSION_22 = version.parse('2.2')
+VERSION_24 = version.parse('2.4')
 
 
 class Client(object):
-    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30):
+    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30, loop=None):
         self.logger = logging.getLogger(__name__)
 
         if type(insecure) is not bool:
@@ -28,6 +30,7 @@ class Client(object):
         self.url = url
         self.last_response = None
         self.timeout = timeout
+        self.loop = loop if loop else asyncio.get_running_loop()
         self.updated_datetime = None
 
         self.insecure = insecure
@@ -38,19 +41,27 @@ class Client(object):
 
         self.clusters_ttl = cache_ttl
         self.clusters = list()
-
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-agent': 'py_balancer_manager.Client'
-        })
-
-        if username and password:
-            self.session.auth = (username, password)
-
         self.holistic_error_status = None
 
-    def __iter__(self):
+        http_auth = aiohttp.BasicAuth(username, password=password) if (username and password) else None
+        http_timeout = aiohttp.ClientTimeout(total=timeout)
+        self.session = aiohttp.ClientSession(
+            loop=self.loop,
+            timeout=http_timeout,
+            auth=http_auth,
+            headers={
+                'User-agent': 'py_balancer_manager.Client'
+            },
+            raise_for_status=True
+        )
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exception_type, exception_value, traceback):
+        await self.close()
+
+    def to_dict(self):
         yield ('updated_datetime', self.updated_datetime)
         yield ('url', self.url)
         yield ('insecure', self.insecure)
@@ -61,109 +72,69 @@ class Client(object):
         yield ('holistic_error_status', self.holistic_error_status)
         yield ('clusters', [dict(c) for c in self.clusters] if self.clusters else None)
 
-    def close(self):
+    async def close(self):
+        await self.session.close()
 
-        self.session.close()
-
-    def request_get(self, **kwargs):
-
-        kwargs['method'] = 'get'
-        self.update(**kwargs)
-
-    def request_post(self, **kwargs):
-
-        kwargs['method'] = 'post'
-        self.update(**kwargs)
-
-    def update(self, method='get', timeout=None, verify=None, **kwargs):
-
+    async def update(self, method='get', **kwargs):
         self.logger.info('updating routes')
-
-        timeout = timeout if timeout else self.timeout
-        verify = verify if verify else not self.insecure
-
         try:
-
-            self.last_response = getattr(self.session, method)(self.url, timeout=timeout, verify=verify, **kwargs)
-
-            if self.last_response.status_code is not requests.codes.ok:
-                self.last_response.raise_for_status()
-            else:
-                self.error = None
-
-        except requests.exceptions.RequestException as e:
-
+            self.last_response = await getattr(self.session, method)(self.url)
+        except aiohttp.ClientResponseError as e:
             self.error = e
             raise BalancerManagerError(e)
 
         # update timestamp
         self.updated_datetime = now()
         # process text with beautiful soup
-        bsoup = BeautifulSoup(self.last_response.text, 'html.parser')
+        bsoup = BeautifulSoup(await self.last_response.text(), 'html.parser')
         # update routes
         self._parse(bsoup)
         # purge defunct clusters/routes
         self._purge_outdated()
 
-    def httpd_version_is(self, version):
-
-        if self.httpd_version:
-            return self.httpd_version.startswith(version)
-        else:
-            raise HttpdVersionError('no httpd version has been set')
-
     def new_cluster(self):
-
         cluster = Cluster(self)
         self.clusters.append(cluster)
         return cluster
 
-    def get_clusters(self, refresh=False):
-
+    async def get_clusters(self, refresh=False):
         # if there are no clusters or refresh=True or cluster ttl is reached
         if self.updated_datetime is None or self.clusters is None or refresh is True or \
                 (self.updated_datetime < (now() - timedelta(seconds=self.clusters_ttl))):
-            self.update()
-
+            await self.update()
         return self.clusters
 
-    def get_cluster(self, name, refresh=False):
-
+    async def get_cluster(self, name, refresh=False):
         # find the cluster object for this route
-        try:
-            return find_object(self.get_clusters(refresh=refresh), 'name', name)
-        except ResultsError:
-            raise NotFound('could not locate cluster name in list of clusters: {}'.format(name))
+        cluster = find_object(await self.get_clusters(refresh=refresh), 'name', name)
+        if cluster:
+            return cluster
+        else:
+            raise BalancerManagerError(f'could not locate cluster name in list of clusters: {name}')
 
-    def get_routes(self, refresh=False):
-
+    async def get_routes(self, refresh=False):
         routes = []
-        for cluster in self.get_clusters(refresh=refresh):
+        for cluster in await self.get_clusters(refresh=refresh):
             routes += cluster.get_routes()
         return routes
 
     def _parse(self, bsoup):
-
         def _parse_max_members(value):
-
             m = re.match(r'^(\d*) \[(\d*) Used\]$', value)
             if m:
                 return(
                     int(m.group(1)),
                     int(m.group(2))
                 )
-
             raise ValueError('MaxMembers value from httpd could not be parsed')
 
         def _get_cluster(name):
-
             try:
                 return find_object(self.clusters, 'name', name)
             except ResultsError:
                 return None
 
         def _get_route(cluster, name):
-
             try:
                 return find_object(cluster.routes, 'name', name)
             except ResultsError:
@@ -185,24 +156,21 @@ class Client(object):
         _bs_table_routes = _bs_tables[1::2]
 
         if len(_bs_dt) >= 1:
-
             # set/update httpd version
             match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', _bs_dt[0].text)
             if match:
-                self.httpd_version = match.group(1)
+                self.httpd_version = version.parse(match.group(1))
             else:
-                raise BalancerManagerParseError('the content of the first "dt" element did not contain the version of httpd')
+                raise BalancerManagerError('the content of the first "dt" element did not contain the version of httpd')
 
             # set/update openssl version
             match = re.search(r'OpenSSL\/([0-9\.a-z]*)', _bs_dt[0].text)
             if match:
-                self.openssl_version = match.group(1)
-
+                self.openssl_version = version.parse(match.group(1))
         else:
-            raise BalancerManagerParseError('could not parse text from the first "dt" element')
+            raise BalancerManagerError('could not parse text from the first "dt" element')
 
         if len(_bs_dt) >= 2:
-
             # set/update httpd compile datetime
             match = re.match(r'Server Built:\ (.*)', _bs_dt[1].text)
             if match:
@@ -210,12 +178,11 @@ class Client(object):
 
         # only iterate through odd tables which contain cluster data
         for table in _bs_table_clusters:
-
             header_elements = table.findPreviousSiblings('h3', limit=1)
             if len(header_elements) == 1:
                 header = header_elements[0]
             else:
-                raise BalancerManagerParseError('single h3 element is required but not found')
+                raise BalancerManagerError('single h3 element is required but not found')
 
             header_text = header.a.text if header.a else header.text
 
@@ -239,7 +206,7 @@ class Client(object):
                 if len(cells) == 0:
                     continue
 
-                if self.httpd_version_is('2.4.'):
+                if self.httpd_version >= VERSION_24:
                     cluster.max_members, cluster.max_members_used = _parse_max_members(cells[0].text)
                     # below is a workaround for a bug in the html formatting in httpd 2.4.20 in which the StickySession cell closing tag comes after DisableFailover
                     # HTML = <td>JSESSIONID<td>Off</td></td>
@@ -252,7 +219,7 @@ class Client(object):
                     cluster.path = cells[6].text
                     cluster.active = 'Yes' in cells[7].text
 
-                elif self.httpd_version_is('2.2.'):
+                elif self.httpd_version >= VERSION_22:
                     cluster.sticky_session = False if cells[0].text == '(None)' else cells[0].text
                     cluster.timeout = int(cells[1].text)
                     cluster.failover_attempts = int(cells[2].text)
@@ -297,7 +264,7 @@ class Client(object):
                     route = cluster.new_route()
                     route.name = route_name
 
-                if self.httpd_version_is('2.4.'):
+                if self.httpd_version >= VERSION_24:
                     route.worker = cells[0].find('a').text
                     route.name = route_name
                     route.priority = i
@@ -319,7 +286,7 @@ class Client(object):
                     route.traffic_from_raw = Client._decode_data_useage(cells[10].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
 
-                elif self.httpd_version_is('2.2.'):
+                elif self.httpd_version >= VERSION_22:
                     route.worker = cells[0].find('a').text
                     route.name = cells[1].text
                     route.priority = i
@@ -377,13 +344,11 @@ class Client(object):
                     break
 
     def _purge_outdated(self):
-
         for cluster in self.clusters:
             if cluster.updated_datetime is None or self.updated_datetime > cluster.updated_datetime:
                 self.logger.info('removing defunct cluster: {}'.format(cluster.name))
                 self.clusters.remove(cluster)
                 continue
-
             for route in cluster.routes:
                 if route.updated_datetime is None or self.updated_datetime > route.updated_datetime:
                     self.logger.info('removing defunct route: {}'.format(route.name))
@@ -391,12 +356,10 @@ class Client(object):
 
     @staticmethod
     def _decode_data_useage(value):
-
         value = value.strip()
-
         try:
             # match string from manager page to number + kilo/mega/giga/tera-byte
-            match = re.match(r'([[0-9]\d\.]*)([KMGT]?)', value)
+            match = re.match(r'([0-9\d\.]*)([KMGT]?)', value)
             if match:
                 num = float(match.group(1))
                 scale_code = match.group(2)
@@ -412,8 +375,6 @@ class Client(object):
                     return int(num)
             elif value == '0':
                 return 0
-
         except Exception as e:
             logging.exception(e)
-
         return None

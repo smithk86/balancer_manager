@@ -1,4 +1,4 @@
-from .errors import NotFound, ResultsError
+from .errors import BalancerManagerError
 from .helpers import find_object
 from .route import Route
 
@@ -21,7 +21,10 @@ class Cluster(object):
         self.eligible_routes = None
         self.routes = list()
 
-    def __iter__(self):
+    def __repr__(self):
+        return f'<py_balancer_manager.cluster.Cluster object: {self.name}>'
+
+    def to_dict(self):
         yield ('updated_datetime', self.updated_datetime)
         yield ('name', self.name)
         yield ('max_members', self.max_members)
@@ -46,7 +49,8 @@ class Cluster(object):
 
     def get_route(self, name):
         # find the route object in the route list
-        try:
-            return find_object(self.routes, 'name', name)
-        except ResultsError:
-            raise NotFound('could not locate route name in list of routes: {}'.format(name))
+        route = find_object(self.routes, 'name', name)
+        if route:
+            return route
+        else:
+            raise BalancerManagerError(f'could not locate route name in list of routes: {name}')
