@@ -10,7 +10,7 @@ from pytz import utc
 from tzlocal import get_localzone
 
 from py_balancer_manager import Client, Cluster, Route, BalancerManagerError
-from py_balancer_manager.helpers import Statuses, Status
+from py_balancer_manager.status import Statuses, Status
 
 
 def now():

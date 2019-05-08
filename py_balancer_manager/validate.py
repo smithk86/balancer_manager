@@ -1,9 +1,12 @@
+import dataclasses
 import logging
+from collections import namedtuple
 
 from .client import Client
 from .cluster import Cluster
 from .errors import BalancerManagerError
 from .route import Route
+from .status import ValidatedStatus
 
 
 logger = logging.getLogger(__name__)
@@ -15,6 +18,7 @@ class ValidatedCluster(Cluster):
         self.routes.append(route)
         return route
 
+    @property
     def all_routes_are_profiled(self):
         for route in self.get_routes():
             if not route.has_profile():
@@ -39,20 +43,22 @@ class ValidatedRoute(Route):
     def has_profile(self):
         if self.status_validation is not None:
             for status_validation in self.status_validation.values():
-                if status_validation['profile'] is None:
+                if status_validation.profile is None:
                     return False
         return True
 
     def _parse(self):
         if self.status_validation is None:
             self.status_validation = dict()
-            for status_name in self.get_statuses().keys():
-                if status_name not in self.get_immutable_statuses():
-                    self.status_validation[status_name] = {
-                        'value': None,
-                        'profile': None,
-                        'compliance': None
-                    }
+            for status_name in self.mutable_statuses():
+                status = getattr(self.status, status_name)
+                setattr(self.status, status_name, ValidatedStatus(
+                    value=status.value,
+                    immutable=status.immutable,
+                    http_form_code=status.http_form_code,
+                    profile=None,
+                    compliance=None
+                ))
 
 
 class ValidationClient(Client):
@@ -89,28 +95,24 @@ class ValidationClient(Client):
                 route._parse()
                 route.compliance_status = True
                 route_profile = cluster_profile.get(route.name)
+                for status_name in route.mutable_statuses():
+                    status = getattr(route.status, status_name)
+                    status.profile = None
+                    status.compliance = True
 
-                for status_name, status_profile in route.status_validation.items():
-                    route.status_validation[status_name] = {
-                        'value': getattr(route, status_name),
-                        'profile': None,
-                        'compliance': None
-                    }
                     if type(route_profile) is list:
-                        route.status_validation[status_name]['profile'] = status_name in route_profile
-                        if route.status_validation[status_name]['value'] is route.status_validation[status_name]['profile']:
-                            route.status_validation[status_name]['compliance'] = True
-                        else:
-                            route.status_validation[status_name]['compliance'] = False
+                        status.profile = status_name in route_profile
+                        if status.value is not status.profile:
+                            status.compliance = False
                             route.compliance_status = False
                             self.holistic_compliance_status = False
 
-            if not cluster.all_routes_are_profiled():
+            if not cluster.all_routes_are_profiled:
                 self.all_routes_are_profiled = False
 
-    def get_holistic_compliance_status(self):
+    async def get_holistic_compliance_status(self):
         if self.holistic_compliance_status is None:
-            self.update()
+            await self.update()
         return self.holistic_compliance_status
 
     async def enforce(self):
@@ -119,16 +121,13 @@ class ValidationClient(Client):
             if route.compliance_status is False:
                 logger.info(f'enforcing profile for {route.cluster.name}->{route.name}')
                 # build status dictionary to enforce
-                route_statuses = {}
-                for status_name in route.get_statuses().keys():
-                    if status_name not in route.get_immutable_statuses():
-                        route_statuses[status_name] = route.status_validation[status_name]['profile']
-
+                statuses = {}
+                for status_name in route.mutable_statuses():
+                    statuses[status_name] = getattr(route.status, status_name).profile
                 try:
-                    await route.change_status(**route_statuses)
+                    await route.change_status(**statuses)
                 except Exception as e:
                     exceptions.append(e)
-
         if len(exceptions) > 0:
             raise BalancerManagerError({'exceptions': exceptions})
 

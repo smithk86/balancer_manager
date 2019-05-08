@@ -11,7 +11,8 @@ from packaging import version
 
 from .cluster import Cluster
 from .errors import BalancerManagerError
-from .helpers import now, parse_from_local_timezone, find_object, Statuses, Status, VERSION_22, VERSION_24
+from .helpers import now, parse_from_local_timezone, find_object, VERSION_22, VERSION_24
+from .status import Statuses, Status
 
 
 class Client(object):

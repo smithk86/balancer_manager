@@ -11,10 +11,10 @@
         "route20": [],
         "route21": [],
         "route22": [
-            "status_disabled"
+            "disabled"
         ],
         "route23": [
-            "status_disabled"
+            "disabled"
         ]
     },
     "cluster3": {

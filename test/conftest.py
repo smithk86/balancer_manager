@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import random
@@ -6,14 +7,16 @@ from packaging import version
 
 import docker
 import pytest
-from py_balancer_manager import Client
+from py_balancer_manager import Client, ValidationClient
+
+from helpers import wait_for_port
 
 
 ContainerInfo = namedtuple('ContainerInfo', ['address', 'port', 'container'])
 
 
 def pytest_addoption(parser):
-    parser.addoption('--httpd-version', default='2.4.37')
+    parser.addoption('--httpd-version', default='2.4.39')
 
 
 @pytest.fixture(scope='session')
@@ -42,16 +45,21 @@ def httpd_instance(request, httpd_version):
         auto_remove=True,
         ports={'80/tcp': ('127.0.0.1', None)}
     )
-    ports = client.api.inspect_container(container.id)['NetworkSettings']['Ports']
-    port = ports['80/tcp'][0]
 
     def teardown():
         container.stop()
     request.addfinalizer(teardown)
 
+    _ports = client.api.inspect_container(container.id)['NetworkSettings']['Ports']
+    ip_address = _ports['80/tcp'][0]['HostIp']
+    port = int(_ports['80/tcp'][0]['HostPort'])
+
+    if asyncio.run(wait_for_port(ip_address, port, timeout=5)) is False:
+        raise RuntimeException('httpd did not start within 5s')
+
     return ContainerInfo(
-        address=port['HostIp'],
-        port=int(port['HostPort']),
+        address=ip_address,
+        port=port,
         container=container
     )
 
@@ -75,56 +83,6 @@ async def client(request, httpd_instance, event_loop):
 
     return client
 
-# @pytest.fixture(
-#     params=[
-#         {
-#             'url': '__docker__',
-#             'version': '2.2.34'
-#         },
-#         {
-#             'url': '__docker__',
-#             'version': '2.4.29'
-#         }
-#     ]
-# )
-# def validation_client(request):
-
-#     module_directory = os.path.abspath(os.path.dirname(__file__))
-#     server = request.param
-
-#     with open(f'{module_directory}/data/test_validation_profile.json') as fh:
-#         profile = json.load(fh)
-
-#     if server['url'] == '__docker__':
-#         server['container_info'] = container_info = httpd_instance(server['version'])
-#         server['url'] = f'http://{container_info.address}:{container_info.port}/balancer-manager'
-
-#     client = ValidationClient(
-#         server['url'],
-#         username='admin',
-#         password='password',
-#         profile=profile
-#     )
-
-#     if server['url'].startswith('mock'):
-#         with open('{module_directory}/data/{data_file}'.format(module_directory=module_directory, data_file=server['data_file'])) as fh:
-#             mock_data = fh.read()
-
-#         mock_adapter = requests_mock.Adapter()
-#         mock_adapter.register_uri('GET', '/balancer-manager', text=mock_data)
-#         client.session.mount('mock', mock_adapter)
-
-#     client.update()
-
-#     def teardown():
-#         client.close()
-#         if 'container_info' in server:
-#             container_info.container.stop()
-#     request.addfinalizer(teardown)
-
-#     request.cls.server = server
-#     request.cls.client = client
-
 
 @pytest.fixture
 @pytest.mark.asyncio
@@ -144,3 +102,42 @@ async def random_route(client):
         random_index = random.randrange(0, len(routes) - 1) if len(routes) > 1 else 0
         return routes[random_index]
     raise ValueError('no routes were found')
+
+
+@pytest.fixture
+@pytest.mark.asyncio
+async def validation_client(request, httpd_instance, event_loop):
+    _dir = os.path.dirname(os.path.abspath(__file__))
+    with open(f'{_dir}/data/test_validation_profile.json') as fh:
+        profile = json.load(fh)
+
+    client = ValidationClient(
+        f'http://{httpd_instance.address}:{httpd_instance.port}/balancer-manager',
+        username='admin',
+        password='password',
+        profile=profile,
+        loop=event_loop
+    )
+    await client.update()
+
+    def teardown():
+        async def ateardown():
+            await client.close()
+        event_loop.run_until_complete(ateardown())
+    request.addfinalizer(teardown)
+
+    return client
+
+
+@pytest.fixture
+@pytest.mark.asyncio
+async def random_validated_routes(validation_client):
+    random_routes = list()
+    for cluster in await validation_client.get_clusters():
+        routes = cluster.get_routes()
+        if len(routes) > 1:
+            random_index = random.randrange(0, len(routes) - 1) if len(routes) > 1 else 0
+            random_routes.append(routes[random_index])
+    if len(random_routes) == 0:
+        raise ValueError('no routes were found')
+    return random_routes

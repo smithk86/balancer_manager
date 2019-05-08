@@ -1,6 +1,5 @@
 import re
 import time
-from collections import namedtuple
 from datetime import datetime
 
 from packaging import version
@@ -12,10 +11,6 @@ from .errors import BalancerManagerError
 
 VERSION_22 = version.parse('2.2')
 VERSION_24 = version.parse('2.4')
-
-
-Statuses = namedtuple('Statuses', ['ok', 'error', 'ignore_errors', 'draining_mode', 'disabled', 'hot_standby', 'hot_spare', 'stopped'])
-Status = namedtuple('Status', ['value', 'immutable', 'http_form_code'])
 
 
 def now():

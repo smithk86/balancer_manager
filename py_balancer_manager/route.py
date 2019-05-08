@@ -1,4 +1,4 @@
-from collections import namedtuple
+import dataclasses
 
 from .errors import BalancerManagerError
 from .helpers import VERSION_24
@@ -48,8 +48,8 @@ class Route(object):
 
     def mutable_statuses(self):
         allowed_statuses = list()
-        for k, v in self.status._asdict().items():
-            if v and v.immutable is False:
+        for k, v in dataclasses.asdict(self.status).items():
+            if v and v['immutable'] is False:
                 allowed_statuses.append(k)
         return allowed_statuses
 
