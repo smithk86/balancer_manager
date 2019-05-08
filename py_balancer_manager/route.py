@@ -1,9 +1,7 @@
-from packaging import version
+from collections import namedtuple
 
 from .errors import BalancerManagerError
-
-
-VERSION_24 = version.parse('2.4')
+from .helpers import VERSION_24
 
 
 class Route(object):
@@ -24,109 +22,92 @@ class Route(object):
         self.traffic_from = None
         self.traffic_from_raw = None
         self.session_nonce_uuid = None
-        self.status_ok = None
-        self.status_error = None
-        self.status_ignore_errors = None
-        self.status_draining_mode = None
-        self.status_disabled = None
-        self.status_hot_standby = None
         self.taking_traffic = None
-        self.immutable_statuses = []
+        self.statuses = None
 
     def __repr__(self):
         return f'<py_balancer_manager.route.Route object: {self.cluster.name} -> {self.name}>'
 
     def to_dict(self):
-        yield ('updated_datetime', self.updated_datetime)
-        yield ('name', self.name)
-        yield ('worker', self.worker)
-        yield ('priority', self.priority)
-        yield ('route_redir', self.route_redir)
-        yield ('factor', self.factor)
-        yield ('set', self.set)
-        yield ('elected', self.elected)
-        yield ('traffic_to', self.traffic_to)
-        yield ('traffic_to_raw', self.traffic_to_raw)
-        yield ('traffic_from', self.traffic_from)
-        yield ('traffic_from_raw', self.traffic_from_raw)
-        yield ('session_nonce_uuid', self.session_nonce_uuid)
-        yield ('status_ok', self.status_ok)
-        yield ('status_error', self.status_error)
-        yield ('status_ignore_errors', self.status_ignore_errors)
-        yield ('status_draining_mode', self.status_draining_mode)
-        yield ('status_disabled', self.status_disabled)
-        yield ('status_hot_standby', self.status_hot_standby)
-        yield ('taking_traffic', self.taking_traffic)
-
-    def get_statuses(self):
         return {
-            'status_ignore_errors': self.status_ignore_errors,
-            'status_draining_mode': self.status_draining_mode,
-            'status_disabled': self.status_disabled,
-            'status_hot_standby': self.status_hot_standby
+            'updated_datetime': self.updated_datetime,
+            'name': self.name,
+            'worker': self.worker,
+            'priority': self.priority,
+            'route_redir': self.route_redir,
+            'factor': self.factor,
+            'set': self.set,
+            'elected': self.elected,
+            'traffic_to': self.traffic_to,
+            'traffic_to_raw': self.traffic_to_raw,
+            'traffic_from': self.traffic_from,
+            'traffic_from_raw': self.traffic_from_raw,
+            'session_nonce_uuid': self.session_nonce_uuid,
+            'taking_traffic': self.taking_traffic,
         }
 
-    def get_immutable_statuses(self):
-        if self.cluster.client.httpd_version < VERSION_24:
-            return [
-                'status_hot_standby',
-                'status_draining_mode',
-                'status_ignore_errors'
-            ]
-        else:
-            return []
+    def mutable_statuses(self):
+        allowed_statuses = list()
+        for k, v in self.status._asdict().items():
+            if v and v.immutable is False:
+                allowed_statuses.append(k)
+        return allowed_statuses
 
-    async def change_status(self, force=False, status_ignore_errors=None, status_draining_mode=None, status_disabled=None, status_hot_standby=None):
+    async def change_status(self, force=False, **status_value_kwargs):
+        mutable_statuses = self.mutable_statuses()
+        new_route_statuses = dict()
+
         # confirm no immutable statuses are trying to be changed
-        for key, val in locals().items():
-            if key in self.get_immutable_statuses():
-                if val is not None:
-                    raise BalancerManagerError(f'{key} is immutable for this version of httpd')
+        for key, val in status_value_kwargs.items():
+            if key not in mutable_statuses:
+                raise BalancerManagerError(f'{key} is not a valid status')
 
-        # create dictionary of existing values which are allowed by the httpd version
-        new_route_statuses = self.get_statuses()
-        for status_name in new_route_statuses.copy().keys(): # use copy to avoid a "dictionary was modified during iteration" error
-            if status_name in self.get_immutable_statuses():
-                new_route_statuses.pop(status_name)
-            elif type(locals().get(status_name)) is bool:
-                new_route_statuses[status_name] = locals().get(status_name)
+        # prepare new values to be sent to server
+        for key in mutable_statuses:
+            if key in status_value_kwargs:
+                new_route_statuses[key] = status_value_kwargs.pop(key)
+            else:
+                new_route_statuses[key] = getattr(self.status, key).value
 
         # except routes with errors from throwing the "last-route" error
-        if force is True or self.status_error is True or self.status_disabled is True or self.status_draining_mode is True:
+        if force is True or self.status.error is True or self.status.disabled is True or self.status.draining_mode is True:
             pass
         elif self.cluster.eligible_routes <= 1:
-            if new_route_statuses['status_disabled'] is True:
+            if new_route_statuses['disabled'] is True:
                 raise BalancerManagerError('cannot enable the "disabled" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
-            elif new_route_statuses['status_draining_mode'] is True:
+            elif new_route_statuses.get('draining_mode') is True:
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
         if self.cluster.client.httpd_version < VERSION_24:
-            await self.cluster.client.session.get(params={
+            async with self.cluster.client.http_request('get', params={
                 'lf': '1',
                 'ls': '0',
                 'wr': self.name,
                 'rr': '',
-                'dw': 'Disable' if new_route_statuses['status_disabled'] else 'Enable',
+                'dw': 'Disable' if new_route_statuses['disabled'] else 'Enable',
                 'w': self.worker,
                 'b': self.cluster.name,
                 'nonce': str(self.session_nonce_uuid)
-            })
+            }) as r:
+                self.cluster.client.do_update(await r.text())
         else:
-            await self.cluster.client.session.post(data={
+            post_data = {
                 'w_lf': '1',
                 'w_ls': '0',
                 'w_wr': self.name,
                 'w_rr': '',
-                'w_status_I': int(new_route_statuses['status_ignore_errors']),
-                'w_status_N': int(new_route_statuses['status_draining_mode']),
-                'w_status_D': int(new_route_statuses['status_disabled']),
-                'w_status_H': int(new_route_statuses['status_hot_standby']),
                 'w': self.worker,
                 'b': self.cluster.name,
                 'nonce': str(self.session_nonce_uuid)
-            })
+            }
+            for status_name in self.mutable_statuses():
+                http_form_code = getattr(self.status, status_name).http_form_code
+                post_data[f'w_status_{http_form_code}'] = int(new_route_statuses[status_name])
+            async with self.cluster.client.http_request('post', data=post_data) as r:
+                self.cluster.client.do_update(await r.text())
 
         # validate new values against load balancer
-        for status_name in new_route_statuses.keys():
-            if new_route_statuses[status_name] is not getattr(self, status_name):
-                raise BalancerManagerError('status value for "{}" is incorrect (should be {})'.format(status_name, getattr(self, status_name)))
+        for status_name, expected_value in new_route_statuses.items():
+            current_value = getattr(self.status, status_name).value
+            if expected_value is not current_value:
+                raise BalancerManagerError(f'status value for "{status_name}" is {current_value} (should be {expected_value})')

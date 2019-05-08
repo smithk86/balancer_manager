@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from collections import namedtuple
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -10,11 +11,7 @@ from packaging import version
 
 from .cluster import Cluster
 from .errors import BalancerManagerError
-from .helpers import now, parse_from_local_timezone, find_object
-
-
-VERSION_22 = version.parse('2.2')
-VERSION_24 = version.parse('2.4')
+from .helpers import now, parse_from_local_timezone, find_object, Statuses, Status, VERSION_22, VERSION_24
 
 
 class Client(object):
@@ -28,7 +25,6 @@ class Client(object):
             self.logger.warning('ssl certificate verification is disabled')
 
         self.url = url
-        self.last_response = None
         self.timeout = timeout
         self.loop = loop if loop else asyncio.get_running_loop()
         self.updated_datetime = None
@@ -55,6 +51,9 @@ class Client(object):
             raise_for_status=True
         )
 
+    def __repr__(self):
+        return f'<py_balancer_manager.client.Client object: {self.url}>'
+
     async def __aenter__(self):
         return self
 
@@ -62,31 +61,34 @@ class Client(object):
         await self.close()
 
     def to_dict(self):
-        yield ('updated_datetime', self.updated_datetime)
-        yield ('url', self.url)
-        yield ('insecure', self.insecure)
-        yield ('httpd_version', self.httpd_version)
-        yield ('httpd_compile_datetime', self.httpd_compile_datetime)
-        yield ('openssl_version', self.openssl_version)
-        yield ('error', str(self.error) if self.error else None)
-        yield ('holistic_error_status', self.holistic_error_status)
-        yield ('clusters', [dict(c) for c in self.clusters] if self.clusters else None)
+        return {
+            'updated_datetime': self.updated_datetime,
+            'url': self.url,
+            'insecure': self.insecure,
+            'httpd_version': self.httpd_version,
+            'httpd_compile_datetime': self.httpd_compile_datetime,
+            'openssl_version': self.openssl_version,
+            'error': str(self.error) if self.error else None,
+            'holistic_error_status': self.holistic_error_status,
+            'clusters': [dict(c) for c in self.clusters] if self.clusters else None
+        }
 
     async def close(self):
         await self.session.close()
 
-    async def update(self, method='get', **kwargs):
-        self.logger.info('updating routes')
-        try:
-            self.last_response = await getattr(self.session, method)(self.url)
-        except aiohttp.ClientResponseError as e:
-            self.error = e
-            raise BalancerManagerError(e)
+    def http_request(self, method, **kwargs):
+        return self.session.request(method, self.url, **kwargs)
 
+    async def update(self, **kwargs):
+        self.logger.info('updating routes')
+        async with self.http_request('get') as r:
+            self.do_update(await r.text())
+
+    def do_update(self, text):
         # update timestamp
         self.updated_datetime = now()
         # process text with beautiful soup
-        bsoup = BeautifulSoup(await self.last_response.text(), 'html.parser')
+        bsoup = BeautifulSoup(text, 'html.parser')
         # update routes
         self._parse(bsoup)
         # purge defunct clusters/routes
@@ -271,12 +273,6 @@ class Client(object):
                     route.route_redir = cells[2].text
                     route.factor = float(cells[3].text)
                     route.set = int(cells[4].text)
-                    route.status_ok = 'Ok' in cells[5].text
-                    route.status_error = 'Err' in cells[5].text
-                    route.status_ignore_errors = 'Ign' in cells[5].text
-                    route.status_draining_mode = 'Drn' in cells[5].text
-                    route.status_disabled = 'Dis' in cells[5].text
-                    route.status_hot_standby = 'Stby' in cells[5].text
                     route.elected = int(cells[6].text)
                     route.busy = int(cells[7].text)
                     route.load = int(cells[8].text)
@@ -285,7 +281,16 @@ class Client(object):
                     route.traffic_from = cells[10].text
                     route.traffic_from_raw = Client._decode_data_useage(cells[10].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
-
+                    route.status = Statuses(
+                        ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
+                        error=Status(value='Err' in cells[5].text, immutable=True, http_form_code=None),
+                        ignore_errors=Status(value='Ign' in cells[5].text, immutable=False, http_form_code='I'),
+                        draining_mode=Status(value='Drn' in cells[5].text, immutable=False, http_form_code='N'),
+                        disabled=Status(value='Dis' in cells[5].text, immutable=False, http_form_code='D'),
+                        hot_standby=Status(value='Stby' in cells[5].text, immutable=False, http_form_code='H'),
+                        hot_spare=Status(value='Spar' in cells[5].text, immutable=False, http_form_code='R') if self.httpd_version >= version.parse('2.4.34') else None,
+                        stopped=Status(value='Stop' in cells[5].text, immutable=False, http_form_code='S') if self.httpd_version >= version.parse('2.4.23') else None
+                    )
                 elif self.httpd_version >= VERSION_22:
                     route.worker = cells[0].find('a').text
                     route.name = cells[1].text
@@ -293,12 +298,6 @@ class Client(object):
                     route.route_redir = cells[2].text
                     route.factor = float(cells[3].text)
                     route.set = int(cells[4].text)
-                    route.status_ok = 'Ok' in cells[5].text
-                    route.status_error = 'Err' in cells[5].text
-                    route.status_ignore_errors = None
-                    route.status_draining_mode = None
-                    route.status_disabled = 'Dis' in cells[5].text
-                    route.status_hot_standby = 'Stby' in cells[5].text
                     route.elected = int(cells[6].text)
                     route.busy = None
                     route.load = None
@@ -307,7 +306,16 @@ class Client(object):
                     route.traffic_from = cells[8].text
                     route.traffic_from_raw = Client._decode_data_useage(cells[8].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
-
+                    route.status = Statuses(
+                        ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
+                        error=Status(value='Err' in cells[5].text, immutable=True, http_form_code=None),
+                        ignore_errors=None,
+                        draining_mode=None,
+                        disabled=Status(value='Dis' in cells[5].text, immutable=False, http_form_code=None),
+                        hot_standby=Status(value='Stby' in cells[5].text, immutable=True, http_form_code=None),
+                        hot_spare=None,
+                        stopped=None
+                    )
                 else:
                     raise ValueError('this module only supports httpd 2.2 and 2.4')
 
@@ -318,19 +326,16 @@ class Client(object):
             # determine if standby routes are active for cluster
             cluster.standby_activated = True
             for route in cluster.routes:
-                if route.status_ok and route.status_hot_standby is False:
+                if route.status.ok.value and route.status.hot_standby.value is False:
                     cluster.standby_activated = False
                     break
             # set "standby_activated" property depending on "standby_activated" status
             for route in cluster.routes:
-                if cluster.standby_activated is False:
-                    route.taking_traffic = (route.status_error is False and route.status_disabled is False and route.status_draining_mode is not True and route.status_hot_standby is False)
-                else:
-                    route.taking_traffic = (route.status_error is False and route.status_disabled is False and route.status_draining_mode is not True and route.status_hot_standby is True)
+                route.taking_traffic = (route.status.error.value is False and route.status.disabled.value is False and (route.status.draining_mode is None or route.status.draining_mode.value is not True) and route.status.hot_standby.value is True)
             # calculate the number of routes which are eligible to take traffic
             cluster.eligible_routes = 0
             for route in cluster.routes:
-                if route.status_error is False and route.status_disabled is False and route.status_draining_mode is not True:
+                if route.status.error.value is False and route.status.disabled.value is False and (route.status.draining_mode is None or route.status.draining_mode.value is not True):
                     cluster.eligible_routes += 1
 
         # set holistic_error_status
@@ -339,7 +344,7 @@ class Client(object):
             if self.holistic_error_status is True:
                 break
             for route in cluster.routes:
-                if route.status_error is True:
+                if route.status.error.value is True:
                     self.holistic_error_status = True
                     break
 
