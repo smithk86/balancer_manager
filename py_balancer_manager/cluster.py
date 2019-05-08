@@ -24,7 +24,7 @@ class Cluster(object):
     def __repr__(self):
         return f'<py_balancer_manager.cluster.Cluster object: {self.name}>'
 
-    def to_dict(self):
+    def asdict(self):
         yield ('updated_datetime', self.updated_datetime)
         yield ('name', self.name)
         yield ('max_members', self.max_members)

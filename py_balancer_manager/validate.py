@@ -32,8 +32,8 @@ class ValidatedRoute(Route):
         self.compliance_status = None
         self.status_validation = None
 
-    def to_dict(self):
-        d = super(ValidatedRoute, self).to_dict()
+    def asdict(self):
+        d = super(ValidatedRoute, self).asdict()
         d.update({
             'compliance_status': self.compliance_status,
             'status_validation': self.status_validation
@@ -68,8 +68,8 @@ class ValidationClient(Client):
         self.profile = kwargs.pop('profile', None)
         super(ValidationClient, self).__init__(url, **kwargs)
 
-    def to_dict(self):
-        d = super(ValidationClient, self).to_dict()
+    def asdict(self):
+        d = super(ValidationClient, self).asdict()
         d.update({
             'all_routes_are_profiled': self.all_routes_are_profiled,
             'holistic_compliance_status': self.holistic_compliance_status,

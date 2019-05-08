@@ -28,7 +28,7 @@ class Route(object):
     def __repr__(self):
         return f'<py_balancer_manager.route.Route object: {self.cluster.name} -> {self.name}>'
 
-    def to_dict(self):
+    def asdict(self):
         return {
             'updated_datetime': self.updated_datetime,
             'name': self.name,

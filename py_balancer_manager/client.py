@@ -61,7 +61,7 @@ class Client(object):
     async def __aexit__(self, exception_type, exception_value, traceback):
         await self.close()
 
-    def to_dict(self):
+    def asdict(self):
         return {
             'updated_datetime': self.updated_datetime,
             'url': self.url,
