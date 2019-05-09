@@ -71,7 +71,7 @@ class Client(object):
             'openssl_version': self.openssl_version,
             'error': str(self.error) if self.error else None,
             'holistic_error_status': self.holistic_error_status,
-            'clusters': [dict(c) for c in self.clusters] if self.clusters else None
+            'clusters': [c.asdict() for c in self.clusters] if self.clusters else None
         }
 
     async def close(self):

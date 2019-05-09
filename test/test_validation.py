@@ -1,7 +1,8 @@
+import dataclasses
 import pytest
 from py_balancer_manager import ValidationClient, ValidatedRoute, ValidatedCluster
 
-from py_balancer_manager.status import ValidatedStatus
+from py_balancer_manager.status import Status, ValidatedStatus
 
 
 @pytest.mark.asyncio
@@ -23,12 +24,23 @@ async def test_validate_clusters_and_routes(validation_client):
     # there should be a entry per cluster
     assert len(validation_client.profile) == len(await validation_client.get_clusters())
 
+    assert type(validation_client) is ValidationClient
     for cluster in await validation_client.get_clusters():
-        assert type(validation_client) is ValidationClient
+        assert type(cluster) == ValidatedCluster
+        assert type(cluster.client) is ValidationClient
+        assert type(cluster.profile) is dict
         for route in cluster.get_routes():
             assert type(route.cluster) == ValidatedCluster
+            assert type(route.profile) is list
             assert route.compliance_status is True
-            assert type(route.status_validation) is dict
+            mutable_statuses = route.mutable_statuses()
+            for field in dataclasses.fields(route.status):
+                status_name = field.name
+                status = getattr(route.status, status_name)
+                if status_name in mutable_statuses:
+                    assert type(status) is ValidatedStatus
+                else:
+                    assert type(status) is Status
 
 
 @pytest.mark.asyncio

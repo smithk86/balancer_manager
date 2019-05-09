@@ -19,9 +19,16 @@ class ValidatedCluster(Cluster):
         return route
 
     @property
+    def profile(self):
+        if self.client.profile:
+            return self.client.profile.get(self.name)
+        else:
+            return None
+
+    @property
     def all_routes_are_profiled(self):
         for route in self.get_routes():
-            if not route.has_profile():
+            if self.profile is None:
                 return False
         return True
 
@@ -30,35 +37,32 @@ class ValidatedRoute(Route):
     def __init__(self, cluster):
         super(ValidatedRoute, self).__init__(cluster)
         self.compliance_status = None
-        self.status_validation = None
 
     def asdict(self):
         d = super(ValidatedRoute, self).asdict()
         d.update({
-            'compliance_status': self.compliance_status,
-            'status_validation': self.status_validation
+            'compliance_status': self.compliance_status
         })
         return d
 
-    def has_profile(self):
-        if self.status_validation is not None:
-            for status_validation in self.status_validation.values():
-                if status_validation.profile is None:
-                    return False
-        return True
+    @property
+    def profile(self):
+        cluster_profile = self.cluster.profile
+        if cluster_profile:
+            return cluster_profile.get(self.name)
+        else:
+            return None
 
     def _parse(self):
-        if self.status_validation is None:
-            self.status_validation = dict()
-            for status_name in self.mutable_statuses():
-                status = getattr(self.status, status_name)
-                setattr(self.status, status_name, ValidatedStatus(
-                    value=status.value,
-                    immutable=status.immutable,
-                    http_form_code=status.http_form_code,
-                    profile=None,
-                    compliance=None
-                ))
+        for status_name in self.mutable_statuses():
+            status = getattr(self.status, status_name)
+            setattr(self.status, status_name, ValidatedStatus(
+                value=status.value,
+                immutable=status.immutable,
+                http_form_code=status.http_form_code,
+                profile=None,
+                compliance=None
+            ))
 
 
 class ValidationClient(Client):
