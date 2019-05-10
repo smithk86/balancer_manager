@@ -148,12 +148,12 @@ class ValidationClient(Client):
             cluster_profile = dict()
             for route in cluster.get_routes():
                 enabled_statuses = []
-                for status_name, value in route.get_statuses().items():
-                    if status_name not in route.get_immutable_statuses():
-                        if type(value) is not bool:
-                            raise TypeError('status value must be boolean')
-                        if value is True:
-                            enabled_statuses.append(status_name)
+                for status_name in route.mutable_statuses():
+                    value = getattr(route.status, status_name).value
+                    if type(value) is not bool:
+                        raise TypeError('status value must be boolean')
+                    if value is True:
+                        enabled_statuses.append(status_name)
                 cluster_profile[route.name] = enabled_statuses
             profile[cluster.name] = cluster_profile
         return profile

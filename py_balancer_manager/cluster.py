@@ -25,19 +25,21 @@ class Cluster(object):
         return f'<py_balancer_manager.cluster.Cluster object: {self.name}>'
 
     def asdict(self):
-        yield ('updated_datetime', self.updated_datetime)
-        yield ('name', self.name)
-        yield ('max_members', self.max_members)
-        yield ('max_members_used', self.max_members_used)
-        yield ('sticky_session', self.sticky_session)
-        yield ('timeout', self.timeout)
-        yield ('failover_attempts', self.failover_attempts)
-        yield ('method', self.method)
-        yield ('path', self.path)
-        yield ('active', self.active)
-        yield ('standby_activated', self.standby_activated)
-        yield ('eligible_routes', self.eligible_routes)
-        yield ('routes', [dict(r) for r in self.routes])
+        return {
+            'updated_datetime': self.updated_datetime,
+            'name': self.name,
+            'max_members': self.max_members,
+            'max_members_used': self.max_members_used,
+            'sticky_session': self.sticky_session,
+            'timeout': self.timeout,
+            'failover_attempts': self.failover_attempts,
+            'method': self.method,
+            'path': self.path,
+            'active': self.active,
+            'standby_activated': self.standby_activated,
+            'eligible_routes': self.eligible_routes,
+            'routes': [r.asdict() for r in self.routes]
+        }
 
     def new_route(self):
         route = Route(self)
