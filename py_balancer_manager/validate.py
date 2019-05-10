@@ -135,11 +135,11 @@ class ValidationClient(Client):
         if len(exceptions) > 0:
             raise BalancerManagerError({'exceptions': exceptions})
 
-    def set_profile(self, profile):
+    async def set_profile(self, profile):
         # set new profile
         self.profile = profile
         # refresh routes to include profile information
-        self.update()
+        await self.update()
 
     async def get_profile(self):
         # init empty list for the profile
