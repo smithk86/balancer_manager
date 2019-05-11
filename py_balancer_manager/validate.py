@@ -55,8 +55,8 @@ class ValidatedRoute(Route):
 
     def _parse(self):
         for status_name in self.mutable_statuses():
-            status = getattr(self.status, status_name)
-            setattr(self.status, status_name, ValidatedStatus(
+            status = self.status(status_name)
+            setattr(self._status, status_name, ValidatedStatus(
                 value=status.value,
                 immutable=status.immutable,
                 http_form_code=status.http_form_code,
@@ -100,7 +100,7 @@ class ValidationClient(Client):
                 route.compliance_status = True
                 route_profile = cluster_profile.get(route.name)
                 for status_name in route.mutable_statuses():
-                    status = getattr(route.status, status_name)
+                    status = route.status(status_name)
                     status.profile = None
                     status.compliance = True
 
@@ -127,7 +127,7 @@ class ValidationClient(Client):
                 # build status dictionary to enforce
                 statuses = {}
                 for status_name in route.mutable_statuses():
-                    statuses[status_name] = getattr(route.status, status_name).profile
+                    statuses[status_name] = route.status(status_name).profile
                 try:
                     await route.change_status(**statuses)
                 except Exception as e:
@@ -149,7 +149,7 @@ class ValidationClient(Client):
             for route in cluster.get_routes():
                 enabled_statuses = []
                 for status_name in route.mutable_statuses():
-                    value = getattr(route.status, status_name).value
+                    value = route.status(status_name).value
                     if type(value) is not bool:
                         raise TypeError('status value must be boolean')
                     if value is True:

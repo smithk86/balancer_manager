@@ -79,18 +79,17 @@ async def test_properties(client):
             assert type(route.traffic_from) is str
             assert type(route.traffic_from_raw) is int
             assert type(route.session_nonce_uuid) is UUID
-            assert type(route.status) is Statuses
-            assert type(route.status.ok) is Status
-            assert type(route.status.error) is Status
+            assert type(route._status) is Statuses
+            assert type(route._status.ok) is Status
+            assert type(route._status.error) is Status
             for status_name in route.mutable_statuses():
-                status = getattr(route.status, status_name)
-                assert type(status) is Status
+                assert type(route.status(status_name)) is Status
 
 
 @pytest.mark.asyncio
 async def test_route_status_changes(client, random_route):
     for status_name in random_route.mutable_statuses():
-        status_value = getattr(random_route.status, status_name).value
+        status_value = random_route.status(status_name).value
 
         # toggle status to the oposite value
         kwargs = {status_name: not status_value}
@@ -99,7 +98,7 @@ async def test_route_status_changes(client, random_route):
         await random_route.change_status(**kwargs)
 
         # assert new status value
-        assert getattr(random_route.status, status_name).value is not status_value
+        assert random_route.status(status_name).value is not status_value
 
         # toggle status back to original value
         await random_route.change_status(**{
@@ -108,7 +107,7 @@ async def test_route_status_changes(client, random_route):
         })
 
         # assert original status value
-        assert getattr(random_route.status, status_name).value is status_value
+        assert random_route.status(status_name).value is status_value
 
 
 @pytest.mark.asyncio
@@ -153,7 +152,7 @@ async def test_purge_outdated_route(client, random_cluster):
     route = random_cluster.new_route()
     route.name = '__testing_route__'
     route.updated_datetime = now()
-    route.status = Statuses(
+    route._status = Statuses(
         ok=Status(value=None, immutable=True, http_form_code=None),
         error=Status(value=None, immutable=True, http_form_code=None),
         ignore_errors=Status(value=None, immutable=True, http_form_code=None),

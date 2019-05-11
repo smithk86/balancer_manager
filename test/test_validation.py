@@ -34,13 +34,12 @@ async def test_validate_clusters_and_routes(validation_client):
             assert type(route.profile) is list
             assert route.compliance_status is True
             mutable_statuses = route.mutable_statuses()
-            for field in dataclasses.fields(route.status):
+            for field in dataclasses.fields(route._status):
                 status_name = field.name
-                status = getattr(route.status, status_name)
                 if status_name in mutable_statuses:
-                    assert type(status) is ValidatedStatus
+                    assert type(route.status(status_name)) is ValidatedStatus
                 else:
-                    assert type(status) is Status
+                    assert type(route.status(status_name)) is Status
 
 
 @pytest.mark.asyncio
@@ -50,18 +49,18 @@ async def test_compliance_manually(validation_client, random_validated_routes):
     assert validation_client.holistic_compliance_status is True
 
     for route in random_validated_routes:
-        status_disabled = route.status.disabled.value
-        assert route.status.disabled.value is status_disabled
+        status_disabled = route._status.disabled.value
+        assert route._status.disabled.value is status_disabled
         assert route.compliance_status is True
         assert validation_client.holistic_compliance_status is True
         await route.change_status(force=True, disabled=not status_disabled)
 
-        assert route.status.disabled.value is not status_disabled
+        assert route._status.disabled.value is not status_disabled
         assert route.compliance_status is False
         assert validation_client.holistic_compliance_status is False
         await route.change_status(force=True, disabled=status_disabled)
 
-        assert route.status.disabled.value is status_disabled
+        assert route._status.disabled.value is status_disabled
         assert route.compliance_status is True
         assert validation_client.holistic_compliance_status is True
 
@@ -74,7 +73,7 @@ async def test_compliance_with_enforce(validation_client, random_validated_route
 
     for route in random_validated_routes:
         assert route.compliance_status is True
-        await route.change_status(force=True, disabled=not route.status.disabled.value)
+        await route.change_status(force=True, disabled=not route._status.disabled.value)
         assert route.compliance_status is False
 
     assert validation_client.holistic_compliance_status is False

@@ -23,7 +23,7 @@ class Route(object):
         self.traffic_from_raw = None
         self.session_nonce_uuid = None
         self.taking_traffic = None
-        self.statuses = None
+        self._status = None
 
     def __repr__(self):
         return f'<py_balancer_manager.route.Route object: {self.cluster.name} -> {self.name}>'
@@ -48,7 +48,7 @@ class Route(object):
 
     def mutable_statuses(self):
         allowed_statuses = list()
-        for k, v in dataclasses.asdict(self.status).items():
+        for k, v in dataclasses.asdict(self._status).items():
             if v and v['immutable'] is False:
                 allowed_statuses.append(k)
         return allowed_statuses
@@ -67,10 +67,10 @@ class Route(object):
             if key in status_value_kwargs:
                 new_route_statuses[key] = status_value_kwargs.pop(key)
             else:
-                new_route_statuses[key] = getattr(self.status, key).value
+                new_route_statuses[key] = getattr(self._status, key).value
 
         # except routes with errors from throwing the "last-route" error
-        if force is True or self.status.error is True or self.status.disabled is True or self.status.draining_mode is True:
+        if force is True or self._status.error is True or self._status.disabled is True or self._status.draining_mode is True:
             pass
         elif self.cluster.eligible_routes <= 1:
             if new_route_statuses['disabled'] is True:
@@ -101,13 +101,16 @@ class Route(object):
                 'nonce': str(self.session_nonce_uuid)
             }
             for status_name in self.mutable_statuses():
-                http_form_code = getattr(self.status, status_name).http_form_code
+                http_form_code = getattr(self._status, status_name).http_form_code
                 post_data[f'w_status_{http_form_code}'] = int(new_route_statuses[status_name])
             async with self.cluster.client.http_request('post', data=post_data) as r:
                 self.cluster.client.do_update(await r.text())
 
         # validate new values against load balancer
         for status_name, expected_value in new_route_statuses.items():
-            current_value = getattr(self.status, status_name).value
+            current_value = getattr(self._status, status_name).value
             if expected_value is not current_value:
                 raise BalancerManagerError(f'status value for "{status_name}" is {current_value} (should be {expected_value})')
+
+    def status(self, name):
+        return getattr(self._status, name)

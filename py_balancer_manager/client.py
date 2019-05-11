@@ -282,7 +282,7 @@ class Client(object):
                     route.traffic_from = cells[10].text
                     route.traffic_from_raw = Client._decode_data_useage(cells[10].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
-                    route.status = Statuses(
+                    route._status = Statuses(
                         ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
                         error=Status(value='Err' in cells[5].text, immutable=True, http_form_code=None),
                         ignore_errors=Status(value='Ign' in cells[5].text, immutable=False, http_form_code='I'),
@@ -307,7 +307,7 @@ class Client(object):
                     route.traffic_from = cells[8].text
                     route.traffic_from_raw = Client._decode_data_useage(cells[8].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
-                    route.status = Statuses(
+                    route._status = Statuses(
                         ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
                         error=Status(value='Err' in cells[5].text, immutable=True, http_form_code=None),
                         ignore_errors=None,
@@ -327,16 +327,16 @@ class Client(object):
             # determine if standby routes are active for cluster
             cluster.standby_activated = True
             for route in cluster.routes:
-                if route.status.ok.value and route.status.hot_standby.value is False:
+                if route._status.ok.value and route._status.hot_standby.value is False:
                     cluster.standby_activated = False
                     break
             # set "standby_activated" property depending on "standby_activated" status
             for route in cluster.routes:
-                route.taking_traffic = (route.status.error.value is False and route.status.disabled.value is False and (route.status.draining_mode is None or route.status.draining_mode.value is not True) and route.status.hot_standby.value is True)
+                route.taking_traffic = (route._status.error.value is False and route._status.disabled.value is False and (route._status.draining_mode is None or route._status.draining_mode.value is not True) and route._status.hot_standby.value is True)
             # calculate the number of routes which are eligible to take traffic
             cluster.eligible_routes = 0
             for route in cluster.routes:
-                if route.status.error.value is False and route.status.disabled.value is False and (route.status.draining_mode is None or route.status.draining_mode.value is not True):
+                if route._status.error.value is False and route._status.disabled.value is False and (route._status.draining_mode is None or route._status.draining_mode.value is not True):
                     cluster.eligible_routes += 1
 
         # set holistic_error_status
@@ -345,7 +345,7 @@ class Client(object):
             if self.holistic_error_status is True:
                 break
             for route in cluster.routes:
-                if route.status.error.value is True:
+                if route._status.error.value is True:
                     self.holistic_error_status = True
                     break
 
