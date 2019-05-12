@@ -3,6 +3,7 @@ import pytest
 from py_balancer_manager import ValidationClient, ValidatedRoute, ValidatedCluster
 
 from py_balancer_manager.status import Status, ValidatedStatus
+from py_balancer_manager.errors import TaskExceptions
 
 
 @pytest.mark.asyncio
@@ -66,7 +67,7 @@ async def test_compliance_manually(validation_client, random_validated_routes):
 
 
 @pytest.mark.asyncio
-async def test_compliance_with_enforce(validation_client, random_validated_routes):
+async def test_compliance_with_enforce(httpd_instance, validation_client, random_validated_routes):
     # run enforce to normalize load-balancer
     await validation_client.enforce()
     assert validation_client.holistic_compliance_status is True
@@ -79,3 +80,15 @@ async def test_compliance_with_enforce(validation_client, random_validated_route
     assert validation_client.holistic_compliance_status is False
     await validation_client.enforce()
     assert validation_client.holistic_compliance_status is True
+
+    for route in random_validated_routes:
+        assert route.compliance_status is True
+        await route.change_status(force=True, disabled=not route._status.disabled.value)
+        assert route.compliance_status is False
+
+    with pytest.raises(TaskExceptions):
+        try:
+            httpd_instance.container.pause()
+            await validation_client.enforce()
+        finally:
+            httpd_instance.container.unpause()

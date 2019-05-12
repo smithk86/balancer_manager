@@ -71,6 +71,7 @@ async def client(request, httpd_instance, event_loop):
         f'http://{httpd_instance.address}:{httpd_instance.port}/balancer-manager',
         username='admin',
         password='password',
+        timeout=2,
         loop=event_loop
     )
     await client.update()
@@ -115,6 +116,7 @@ async def validation_client(request, httpd_instance, event_loop):
         f'http://{httpd_instance.address}:{httpd_instance.port}/balancer-manager',
         username='admin',
         password='password',
+        timeout=2,
         profile=profile,
         loop=event_loop
     )
