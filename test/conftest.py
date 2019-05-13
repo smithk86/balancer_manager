@@ -9,10 +9,7 @@ import docker
 import pytest
 from py_balancer_manager import Client, ValidationClient
 
-from helpers import wait_for_port
-
-
-ContainerInfo = namedtuple('ContainerInfo', ['address', 'port', 'container'])
+import docker_helpers
 
 
 def pytest_addoption(parser):
@@ -26,12 +23,11 @@ def httpd_version(request):
 
 
 @pytest.fixture(scope='session')
-def httpd_instance(request, httpd_version):
+def httpd_instance(httpd_version):
     _dir = os.path.dirname(os.path.abspath(__file__))
-    client = docker.from_env()
     tag = f'pytest_httpd:{httpd_version}'
 
-    client.images.build(
+    docker.from_env().images.build(
         path=f'{_dir}/httpd',
         dockerfile='Dockerfile-2.2' if httpd_version < version.parse('2.4') else 'Dockerfile',
         tag=tag,
@@ -39,34 +35,15 @@ def httpd_instance(request, httpd_version):
             'FROM': f'httpd:{httpd_version}'
         }
     )
-    container = client.containers.run(
-        tag,
-        detach=True,
-        auto_remove=True,
-        ports={'80/tcp': ('127.0.0.1', None)}
-    )
 
-    def teardown():
-        container.stop()
-    request.addfinalizer(teardown)
-
-    _ports = client.api.inspect_container(container.id)['NetworkSettings']['Ports']
-    ip_address = _ports['80/tcp'][0]['HostIp']
-    port = int(_ports['80/tcp'][0]['HostPort'])
-
-    if asyncio.run(wait_for_port(ip_address, port, timeout=5)) is False:
-        raise RuntimeException('httpd did not start within 5s')
-
-    return ContainerInfo(
-        address=ip_address,
-        port=port,
-        container=container
-    )
+    container_info = docker_helpers.run(tag, port=80)
+    yield container_info
+    container_info.container.stop()
 
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def client(request, httpd_instance, event_loop):
+async def client(httpd_instance, event_loop):
     client = Client(
         f'http://{httpd_instance.address}:{httpd_instance.port}/balancer-manager',
         username='admin',
@@ -75,14 +52,8 @@ async def client(request, httpd_instance, event_loop):
         loop=event_loop
     )
     await client.update()
-
-    def teardown():
-        async def ateardown():
-            await client.close()
-        event_loop.run_until_complete(ateardown())
-    request.addfinalizer(teardown)
-
-    return client
+    yield client
+    await client.close()
 
 
 @pytest.fixture
@@ -107,7 +78,7 @@ async def random_route(client):
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def validation_client(request, httpd_instance, event_loop):
+async def validation_client(httpd_instance, event_loop):
     _dir = os.path.dirname(os.path.abspath(__file__))
     with open(f'{_dir}/data/test_validation_profile.json') as fh:
         profile = json.load(fh)
@@ -121,14 +92,8 @@ async def validation_client(request, httpd_instance, event_loop):
         loop=event_loop
     )
     await client.update()
-
-    def teardown():
-        async def ateardown():
-            await client.close()
-        event_loop.run_until_complete(ateardown())
-    request.addfinalizer(teardown)
-
-    return client
+    yield client
+    await client.close()
 
 
 @pytest.fixture

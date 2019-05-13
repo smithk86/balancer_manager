@@ -39,7 +39,7 @@ async def test_validate_clusters_and_routes(validation_client):
                 status_name = field.name
                 if status_name in mutable_statuses:
                     assert type(route.status(status_name)) is ValidatedStatus
-                else:
+                elif route.status(status_name):
                     assert type(route.status(status_name)) is Status
 
 
