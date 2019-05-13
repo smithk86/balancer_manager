@@ -54,20 +54,20 @@ class Route(object):
         return allowed_statuses
 
     async def change_status(self, force=False, **status_value_kwargs):
-        mutable_statuses = self.mutable_statuses()
+        _mutable_statuses = self.mutable_statuses()
         new_route_statuses = dict()
 
         # confirm no immutable statuses are trying to be changed
         for key, val in status_value_kwargs.items():
-            if key not in mutable_statuses:
+            if key not in _mutable_statuses:
                 raise BalancerManagerError(f'{key} is not a valid status')
 
         # prepare new values to be sent to server
-        for key in mutable_statuses:
+        for key in _mutable_statuses:
             if key in status_value_kwargs:
                 new_route_statuses[key] = status_value_kwargs.pop(key)
             else:
-                new_route_statuses[key] = getattr(self._status, key).value
+                new_route_statuses[key] = self.status(key).value
 
         # except routes with errors from throwing the "last-route" error
         if force is True or self._status.error is True or self._status.disabled is True or self._status.draining_mode is True:
@@ -101,14 +101,14 @@ class Route(object):
                 'nonce': str(self.session_nonce_uuid)
             }
             for status_name in self.mutable_statuses():
-                http_form_code = getattr(self._status, status_name).http_form_code
+                http_form_code = self.status(status_name).http_form_code
                 post_data[f'w_status_{http_form_code}'] = int(new_route_statuses[status_name])
             async with self.cluster.client.http_request('post', data=post_data) as r:
                 self.cluster.client.do_update(await r.text())
 
         # validate new values against load balancer
         for status_name, expected_value in new_route_statuses.items():
-            current_value = getattr(self._status, status_name).value
+            current_value = self.status(status_name).value
             if expected_value is not current_value:
                 raise BalancerManagerError(f'status value for "{status_name}" is {current_value} (should be {expected_value})')
 
