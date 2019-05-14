@@ -330,9 +330,9 @@ class Client(object):
                 if route._status.ok.value and route._status.hot_standby.value is False:
                     cluster.standby_activated = False
                     break
-            # set "standby_activated" property depending on "standby_activated" status
+            # determine if the route is actively taking taffic
             for route in cluster.routes:
-                route.taking_traffic = (route._status.error.value is False and route._status.disabled.value is False and (route._status.draining_mode is None or route._status.draining_mode.value is not True) and route._status.hot_standby.value is True)
+                route.taking_traffic = (route._status.error.value is False and route._status.disabled.value is False and (route._status.draining_mode is None or route._status.draining_mode.value is False) and (route._status.hot_standby.value is False or cluster.standby_activated is True))
             # calculate the number of routes which are eligible to take traffic
             cluster.eligible_routes = 0
             for route in cluster.routes:

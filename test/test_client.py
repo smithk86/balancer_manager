@@ -174,6 +174,34 @@ async def test_purge_outdated_route(client, random_cluster):
 
 
 @pytest.mark.asyncio
+async def test_standby_activated(client):
+    cluster = await client.get_cluster('cluster3')
+
+    for route in cluster.get_routes():
+        await route.change_status(disabled=False)
+
+    assert cluster.standby_activated is False
+    await cluster.get_route('route30').change_status(disabled=True)
+    await cluster.get_route('route31').change_status(disabled=True)
+    assert cluster.standby_activated is True
+
+
+@pytest.mark.asyncio
+async def test_taking_traffic(client):
+    cluster = await client.get_cluster('cluster2')
+    assert cluster.get_route('route20').taking_traffic is True
+    assert cluster.get_route('route21').taking_traffic is True
+    assert cluster.get_route('route22').taking_traffic is False
+    assert cluster.get_route('route23').taking_traffic is False
+    await cluster.get_route('route20').change_status(disabled=True)
+    await cluster.get_route('route20').change_status(hot_standby=True)
+    assert cluster.get_route('route20').taking_traffic is False
+    assert cluster.get_route('route21').taking_traffic is True
+    assert cluster.get_route('route22').taking_traffic is False
+    assert cluster.get_route('route23').taking_traffic is False
+
+
+@pytest.mark.asyncio
 async def test_bad_url():
     async with Client('http://tG62vFWzyKNpvmpZA275zZMbQvbtuGJu.com/balancer-manager', timeout=5) as client:
         with pytest.raises(aiohttp.ClientConnectorError):
