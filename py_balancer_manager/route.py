@@ -60,7 +60,7 @@ class Route(object):
         # confirm no immutable statuses are trying to be changed
         for key, val in status_value_kwargs.items():
             if key not in _mutable_statuses:
-                raise BalancerManagerError(f'{key} is not a valid status')
+                raise BalancerManagerError(f'{key} is not a mutable status')
 
         # prepare new values to be sent to server
         for key in _mutable_statuses:

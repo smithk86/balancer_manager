@@ -193,8 +193,11 @@ async def test_taking_traffic(client):
     assert cluster.get_route('route21').taking_traffic is True
     assert cluster.get_route('route22').taking_traffic is False
     assert cluster.get_route('route23').taking_traffic is False
+
     await cluster.get_route('route20').change_status(disabled=True)
-    await cluster.get_route('route20').change_status(hot_standby=True)
+    if client.httpd_version >= version.parse('2.4'):
+        await cluster.get_route('route20').change_status(hot_standby=True)
+
     assert cluster.get_route('route20').taking_traffic is False
     assert cluster.get_route('route21').taking_traffic is True
     assert cluster.get_route('route22').taking_traffic is False
