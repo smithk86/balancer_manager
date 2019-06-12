@@ -44,6 +44,13 @@ async def test_validate_clusters_and_routes(validation_client):
 
 
 @pytest.mark.asyncio
+async def test_all_routes_are_profiled(validation_client):
+    validation_client.profile.pop('cluster0')
+    await validation_client.update()
+    assert validation_client.all_routes_are_profiled is False
+
+
+@pytest.mark.asyncio
 async def test_compliance_manually(validation_client, random_validated_routes):
     # run enforce to normalize load-balancer
     await validation_client.enforce()
