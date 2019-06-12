@@ -45,9 +45,12 @@ async def test_validate_clusters_and_routes(validation_client):
 
 @pytest.mark.asyncio
 async def test_all_routes_are_profiled(validation_client):
-    validation_client.profile.pop('cluster0')
+    validation_client.profile['cluster0'].pop('route00')
     await validation_client.update()
-    assert validation_client.all_routes_are_profiled is False
+    route00 = (await validation_client.get_cluster('cluster0')).get_route('route00')
+    assert route00.compliance_status is None
+    route01 = (await validation_client.get_cluster('cluster0')).get_route('route01')
+    assert route01.compliance_status is True
 
 
 @pytest.mark.asyncio

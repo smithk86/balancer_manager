@@ -44,6 +44,7 @@ class Route(object):
             'traffic_from_raw': self.traffic_from_raw,
             'session_nonce_uuid': self.session_nonce_uuid,
             'taking_traffic': self.taking_traffic,
+            'status': self._status
         }
 
     def mutable_statuses(self):

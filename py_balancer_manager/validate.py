@@ -95,22 +95,30 @@ class ValidationClient(Client):
             return
 
         for cluster in self.clusters:
-            cluster_profile = self.profile.get(cluster.name, {})
             for route in cluster.get_routes():
                 route._parse()
-                route.compliance_status = True
-                route_profile = cluster_profile.get(route.name)
+
+                # this route is not part of the profile
+                if route.profile is None:
+                    route.compliance_status = None
+                else:
+                    route.compliance_status = True
+
                 for status_name in route.mutable_statuses():
                     status = route.status(status_name)
                     status.profile = None
-                    status.compliance = True
+                    status.compliance = None
 
-                    if type(route_profile) is list:
-                        status.profile = status_name in route_profile
-                        if status.value is not status.profile:
-                            status.compliance = False
-                            route.compliance_status = False
-                            self.holistic_compliance_status = False
+                    if route.profile is None:
+                        continue
+
+                    status.profile = status_name in route.profile
+                    if status.value is status.profile:
+                        status.compliance = True
+                    else:
+                        status.compliance = False
+                        route.compliance_status = False
+                        self.holistic_compliance_status = False
 
             if not cluster.all_routes_are_profiled:
                 self.all_routes_are_profiled = False
