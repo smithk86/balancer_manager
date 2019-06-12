@@ -27,9 +27,16 @@ class ValidatedCluster(Cluster):
             return None
 
     @property
+    def compliance_status(self):
+        for route in self.get_routes():
+            if route.compliance_status is False:
+                return False
+        return True
+
+    @property
     def all_routes_are_profiled(self):
         for route in self.get_routes():
-            if self.profile is None:
+            if route.profile is None:
                 return False
         return True
 
@@ -68,16 +75,28 @@ class ValidatedRoute(Route):
 
 class ValidationClient(Client):
     def __init__(self, url, **kwargs):
-        self.all_routes_are_profiled = None
-        self.holistic_compliance_status = None
         self.profile = kwargs.pop('profile', None)
         super(ValidationClient, self).__init__(url, **kwargs)
+
+    @property
+    def compliance_status(self):
+        for cluster in self.clusters:
+            if cluster.compliance_status is False:
+                return False
+        return True
+
+    @property
+    def all_routes_are_profiled(self):
+        for cluster in self.clusters:
+            if cluster.all_routes_are_profiled is False:
+                return False
+        return True
 
     def asdict(self):
         d = super(ValidationClient, self).asdict()
         d.update({
             'all_routes_are_profiled': self.all_routes_are_profiled,
-            'holistic_compliance_status': self.holistic_compliance_status,
+            'compliance_status': self.compliance_status,
             'profile': self.profile
         })
         return d
@@ -88,8 +107,6 @@ class ValidationClient(Client):
         return cluster
 
     def _parse(self, bsoup):
-        self.all_routes_are_profiled = True
-        self.holistic_compliance_status = True
         super(ValidationClient, self)._parse(bsoup)
         if self.profile is None:
             return
@@ -118,15 +135,6 @@ class ValidationClient(Client):
                     else:
                         status.compliance = False
                         route.compliance_status = False
-                        self.holistic_compliance_status = False
-
-            if not cluster.all_routes_are_profiled:
-                self.all_routes_are_profiled = False
-
-    async def get_holistic_compliance_status(self):
-        if self.holistic_compliance_status is None:
-            await self.update()
-        return self.holistic_compliance_status
 
     async def enforce(self):
         tasks = []
