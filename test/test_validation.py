@@ -1,9 +1,10 @@
+import asyncio
 import dataclasses
 import pytest
 from py_balancer_manager import ValidationClient, ValidatedRoute, ValidatedCluster
 
 from py_balancer_manager.status import Status, ValidatedStatus
-from py_balancer_manager.errors import TaskExceptions
+from py_balancer_manager.errors import MultipleExceptions
 
 
 @pytest.mark.asyncio
@@ -17,6 +18,7 @@ async def test_routes(validation_client):
 async def test_validate_clusters_and_routes(validation_client):
     # run enforce to normalize load-balancer
     await validation_client.enforce()
+    await asyncio.sleep(1)
     assert validation_client.compliance_status is True
 
     assert validation_client.compliance_status is True
@@ -106,7 +108,8 @@ async def test_compliance_with_enforce(httpd_instance, validation_client, random
         await route.change_status(force=True, disabled=not route._status.disabled.value)
         assert route.compliance_status is False
 
-    with pytest.raises(TaskExceptions):
+    # test an enforce that throws exceptions
+    with pytest.raises(MultipleExceptions):
         try:
             httpd_instance.container.pause()
             await validation_client.enforce()

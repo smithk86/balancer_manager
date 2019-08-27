@@ -4,8 +4,7 @@ from collections import namedtuple
 
 from .client import Client
 from .cluster import Cluster
-from .errors import BalancerManagerError
-from .helpers import handle_task_exceptions
+from .errors import BalancerManagerError, MultipleExceptions
 from .route import Route
 from .status import ValidatedStatus
 
@@ -137,7 +136,8 @@ class ValidationClient(Client):
                         route.compliance_status = False
 
     async def enforce(self):
-        tasks = []
+        loop = asyncio.get_running_loop()
+        exceptions = []
         for route in await self.get_routes():
             if route.compliance_status is False:
                 logger.info(f'enforcing profile for {route.cluster.name}->{route.name}')
@@ -145,14 +145,12 @@ class ValidationClient(Client):
                 statuses = {}
                 for status_name in route.mutable_statuses():
                     statuses[status_name] = route.status(status_name).profile
-                tasks.append(
-                    self.loop.create_task(
-                        route.change_status(**statuses)
-                    )
-                )
-        if len(tasks) > 0:
-            await asyncio.wait(tasks)
-            handle_task_exceptions(tasks)
+                try:
+                    await route.change_status(**statuses)
+                except Exception as e:
+                    exceptions.append(e)
+        if len(exceptions) > 0:
+            raise MultipleExceptions(exceptions)
 
     async def set_profile(self, profile):
         # set new profile

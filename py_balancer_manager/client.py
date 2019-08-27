@@ -16,7 +16,7 @@ from .status import Statuses, Status
 
 
 class Client(object):
-    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30, loop=None):
+    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30):
         self.logger = logging.getLogger(__name__)
 
         if type(insecure) is not bool:
@@ -26,11 +26,11 @@ class Client(object):
             self.logger.warning('ssl certificate verification is disabled')
 
         self.url = url
-        self.timeout = timeout
-        self.loop = loop if loop else asyncio.get_running_loop()
         self.updated_datetime = None
-
         self.insecure = insecure
+        self.http_timeout = aiohttp.ClientTimeout(total=timeout)
+        self.http_auth = aiohttp.BasicAuth(username, password=password) if (username and password) else None
+
         self.httpd_version = None
         self.httpd_compile_datetime = None
         self.openssl_version = None
@@ -40,12 +40,10 @@ class Client(object):
         self.clusters = list()
         self.holistic_error_status = None
 
-        http_auth = aiohttp.BasicAuth(username, password=password) if (username and password) else None
-        http_timeout = aiohttp.ClientTimeout(total=timeout)
-        self.session = aiohttp.ClientSession(
-            loop=self.loop,
-            timeout=http_timeout,
-            auth=http_auth,
+    def session(self):
+        return aiohttp.ClientSession(
+            timeout=self.http_timeout,
+            auth=self.http_auth,
             headers={
                 'User-agent': 'py_balancer_manager.Client'
             },
@@ -54,12 +52,6 @@ class Client(object):
 
     def __repr__(self):
         return f'<py_balancer_manager.client.Client object: {self.url}>'
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exception_type, exception_value, traceback):
-        await self.close()
 
     def asdict(self):
         return {
@@ -74,16 +66,11 @@ class Client(object):
             'clusters': [c.asdict() for c in self.clusters] if self.clusters else None
         }
 
-    async def close(self):
-        await self.session.close()
-
-    def http_request(self, method, **kwargs):
-        return self.session.request(method, self.url, **kwargs)
-
     async def update(self, **kwargs):
         self.logger.info('updating routes')
-        async with self.http_request('get') as r:
-            self.do_update(await r.text())
+        async with self.session() as session:
+            async with session.get(self.url) as r:
+                self.do_update(await r.text())
 
     def do_update(self, text):
         # update timestamp

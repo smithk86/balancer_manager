@@ -1,7 +1,7 @@
 import sys
 
 
-__VERSION__ = '3.1.1a'
+__VERSION__ = '3.2.0'
 __MIN_PYTHON__ = (3, 7)
 
 
@@ -11,6 +11,6 @@ if sys.version_info < __MIN_PYTHON__:
 
 from .client import Client
 from .cluster import Cluster
-from .errors import BalancerManagerError, TaskExceptions
+from .errors import BalancerManagerError, MultipleExceptions
 from .route import Route
 from .validate import ValidationClient, ValidatedRoute, ValidatedCluster

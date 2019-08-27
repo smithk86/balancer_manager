@@ -40,7 +40,6 @@ async def test_route_update(client):
 async def test_properties(client):
     assert type(client.logger) is logging.Logger
     assert type(client.url) is str
-    assert type(client.timeout) is int
     assert type(client.updated_datetime) is datetime
     assert type(client.insecure) is bool
     assert type(client.httpd_version) is version.Version
@@ -48,7 +47,6 @@ async def test_properties(client):
     assert type(client.openssl_version) is version.LegacyVersion
     assert client.error is None
     assert type(client.clusters_ttl) is int
-    assert type(client.session) is aiohttp.ClientSession
     assert type(client.holistic_error_status) is bool
 
     for cluster in await client.get_clusters():
@@ -206,14 +204,14 @@ async def test_taking_traffic(client):
 
 @pytest.mark.asyncio
 async def test_bad_url():
-    async with Client('http://tG62vFWzyKNpvmpZA275zZMbQvbtuGJu.com/balancer-manager', timeout=5) as client:
-        with pytest.raises(aiohttp.ClientConnectorError):
-            await client.update()
+    client = Client('http://tG62vFWzyKNpvmpZA275zZMbQvbtuGJu.com/balancer-manager', timeout=5)
+    with pytest.raises(aiohttp.ClientConnectorError):
+        await client.update()
 
 
 @pytest.mark.asyncio
 async def test_bad_balancer_manager():
-    async with Client('https://www.google.com', timeout=5) as client:
-        with pytest.raises(BalancerManagerError) as excinfo:
-            await client.update()
-        assert 'could not parse text from the first "dt" element' in str(excinfo.value)
+    client = Client('https://www.google.com', timeout=5)
+    with pytest.raises(BalancerManagerError) as excinfo:
+        await client.update()
+    assert 'could not parse text from the first "dt" element' in str(excinfo.value)

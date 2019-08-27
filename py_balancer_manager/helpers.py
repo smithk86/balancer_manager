@@ -6,7 +6,7 @@ from packaging import version
 from pytz import utc
 from tzlocal import get_localzone
 from dateutil.parser import parse as date_parser
-from .errors import BalancerManagerError, TaskExceptions
+from .errors import BalancerManagerError
 
 
 VERSION_22 = version.parse('2.2')
@@ -39,12 +39,3 @@ def filter_objects(list_of_objects, prop_name, value, regex=False):
 def find_object(list_of_objects, prop_name, value, regex=False):
     objects = filter_objects(list_of_objects, prop_name, value, regex=regex)
     return objects[0] if len(objects) == 1 else None
-
-
-def handle_task_exceptions(tasks):
-    exceptions = list()
-    for task in tasks:
-        if task.exception() is not None:
-            exceptions.append(task.exception())
-    if len(exceptions) > 0:
-        raise TaskExceptions(exceptions)

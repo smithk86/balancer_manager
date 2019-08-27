@@ -2,11 +2,11 @@ class BalancerManagerError(Exception):
     pass
 
 
-class TaskExceptions(Exception):
-    def __init__(self, tasks):
-        self.tasks = tasks
-        super(TaskExceptions, self).__init__(self, f'exception(s) occured in a list of tasks (count={len(self.tasks)}')
+class MultipleExceptions(Exception):
+    def __init__(self, exceptions):
+        self.exceptions = exceptions
+        super(MultipleExceptions, self).__init__(self, f'exception count: {len(self.exceptions)}')
 
     def __iter__(self):
-        for task in self.tasks:
-            yield task
+        for e in self.exceptions:
+            yield e

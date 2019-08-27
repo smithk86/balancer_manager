@@ -80,17 +80,18 @@ class Route(object):
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
         if self.cluster.client.httpd_version < VERSION_24:
-            async with self.cluster.client.http_request('get', params={
-                'lf': '1',
-                'ls': '0',
-                'wr': self.name,
-                'rr': '',
-                'dw': 'Disable' if new_route_statuses['disabled'] else 'Enable',
-                'w': self.worker,
-                'b': self.cluster.name,
-                'nonce': str(self.session_nonce_uuid)
-            }) as r:
-                self.cluster.client.do_update(await r.text())
+            async with self.cluster.client.session() as session:
+                async with session.get(self.cluster.client.url, params={
+                    'lf': '1',
+                    'ls': '0',
+                    'wr': self.name,
+                    'rr': '',
+                    'dw': 'Disable' if new_route_statuses['disabled'] else 'Enable',
+                    'w': self.worker,
+                    'b': self.cluster.name,
+                    'nonce': str(self.session_nonce_uuid)
+                }) as r:
+                    self.cluster.client.do_update(await r.text())
         else:
             post_data = {
                 'w_lf': '1',
@@ -104,8 +105,9 @@ class Route(object):
             for status_name in self.mutable_statuses():
                 http_form_code = self.status(status_name).http_form_code
                 post_data[f'w_status_{http_form_code}'] = int(new_route_statuses[status_name])
-            async with self.cluster.client.http_request('post', data=post_data) as r:
-                self.cluster.client.do_update(await r.text())
+            async with self.cluster.client.session() as session:
+                async with session.post(self.cluster.client.url, data=post_data) as r:
+                    self.cluster.client.do_update(await r.text())
 
         # validate new values against load balancer
         for status_name, expected_value in new_route_statuses.items():

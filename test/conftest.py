@@ -43,17 +43,15 @@ def httpd_instance(httpd_version):
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def client(httpd_instance, event_loop):
+async def client(httpd_instance):
     client = Client(
         f'http://{httpd_instance.address}:{httpd_instance.port}/balancer-manager',
         username='admin',
         password='password',
-        timeout=2,
-        loop=event_loop
+        timeout=2
     )
     await client.update()
-    yield client
-    await client.close()
+    return client
 
 
 @pytest.fixture
@@ -78,7 +76,7 @@ async def random_route(client):
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def validation_client(httpd_instance, event_loop):
+async def validation_client(httpd_instance):
     _dir = os.path.dirname(os.path.abspath(__file__))
     with open(f'{_dir}/data/test_validation_profile.json') as fh:
         profile = json.load(fh)
@@ -88,12 +86,10 @@ async def validation_client(httpd_instance, event_loop):
         username='admin',
         password='password',
         timeout=2,
-        profile=profile,
-        loop=event_loop
+        profile=profile
     )
     await client.update()
-    yield client
-    await client.close()
+    return client
 
 
 @pytest.fixture
