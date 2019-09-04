@@ -265,9 +265,9 @@ class Client(object):
                     route.busy = int(cells[7].text)
                     route.load = int(cells[8].text)
                     route.traffic_to = cells[9].text
-                    route.traffic_to_raw = Client._decode_data_useage(cells[9].text)
+                    route.traffic_to_raw = Client._decode_data_usage(cells[9].text)
                     route.traffic_from = cells[10].text
-                    route.traffic_from_raw = Client._decode_data_useage(cells[10].text)
+                    route.traffic_from_raw = Client._decode_data_usage(cells[10].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
                     route._status = Statuses(
                         ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
@@ -290,9 +290,9 @@ class Client(object):
                     route.busy = None
                     route.load = None
                     route.traffic_to = cells[7].text
-                    route.traffic_to_raw = Client._decode_data_useage(cells[7].text)
+                    route.traffic_to_raw = Client._decode_data_usage(cells[7].text)
                     route.traffic_from = cells[8].text
-                    route.traffic_from_raw = Client._decode_data_useage(cells[8].text)
+                    route.traffic_from_raw = Client._decode_data_usage(cells[8].text)
                     route.session_nonce_uuid = UUID(session_nonce_uuid)
                     route._status = Statuses(
                         ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
@@ -348,7 +348,7 @@ class Client(object):
                     cluster.routes.remove(route)
 
     @staticmethod
-    def _decode_data_useage(value):
+    def _decode_data_usage(value):
         value = value.strip()
         try:
             # match string from manager page to number + kilo/mega/giga/tera-byte
