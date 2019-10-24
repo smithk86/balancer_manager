@@ -82,10 +82,10 @@ class Route(object):
         if self.cluster.client.httpd_version < VERSION_24:
             async with self.cluster.client.session() as session:
                 async with session.get(self.cluster.client.url, params={
-                    'lf': '1',
-                    'ls': '0',
+                    'lf': self.factor,
+                    'ls': self.set,
                     'wr': self.name,
-                    'rr': '',
+                    'rr': self.route_redir,
                     'dw': 'Disable' if new_route_statuses['disabled'] else 'Enable',
                     'w': self.worker,
                     'b': self.cluster.name,
@@ -94,10 +94,10 @@ class Route(object):
                     self.cluster.client.do_update(await r.text())
         else:
             post_data = {
-                'w_lf': '1',
-                'w_ls': '0',
+                'w_lf': self.factor,
+                'w_ls': self.set,
                 'w_wr': self.name,
-                'w_rr': '',
+                'w_rr': self.route_redir,
                 'w': self.worker,
                 'b': self.cluster.name,
                 'nonce': str(self.session_nonce_uuid)
