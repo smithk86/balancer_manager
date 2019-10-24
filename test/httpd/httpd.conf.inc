@@ -1,4 +1,15 @@
 # -------
+# add required modules
+# -------
+
+LoadModule ssl_module modules/mod_ssl.so
+LoadModule proxy_module modules/mod_proxy.so
+LoadModule proxy_http_module modules/mod_proxy_http.so
+LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
+LoadModule lbmethod_byrequests_module modules/mod_lbmethod_byrequests.so
+
+# -------
 # balancer configs for httpd.conf
 # -------
 

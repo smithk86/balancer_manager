@@ -11,7 +11,7 @@ from packaging import version
 
 from .cluster import Cluster
 from .errors import BalancerManagerError
-from .helpers import now, parse_from_local_timezone, find_object, VERSION_22, VERSION_24
+from .helpers import now, parse_from_local_timezone, find_object, VERSION_24
 from .status import Statuses, Status
 
 
@@ -153,6 +153,9 @@ class Client(object):
             else:
                 raise BalancerManagerError('the content of the first "dt" element did not contain the version of httpd')
 
+            if self.httpd_version < VERSION_24:
+                raise BalancerManagerError('apache httpd versions less than 2.4 are not supported')
+
             # set/update openssl version
             match = re.search(r'OpenSSL\/([0-9\.a-z]*)', _bs_dt[0].text)
             if match:
@@ -196,24 +199,17 @@ class Client(object):
                 if len(cells) == 0:
                     continue
 
-                if self.httpd_version >= VERSION_24:
-                    cluster.max_members, cluster.max_members_used = _parse_max_members(cells[0].text)
-                    # below is a workaround for a bug in the html formatting in httpd 2.4.20 in which the StickySession cell closing tag comes after DisableFailover
-                    # HTML = <td>JSESSIONID<td>Off</td></td>
-                    sticky_session_value = cells[1].find(text=True, recursive=False).strip()
-                    cluster.sticky_session = False if sticky_session_value == '(None)' else sticky_session_value
-                    cluster.disable_failover = 'On' in cells[2].text
-                    cluster.timeout = int(cells[3].text)
-                    cluster.failover_attempts = int(cells[4].text)
-                    cluster.method = cells[5].text
-                    cluster.path = cells[6].text
-                    cluster.active = 'Yes' in cells[7].text
-
-                elif self.httpd_version >= VERSION_22:
-                    cluster.sticky_session = False if cells[0].text == '(None)' else cells[0].text
-                    cluster.timeout = int(cells[1].text)
-                    cluster.failover_attempts = int(cells[2].text)
-                    cluster.method = cells[3].text
+                cluster.max_members, cluster.max_members_used = _parse_max_members(cells[0].text)
+                # below is a workaround for a bug in the html formatting in httpd 2.4.20 in which the StickySession cell closing tag comes after DisableFailover
+                # HTML = <td>JSESSIONID<td>Off</td></td>
+                sticky_session_value = cells[1].find(text=True, recursive=False).strip()
+                cluster.sticky_session = False if sticky_session_value == '(None)' else sticky_session_value
+                cluster.disable_failover = 'On' in cells[2].text
+                cluster.timeout = int(cells[3].text)
+                cluster.failover_attempts = int(cells[4].text)
+                cluster.method = cells[5].text
+                cluster.path = cells[6].text
+                cluster.active = 'Yes' in cells[7].text
 
             cluster.updated_datetime = now()
 
@@ -254,58 +250,30 @@ class Client(object):
                     route = cluster.new_route()
                     route.name = route_name
 
-                if self.httpd_version >= VERSION_24:
-                    route.worker = cells[0].find('a').text
-                    route.name = route_name
-                    route.priority = i
-                    route.route_redir = cells[2].text
-                    route.factor = float(cells[3].text)
-                    route.set = int(cells[4].text)
-                    route.elected = int(cells[6].text)
-                    route.busy = int(cells[7].text)
-                    route.load = int(cells[8].text)
-                    route.traffic_to = cells[9].text
-                    route.traffic_to_raw = Client._decode_data_usage(cells[9].text)
-                    route.traffic_from = cells[10].text
-                    route.traffic_from_raw = Client._decode_data_usage(cells[10].text)
-                    route.session_nonce_uuid = UUID(session_nonce_uuid)
-                    route._status = Statuses(
-                        ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
-                        error=Status(value='Err' in cells[5].text, immutable=True, http_form_code=None),
-                        ignore_errors=Status(value='Ign' in cells[5].text, immutable=False, http_form_code='I'),
-                        draining_mode=Status(value='Drn' in cells[5].text, immutable=False, http_form_code='N'),
-                        disabled=Status(value='Dis' in cells[5].text, immutable=False, http_form_code='D'),
-                        hot_standby=Status(value='Stby' in cells[5].text, immutable=False, http_form_code='H'),
-                        hot_spare=Status(value='Spar' in cells[5].text, immutable=False, http_form_code='R') if self.httpd_version >= version.parse('2.4.34') else None,
-                        stopped=Status(value='Stop' in cells[5].text, immutable=False, http_form_code='S') if self.httpd_version >= version.parse('2.4.23') else None
-                    )
-                elif self.httpd_version >= VERSION_22:
-                    route.worker = cells[0].find('a').text
-                    route.name = cells[1].text
-                    route.priority = i
-                    route.route_redir = cells[2].text
-                    route.factor = float(cells[3].text)
-                    route.set = int(cells[4].text)
-                    route.elected = int(cells[6].text)
-                    route.busy = None
-                    route.load = None
-                    route.traffic_to = cells[7].text
-                    route.traffic_to_raw = Client._decode_data_usage(cells[7].text)
-                    route.traffic_from = cells[8].text
-                    route.traffic_from_raw = Client._decode_data_usage(cells[8].text)
-                    route.session_nonce_uuid = UUID(session_nonce_uuid)
-                    route._status = Statuses(
-                        ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
-                        error=Status(value='Err' in cells[5].text, immutable=True, http_form_code=None),
-                        ignore_errors=None,
-                        draining_mode=None,
-                        disabled=Status(value='Dis' in cells[5].text, immutable=False, http_form_code=None),
-                        hot_standby=Status(value='Stby' in cells[5].text, immutable=True, http_form_code=None),
-                        hot_spare=None,
-                        stopped=None
-                    )
-                else:
-                    raise ValueError('this module only supports httpd 2.2 and 2.4')
+                route.worker = cells[0].find('a').text
+                route.name = route_name
+                route.priority = i
+                route.route_redir = cells[2].text
+                route.factor = float(cells[3].text)
+                route.set = int(cells[4].text)
+                route.elected = int(cells[6].text)
+                route.busy = int(cells[7].text)
+                route.load = int(cells[8].text)
+                route.traffic_to = cells[9].text
+                route.traffic_to_raw = Client._decode_data_usage(cells[9].text)
+                route.traffic_from = cells[10].text
+                route.traffic_from_raw = Client._decode_data_usage(cells[10].text)
+                route.session_nonce_uuid = UUID(session_nonce_uuid)
+                route._status = Statuses(
+                    ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),
+                    error=Status(value='Err' in cells[5].text, immutable=True, http_form_code=None),
+                    ignore_errors=Status(value='Ign' in cells[5].text, immutable=False, http_form_code='I'),
+                    draining_mode=Status(value='Drn' in cells[5].text, immutable=False, http_form_code='N'),
+                    disabled=Status(value='Dis' in cells[5].text, immutable=False, http_form_code='D'),
+                    hot_standby=Status(value='Stby' in cells[5].text, immutable=False, http_form_code='H'),
+                    hot_spare=Status(value='Spar' in cells[5].text, immutable=False, http_form_code='R') if self.httpd_version >= version.parse('2.4.34') else None,
+                    stopped=Status(value='Stop' in cells[5].text, immutable=False, http_form_code='S') if self.httpd_version >= version.parse('2.4.23') else None
+                )
 
                 route.updated_datetime = now()
 

@@ -9,7 +9,6 @@ from dateutil.parser import parse as date_parser
 from .errors import BalancerManagerError
 
 
-VERSION_22 = version.parse('2.2')
 VERSION_24 = version.parse('2.4')
 
 
