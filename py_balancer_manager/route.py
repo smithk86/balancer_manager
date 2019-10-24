@@ -80,17 +80,18 @@ class Route(object):
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
         if self.cluster.client.httpd_version < VERSION_24:
+            param_data = {
+                'lf': self.factor,
+                'ls': self.set,
+                'wr': self.name,
+                'rr': self.route_redir,
+                'dw': 'Disable' if new_route_statuses['disabled'] else 'Enable',
+                'w': self.worker,
+                'b': self.cluster.name,
+                'nonce': str(self.session_nonce_uuid)
+            }
             async with self.cluster.client.session() as session:
-                async with session.get(self.cluster.client.url, params={
-                    'lf': self.factor,
-                    'ls': self.set,
-                    'wr': self.name,
-                    'rr': self.route_redir,
-                    'dw': 'Disable' if new_route_statuses['disabled'] else 'Enable',
-                    'w': self.worker,
-                    'b': self.cluster.name,
-                    'nonce': str(self.session_nonce_uuid)
-                }) as r:
+                async with session.get(self.cluster.client.url, params=param_data) as r:
                     self.cluster.client.do_update(await r.text())
         else:
             post_data = {
