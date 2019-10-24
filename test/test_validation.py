@@ -76,12 +76,12 @@ async def test_compliance_manually(validation_client, random_validated_routes):
         assert route._status.disabled.value is status_disabled
         assert route.compliance_status is True
         assert validation_client.compliance_status is True
-        await route.change_status(force=True, disabled=not status_disabled)
+        await route.edit(force=True, disabled=not status_disabled)
 
         assert route._status.disabled.value is not status_disabled
         assert route.compliance_status is False
         assert validation_client.compliance_status is False
-        await route.change_status(force=True, disabled=status_disabled)
+        await route.edit(force=True, disabled=status_disabled)
 
         assert route._status.disabled.value is status_disabled
         assert route.compliance_status is True
@@ -96,7 +96,7 @@ async def test_compliance_with_enforce(httpd_instance, validation_client, random
 
     for route in random_validated_routes:
         assert route.compliance_status is True
-        await route.change_status(force=True, disabled=not route._status.disabled.value)
+        await route.edit(force=True, disabled=not route._status.disabled.value)
         assert route.compliance_status is False
 
     assert validation_client.compliance_status is False
@@ -105,7 +105,7 @@ async def test_compliance_with_enforce(httpd_instance, validation_client, random
 
     for route in random_validated_routes:
         assert route.compliance_status is True
-        await route.change_status(force=True, disabled=not route._status.disabled.value)
+        await route.edit(force=True, disabled=not route._status.disabled.value)
         assert route.compliance_status is False
 
     # test an enforce that throws exceptions

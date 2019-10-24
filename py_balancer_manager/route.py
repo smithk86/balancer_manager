@@ -12,7 +12,7 @@ class Route(object):
         self.priority = None
         self.route_redir = None
         self.factor = None
-        self.set = None
+        self.lbset = None
         self.elected = None
         self.busy = None
         self.load = None
@@ -35,7 +35,7 @@ class Route(object):
             'priority': self.priority,
             'route_redir': self.route_redir,
             'factor': self.factor,
-            'set': self.set,
+            'set': self.lbset,
             'elected': self.elected,
             'traffic_to': self.traffic_to,
             'traffic_to_raw': self.traffic_to_raw,
@@ -53,7 +53,7 @@ class Route(object):
                 allowed_statuses.append(k)
         return allowed_statuses
 
-    async def change_status(self, force=False, **status_value_kwargs):
+    async def edit(self, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):
         _mutable_statuses = self.mutable_statuses()
         new_route_statuses = dict()
 
@@ -79,10 +79,10 @@ class Route(object):
                 raise BalancerManagerError('cannot enable the "draining mode" status for the last available route (cluster: {cluster_name}, route: {route_name})'.format(cluster_name=self.cluster.name, route_name=self.name))
 
         post_data = {
-            'w_lf': self.factor,
-            'w_ls': self.set,
+            'w_lf': factor if factor else self.factor,
+            'w_ls': lbset if lbset else self.lbset,
             'w_wr': self.name,
-            'w_rr': self.route_redir,
+            'w_rr': route_redir if route_redir else self.route_redir,
             'w': self.worker,
             'b': self.cluster.name,
             'nonce': str(self.session_nonce_uuid)

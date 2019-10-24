@@ -146,7 +146,7 @@ class ValidationClient(Client):
                 for status_name in route.mutable_statuses():
                     statuses[status_name] = route.status(status_name).profile
                 try:
-                    await route.change_status(**statuses)
+                    await route.edit(**statuses)
                 except Exception as e:
                     exceptions.append(e)
         if len(exceptions) > 0:

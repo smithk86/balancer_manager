@@ -69,7 +69,7 @@ async def manage():
             except ValueError:
                 raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
 
-            await route.change_status(args.cluster, args.route, **_kwargs)
+            await route.edit(args.cluster, args.route, **_kwargs)
 
         if args.cluster:
             routes = (await client.get_cluster(args.cluster)).get_routes()

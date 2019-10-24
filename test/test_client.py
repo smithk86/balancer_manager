@@ -68,7 +68,7 @@ async def test_properties(client):
             assert type(route.priority) is int
             assert type(route.route_redir) is str
             assert type(route.factor) is float
-            assert type(route.set) is int
+            assert type(route.lbset) is int
             assert type(route.elected) is int
             assert route.busy is None or type(route.busy) is int
             assert route.load is None or type(route.load) is int
@@ -93,13 +93,13 @@ async def test_route_status_changes(client, random_route):
         kwargs = {status_name: not status_value}
 
         # continue with route testing
-        await random_route.change_status(**kwargs)
+        await random_route.edit(**kwargs)
 
         # assert new status value
         assert random_route.status(status_name).value is not status_value
 
         # toggle status back to original value
-        await random_route.change_status(**{
+        await random_route.edit(**{
             'force': True,
             status_name: status_value
         })
@@ -113,18 +113,18 @@ async def test_route_disable_last(random_cluster):
     try:
         with pytest.raises(BalancerManagerError) as excinfo:
             for route in random_cluster.get_routes():
-                await route.change_status(disabled=True)
+                await route.edit(disabled=True)
         assert 'cannot enable the "disabled" status for the last available route' in str(excinfo.value)
     finally:
         for route in random_cluster.get_routes():
-            await route.change_status(disabled=False)
+            await route.edit(disabled=False)
 
     try:
         for route in random_cluster.get_routes():
-            await route.change_status(force=True, disabled=True)
+            await route.edit(force=True, disabled=True)
     finally:
         for route in random_cluster.get_routes():
-            await route.change_status(disabled=False)
+            await route.edit(disabled=False)
 
 
 @pytest.mark.asyncio
@@ -176,11 +176,11 @@ async def test_standby_activated(client):
     cluster = await client.get_cluster('cluster3')
 
     for route in cluster.get_routes():
-        await route.change_status(disabled=False)
+        await route.edit(disabled=False)
 
     assert cluster.standby_activated is False
-    await cluster.get_route('route30').change_status(disabled=True)
-    await cluster.get_route('route31').change_status(disabled=True)
+    await cluster.get_route('route30').edit(disabled=True)
+    await cluster.get_route('route31').edit(disabled=True)
     assert cluster.standby_activated is True
 
 
@@ -192,9 +192,9 @@ async def test_taking_traffic(client):
     assert cluster.get_route('route22').taking_traffic is False
     assert cluster.get_route('route23').taking_traffic is False
 
-    await cluster.get_route('route20').change_status(disabled=True)
+    await cluster.get_route('route20').edit(disabled=True)
     if client.httpd_version >= version.parse('2.4'):
-        await cluster.get_route('route20').change_status(hot_standby=True)
+        await cluster.get_route('route20').edit(hot_standby=True)
 
     assert cluster.get_route('route20').taking_traffic is False
     assert cluster.get_route('route21').taking_traffic is True

@@ -255,7 +255,7 @@ class Client(object):
                 route.priority = i
                 route.route_redir = cells[2].text
                 route.factor = float(cells[3].text)
-                route.set = int(cells[4].text)
+                route.lbset = int(cells[4].text)
                 route.elected = int(cells[6].text)
                 route.busy = int(cells[7].text)
                 route.load = int(cells[8].text)
