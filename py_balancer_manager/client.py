@@ -5,7 +5,7 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from uuid import UUID
 
-import aiohttp
+import httpx
 from bs4 import BeautifulSoup
 from packaging import version
 
@@ -28,8 +28,9 @@ class Client(object):
         self.url = url
         self.updated_datetime = None
         self.insecure = insecure
-        self.http_timeout = aiohttp.ClientTimeout(total=timeout)
-        self.http_auth = aiohttp.BasicAuth(username, password=password) if (username and password) else None
+        self.timeout = timeout
+        self.user_agent = 'py-balancer-manager.Client'
+        self.http_auth = httpx.BasicAuth(username, password=password) if (username and password) else None
 
         self.httpd_version = None
         self.httpd_compile_datetime = None
@@ -40,18 +41,8 @@ class Client(object):
         self.clusters = list()
         self.holistic_error_status = None
 
-    def session(self):
-        return aiohttp.ClientSession(
-            timeout=self.http_timeout,
-            auth=self.http_auth,
-            headers={
-                'User-agent': 'py_balancer_manager.Client'
-            },
-            raise_for_status=True
-        )
-
     def __repr__(self):
-        return f'<py_balancer_manager.client.Client object: {self.url}>'
+        return f'<py_balancer_manager.Client object: {self.url}>'
 
     def asdict(self):
         return {
@@ -66,11 +57,20 @@ class Client(object):
             'clusters': [c.asdict() for c in self.clusters] if self.clusters else None
         }
 
+    def _http_client(self):
+        return httpx.AsyncClient(
+            auth=self.http_auth,
+            timeout=self.timeout,
+            headers={
+                'User-Agent': self.user_agent
+            }
+        )
+
     async def update(self, **kwargs):
         self.logger.info('updating routes')
-        async with self.session() as session:
-            async with session.get(self.url) as r:
-                self.do_update(await r.text())
+        async with self._http_client() as client:
+            r = await client.get(self.url)
+            self.do_update(r.text)
 
     def do_update(self, text):
         # update timestamp

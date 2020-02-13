@@ -29,14 +29,14 @@ def httpd_instance(httpd_version):
 
     docker.from_env().images.build(
         path=f'{_dir}/httpd',
-        dockerfile='Dockerfile-2.2' if httpd_version < version.parse('2.4') else 'Dockerfile',
+        dockerfile='Dockerfile',
         tag=tag,
         buildargs={
             'FROM': f'httpd:{httpd_version}'
         }
     )
 
-    container_info = docker_helpers.run(tag, port=80)
+    container_info = docker_helpers.run(tag, ports=['80/tcp'])
     yield container_info
     container_info.container.stop()
 
@@ -45,7 +45,7 @@ def httpd_instance(httpd_version):
 @pytest.mark.asyncio
 async def client(httpd_instance):
     client = Client(
-        f'http://{httpd_instance.address}:{httpd_instance.port}/balancer-manager',
+        f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager",
         username='admin',
         password='password',
         timeout=2
@@ -82,7 +82,7 @@ async def validation_client(httpd_instance):
         profile = json.load(fh)
 
     client = ValidationClient(
-        f'http://{httpd_instance.address}:{httpd_instance.port}/balancer-manager',
+        f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager",
         username='admin',
         password='password',
         timeout=2,

@@ -90,9 +90,9 @@ class Route(object):
         for status_name in self.mutable_statuses():
             http_form_code = self.status(status_name).http_form_code
             post_data[f'w_status_{http_form_code}'] = int(new_route_statuses[status_name])
-        async with self.cluster.client.session() as session:
-            async with session.post(self.cluster.client.url, data=post_data) as r:
-                self.cluster.client.do_update(await r.text())
+        async with self.cluster.client._http_client() as client:
+            r = await client.post(self.cluster.client.url, data=post_data)
+            self.cluster.client.do_update(r.text)
 
         # validate new values against load balancer
         for status_name, expected_value in new_route_statuses.items():

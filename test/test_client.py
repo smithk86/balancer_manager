@@ -4,7 +4,7 @@ import logging
 from uuid import UUID
 from datetime import datetime
 
-import aiohttp
+import httpx
 from packaging import version
 from pytz import utc
 from tzlocal import get_localzone
@@ -44,7 +44,7 @@ async def test_properties(client):
     assert type(client.insecure) is bool
     assert type(client.httpd_version) is version.Version
     assert type(client.httpd_compile_datetime) is datetime
-    assert type(client.openssl_version) is version.LegacyVersion
+    assert type(client.openssl_version) is version.Version
     assert client.error is None
     assert type(client.clusters_ttl) is int
     assert type(client.holistic_error_status) is bool
@@ -205,8 +205,9 @@ async def test_taking_traffic(client):
 @pytest.mark.asyncio
 async def test_bad_url():
     client = Client('http://tG62vFWzyKNpvmpZA275zZMbQvbtuGJu.com/balancer-manager', timeout=5)
-    with pytest.raises(aiohttp.ClientConnectorError):
+    with pytest.raises(httpx.exceptions.NetworkError) as excinfo:
         await client.update()
+    assert 'Name or service not known' in str(excinfo.value)
 
 
 @pytest.mark.asyncio

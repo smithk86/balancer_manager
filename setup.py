@@ -31,8 +31,8 @@ setup(
         'py_balancer_manager.cli',
     ],
     install_requires=[
-        'aiohttp',
         'beautifulsoup4',
+        'httpx==0.11.1',
         'packaging',
         'pytz',
         'python-dateutil',
