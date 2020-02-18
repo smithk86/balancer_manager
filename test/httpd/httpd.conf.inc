@@ -31,7 +31,7 @@ LoadModule lbmethod_byrequests_module modules/mod_lbmethod_byrequests.so
 </Proxy>
 
 <Proxy balancer://cluster3>
-    BalancerMember http://route30/ route=route30
+    BalancerMember http://route30/ route=route30 
     BalancerMember http://route31/ route=route31
     BalancerMember http://route32/ route=route32 status=+HD
     BalancerMember http://route33/ route=route33 status=+HD
@@ -41,6 +41,19 @@ LoadModule lbmethod_byrequests_module modules/mod_lbmethod_byrequests.so
     BalancerMember http://route37/ route=route37 status=+HD
     BalancerMember http://route38/ route=route38 status=+HD
     BalancerMember http://route39/ route=route39 status=+HD
+</Proxy>
+
+<Proxy balancer://cluster4>
+    BalancerMember http://route40/ route=route40 lbset=0
+    BalancerMember http://route41/ route=route41 lbset=0 status=+H
+    BalancerMember http://route42/ route=route42 lbset=0 status=+H
+    BalancerMember http://route43/ route=route43 lbset=0 status=+H
+    BalancerMember http://route44/ route=route44 lbset=0 status=+H
+    BalancerMember http://route45/ route=route45 lbset=1
+    BalancerMember http://route46/ route=route46 lbset=1 status=+H
+    BalancerMember http://route47/ route=route47 lbset=1 status=+H
+    BalancerMember http://route48/ route=route48 lbset=1 status=+H
+    BalancerMember http://route49/ route=route49 lbset=1 status=+H
 </Proxy>
 
 <Location /balancer-manager>

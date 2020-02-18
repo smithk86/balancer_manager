@@ -56,3 +56,8 @@ class Cluster(object):
             return route
         else:
             raise BalancerManagerError(f'could not locate route name in list of routes: {name}')
+
+    async def edit_lbset(self, lbset_number, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):
+        for route in self.routes:
+            if route.lbset == lbset_number:
+                await route.edit(force=force, factor=factor, route_redir=route_redir, **status_value_kwargs)

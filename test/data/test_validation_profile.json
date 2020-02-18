@@ -28,5 +28,33 @@
         "route37": [],
         "route38": [],
         "route39": []
+    },
+    "cluster4": {
+        "route40": [],
+        "route41": [
+            "standby"
+        ],
+        "route42": [
+            "standby"
+        ],
+        "route43": [
+            "standby"
+        ],
+        "route44": [
+            "standby"
+        ],
+        "route45": [],
+        "route46": [
+            "standby"
+        ],
+        "route47": [
+            "standby"
+        ],
+        "route48": [
+            "standby"
+        ],
+        "route49": [
+            "standby"
+        ]
     }
 }
