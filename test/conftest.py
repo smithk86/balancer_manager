@@ -50,14 +50,18 @@ async def client(httpd_instance):
         password='password',
         timeout=2
     )
-    await client.update()
     return client
 
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def random_cluster(client):
-    clusters = await client.get_clusters()
+async def balancer_data(client):
+    return await client.data()
+
+
+@pytest.fixture
+def random_cluster(balancer_data):
+    clusters = balancer_data.clusters
     if len(clusters) > 0:
         random_index = random.randrange(0, len(clusters) - 1) if len(clusters) > 1 else 0
         return clusters[random_index]
@@ -65,9 +69,8 @@ async def random_cluster(client):
 
 
 @pytest.fixture
-@pytest.mark.asyncio
-async def random_route(client):
-    routes = await client.get_routes()
+def random_route(random_cluster):
+    routes = random_cluster.routes
     if len(routes) > 0:
         random_index = random.randrange(0, len(routes) - 1) if len(routes) > 1 else 0
         return routes[random_index]
@@ -88,7 +91,6 @@ async def validation_client(httpd_instance):
         timeout=2,
         profile=profile
     )
-    await client.update()
     return client
 
 

@@ -4,10 +4,10 @@ from .errors import BalancerManagerError
 
 
 class Route(object):
-    def __init__(self, cluster):
-        self.cluster = cluster
-        self.updated_datetime = None
-        self.name = None
+    def __init__(self, balancer_data, cluster_name, name):
+        self.balancer_data = balancer_data
+        self.cluster_name = cluster_name
+        self.name = name
         self.worker = None
         self.priority = None
         self.route_redir = None
@@ -25,11 +25,14 @@ class Route(object):
         self._status = None
 
     def __repr__(self):
-        return f'<py_balancer_manager.route.Route object: {self.cluster.name} -> {self.name}>'
+        return f'<py_balancer_manager.Route object: {self.cluster.name} -> {self.name}>'
+
+    @property
+    def cluster(self):
+        return self.balancer_data.cluster(self.cluster_name)
 
     def asdict(self):
         return {
-            'updated_datetime': self.updated_datetime,
             'name': self.name,
             'worker': self.worker,
             'priority': self.priority,
@@ -52,6 +55,9 @@ class Route(object):
             if v and v['immutable'] is False:
                 allowed_statuses.append(k)
         return allowed_statuses
+
+    def status(self, name):
+        return getattr(self._status, name)
 
     async def edit(self, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):
         _mutable_statuses = self.mutable_statuses()
@@ -87,18 +93,20 @@ class Route(object):
             'b': self.cluster.name,
             'nonce': str(self.session_nonce_uuid)
         }
+
         for status_name in self.mutable_statuses():
             http_form_code = self.status(status_name).http_form_code
             post_data[f'w_status_{http_form_code}'] = int(new_route_statuses[status_name])
-        async with self.cluster.client._http_client() as client:
-            r = await client.post(self.cluster.client.url, data=post_data)
-            self.cluster.client.do_update(r.text)
+
+        self.balancer_data.client.logger.debug(f'post payload: {post_data}')
+
+        async with self.balancer_data.client._http_client() as client:
+            r = await client.post(self.balancer_data.client.url, data=post_data)
+
+        await self.balancer_data.update(response_payload=r.text)
 
         # validate new values against load balancer
         for status_name, expected_value in new_route_statuses.items():
             current_value = self.status(status_name).value
             if expected_value is not current_value:
                 raise BalancerManagerError(f'status value for "{status_name}" is {current_value} (should be {expected_value})')
-
-    def status(self, name):
-        return getattr(self._status, name)

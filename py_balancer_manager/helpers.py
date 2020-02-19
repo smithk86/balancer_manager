@@ -37,4 +37,7 @@ def filter_objects(list_of_objects, prop_name, value, regex=False):
 
 def find_object(list_of_objects, prop_name, value, regex=False):
     objects = filter_objects(list_of_objects, prop_name, value, regex=regex)
-    return objects[0] if len(objects) == 1 else None
+    if len(objects) == 1:
+        return objects[0]
+    else:
+        raise ValueError('len(objects) must be 1')

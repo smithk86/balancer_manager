@@ -12,10 +12,58 @@ from packaging import version
 from .cluster import Cluster
 from .errors import BalancerManagerError
 from .helpers import now, parse_from_local_timezone, find_object, VERSION_24
+from .route import Route
 from .status import Statuses, Status
 
 
+class BalancerData(object):
+    def __init__(self, client):
+        self.client = client
+        self.updated_datetime = None
+        self.httpd_version = None
+        self.httpd_compile_datetime = None
+        self.openssl_version = None
+        self.clusters = list()
+
+    @property
+    def holistic_error_status(self):
+        for cluster in self.clusters:
+            # if self.holistic_error_status is True:
+            #     return False
+            for route in cluster.routes:
+                if route._status.error.value is True:
+                    return True
+            return False
+
+    def new_cluster(self, name):
+        cluster = Cluster(self, name)
+        self.clusters.append(cluster)
+        return cluster
+
+    def cluster(self, name):
+        try:
+            return find_object(self.clusters, 'name', name)
+        except ValueError:
+            raise BalancerManagerError(f'could not locate cluster name in list of clusters: {name}')
+
+    async def update(self, response_payload=None):
+        if response_payload is None:
+            await self.client.data(data=self)
+        else:
+            self.client._parse(response_payload, data=self)
+
+
 class Client(object):
+    # compile patterns
+    httpd_server_version_pattern = re.compile(r'^Server\ Version:\ Apache/([\.0-9]*)')
+    httpd_server_build_date_pattern = re.compile(r'Server Built:\ (.*)')
+    openssl_version_pattern = re.compile(r'OpenSSL\/([0-9\.a-z]*)')
+    session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
+    cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
+    balancer_uri_pattern = re.compile('balancer://(.*)')
+    route_used_pattern = re.compile(r'^(\d*) \[(\d*) Used\]$')
+    route_data_used_pattern = re.compile(r'([0-9\d\.]*)([KMGT]?)')
+
     def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30):
         self.logger = logging.getLogger(__name__)
 
@@ -26,20 +74,10 @@ class Client(object):
             self.logger.warning('ssl certificate verification is disabled')
 
         self.url = url
-        self.updated_datetime = None
         self.insecure = insecure
         self.timeout = timeout
         self.user_agent = 'py-balancer-manager.Client'
         self.http_auth = httpx.BasicAuth(username, password=password) if (username and password) else None
-
-        self.httpd_version = None
-        self.httpd_compile_datetime = None
-        self.openssl_version = None
-        self.error = None
-
-        self.clusters_ttl = cache_ttl
-        self.clusters = list()
-        self.holistic_error_status = None
 
     def __repr__(self):
         return f'<py_balancer_manager.Client object: {self.url}>'
@@ -52,7 +90,6 @@ class Client(object):
             'httpd_version': self.httpd_version,
             'httpd_compile_datetime': self.httpd_compile_datetime,
             'openssl_version': self.openssl_version,
-            'error': str(self.error) if self.error else None,
             'holistic_error_status': self.holistic_error_status,
             'clusters': [c.asdict() for c in self.clusters] if self.clusters else None
         }
@@ -66,51 +103,16 @@ class Client(object):
             }
         )
 
-    async def update(self, **kwargs):
-        self.logger.info('updating routes')
+    async def data(self, data=None):
         async with self._http_client() as client:
             r = await client.get(self.url)
-            self.do_update(r.text)
-
-    def do_update(self, text):
-        # update timestamp
-        self.updated_datetime = now()
-        # process text with beautiful soup
-        bsoup = BeautifulSoup(text, 'html.parser')
+            response_payload = r.text
         # update routes
-        self._parse(bsoup)
-        # purge defunct clusters/routes
-        self._purge_outdated()
+        return Client._parse(self, response_payload, data=data)
 
-    def new_cluster(self):
-        cluster = Cluster(self)
-        self.clusters.append(cluster)
-        return cluster
-
-    async def get_clusters(self, refresh=False):
-        # if there are no clusters or refresh=True or cluster ttl is reached
-        if self.updated_datetime is None or self.clusters is None or refresh is True or \
-                (self.updated_datetime < (now() - timedelta(seconds=self.clusters_ttl))):
-            await self.update()
-        return self.clusters
-
-    async def get_cluster(self, name, refresh=False):
-        # find the cluster object for this route
-        cluster = find_object(await self.get_clusters(refresh=refresh), 'name', name)
-        if cluster:
-            return cluster
-        else:
-            raise BalancerManagerError(f'could not locate cluster name in list of clusters: {name}')
-
-    async def get_routes(self, refresh=False):
-        routes = []
-        for cluster in await self.get_clusters(refresh=refresh):
-            routes += cluster.get_routes()
-        return routes
-
-    def _parse(self, bsoup):
+    def _parse(self, response_payload, data=None):
         def _parse_max_members(value):
-            m = re.match(r'^(\d*) \[(\d*) Used\]$', value)
+            m = Client.route_used_pattern.match(value)
             if m:
                 return(
                     int(m.group(1)),
@@ -118,22 +120,14 @@ class Client(object):
                 )
             raise ValueError('MaxMembers value from httpd could not be parsed')
 
-        def _get_cluster(name):
-            try:
-                return find_object(self.clusters, 'name', name)
-            except ResultsError:
-                return None
+        # parse payload with beautiful soup
+        bsoup = BeautifulSoup(response_payload, 'html.parser')
 
-        def _get_route(cluster, name):
-            try:
-                return find_object(cluster.routes, 'name', name)
-            except ResultsError:
-                return None
+        # init the data container
+        if data is None:
+            data = BalancerData(self)
 
-        # compile patterns
-        session_nonce_uuid_pattern = re.compile(r'.*&nonce=([-a-f0-9]{36}).*')
-        cluster_name_pattern = re.compile(r'.*\?b=(.*?)&.*')
-        balancer_uri_pattern = re.compile('balancer://(.*)')
+        data.updated_datetime = now()
 
         # remove form from page -- this contains extra tables which do not contain clusters or routes
         for form in bsoup.find_all('form'):
@@ -147,27 +141,27 @@ class Client(object):
 
         if len(_bs_dt) >= 1:
             # set/update httpd version
-            match = re.match(r'^Server\ Version:\ Apache/([\.0-9]*)', _bs_dt[0].text)
+            match = Client.httpd_server_version_pattern.match(_bs_dt[0].text)
             if match:
-                self.httpd_version = version.parse(match.group(1))
+                data.httpd_version = version.parse(match.group(1))
             else:
                 raise BalancerManagerError('the content of the first "dt" element did not contain the version of httpd')
 
-            if self.httpd_version < VERSION_24:
+            if data.httpd_version < VERSION_24:
                 raise BalancerManagerError('apache httpd versions less than 2.4 are not supported')
 
             # set/update openssl version
-            match = re.search(r'OpenSSL\/([0-9\.a-z]*)', _bs_dt[0].text)
+            match = Client.openssl_version_pattern.search(_bs_dt[0].text)
             if match:
-                self.openssl_version = version.parse(match.group(1))
+                data.openssl_version = version.parse(match.group(1))
         else:
             raise BalancerManagerError('could not parse text from the first "dt" element')
 
         if len(_bs_dt) >= 2:
             # set/update httpd compile datetime
-            match = re.match(r'Server Built:\ (.*)', _bs_dt[1].text)
+            match = Client.httpd_server_build_date_pattern.match(_bs_dt[1].text)
             if match:
-                self.httpd_compile_datetime = parse_from_local_timezone(match.group(1))
+                data.httpd_compile_datetime = parse_from_local_timezone(match.group(1))
 
         # only iterate through odd tables which contain cluster data
         for table in _bs_table_clusters:
@@ -179,19 +173,16 @@ class Client(object):
 
             header_text = header.a.text if header.a else header.text
 
-            m = balancer_uri_pattern.search(header_text)
+            m = Client.balancer_uri_pattern.search(header_text)
             if m:
                 cluster_name = m.group(1)
             else:
                 raise ValueError('cluster name could not be parsed from <h3> tag')
 
-            # attempt to get cluster from list
-            cluster = _get_cluster(cluster_name)
-
-            # if cluster does not exist, create a new Cluster object for it
-            if cluster is None:
-                cluster = self.new_cluster()
-                cluster.name = cluster_name
+            try:
+                cluster = data.cluster(cluster_name)
+            except BalancerManagerError:
+                cluster = data.new_cluster(cluster_name)
 
             for row in table.find_all('tr'):
                 cells = row.find_all('td')
@@ -211,8 +202,6 @@ class Client(object):
                 cluster.path = cells[6].text
                 cluster.active = 'Yes' in cells[7].text
 
-            cluster.updated_datetime = now()
-
         # only iterate through even tables which contain route data
         for table in _bs_table_routes:
             for i, row in enumerate(table.find_all('tr')):
@@ -226,32 +215,24 @@ class Client(object):
                 session_nonce_uuid = None
 
                 if worker_url:
-                    session_nonce_uuid_match = session_nonce_uuid_pattern.search(worker_url)
+                    session_nonce_uuid_match = Client.session_nonce_uuid_pattern.search(worker_url)
                     if session_nonce_uuid_match:
                         session_nonce_uuid = session_nonce_uuid_match.group(1)
 
-                cluster_name_match = cluster_name_pattern.search(worker_url)
+                cluster_name_match = Client.cluster_name_pattern.search(worker_url)
 
                 if not cluster_name_match:
                     raise BalancerManagerError("could not determine route's cluster")
 
                 cluster_name = cluster_name_match.group(1)
+                cluster = data.cluster(cluster_name)
 
-                # find the cluster object for this route
-                cluster = _get_cluster(cluster_name)
-
-                if cluster is None:
-                    raise BalancerManagerError('could not locate cluster name in list of clusters: {name}'.format(name=cluster_name_match.group(1)))
-
-                route = _get_route(cluster, route_name)
-
-                # if cluster does not exist, create a new Cluster object for it
-                if route is None:
-                    route = cluster.new_route()
-                    route.name = route_name
+                try:
+                    route = cluster.route(route_name)
+                except BalancerManagerError:
+                    route = cluster.new_route(route_name)
 
                 route.worker = cells[0].find('a').text
-                route.name = route_name
                 route.priority = i
                 route.route_redir = cells[2].text
                 route.factor = float(cells[3].text)
@@ -271,14 +252,12 @@ class Client(object):
                     draining_mode=Status(value='Drn' in cells[5].text, immutable=False, http_form_code='N'),
                     disabled=Status(value='Dis' in cells[5].text, immutable=False, http_form_code='D'),
                     hot_standby=Status(value='Stby' in cells[5].text, immutable=False, http_form_code='H'),
-                    hot_spare=Status(value='Spar' in cells[5].text, immutable=False, http_form_code='R') if self.httpd_version >= version.parse('2.4.34') else None,
-                    stopped=Status(value='Stop' in cells[5].text, immutable=False, http_form_code='S') if self.httpd_version >= version.parse('2.4.23') else None
+                    hot_spare=Status(value='Spar' in cells[5].text, immutable=False, http_form_code='R') if data.httpd_version >= version.parse('2.4.34') else None,
+                    stopped=Status(value='Stop' in cells[5].text, immutable=False, http_form_code='S') if data.httpd_version >= version.parse('2.4.23') else None
                 )
 
-                route.updated_datetime = now()
-
         # iterate clusters for post-parse processing
-        for cluster in self.clusters:
+        for cluster in data.clusters:
             # determine if standby routes are active for cluster
             cluster.standby_activated = True
             for route in cluster.routes:
@@ -294,33 +273,14 @@ class Client(object):
                 if route._status.error.value is False and route._status.disabled.value is False and (route._status.draining_mode is None or route._status.draining_mode.value is not True):
                     cluster.eligible_routes += 1
 
-        # set holistic_error_status
-        self.holistic_error_status = False
-        for cluster in self.clusters:
-            if self.holistic_error_status is True:
-                break
-            for route in cluster.routes:
-                if route._status.error.value is True:
-                    self.holistic_error_status = True
-                    break
-
-    def _purge_outdated(self):
-        for cluster in self.clusters:
-            if cluster.updated_datetime is None or self.updated_datetime > cluster.updated_datetime:
-                self.logger.info('removing defunct cluster: {}'.format(cluster.name))
-                self.clusters.remove(cluster)
-                continue
-            for route in cluster.routes:
-                if route.updated_datetime is None or self.updated_datetime > route.updated_datetime:
-                    self.logger.info('removing defunct route: {}'.format(route.name))
-                    cluster.routes.remove(route)
+        return data
 
     @staticmethod
     def _decode_data_usage(value):
         value = value.strip()
         try:
             # match string from manager page to number + kilo/mega/giga/tera-byte
-            match = re.match(r'([0-9\d\.]*)([KMGT]?)', value)
+            match = Client.route_data_used_pattern.match(value)
             if match:
                 num = float(match.group(1))
                 scale_code = match.group(2)

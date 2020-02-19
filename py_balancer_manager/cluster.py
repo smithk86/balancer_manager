@@ -4,10 +4,9 @@ from .route import Route
 
 
 class Cluster(object):
-    def __init__(self, client):
-        self.client = client
-        self.updated_datetime = None
-        self.name = None
+    def __init__(self, balancer_data, name):
+        self.balancer_data = balancer_data
+        self.name = name
         self.max_members = None
         self.max_members_used = None
         self.sticky_session = None
@@ -22,11 +21,10 @@ class Cluster(object):
         self.routes = list()
 
     def __repr__(self):
-        return f'<py_balancer_manager.cluster.Cluster object: {self.name}>'
+        return f'<py_balancer_manager.Cluster object: {self.name}>'
 
     def asdict(self):
         return {
-            'updated_datetime': self.updated_datetime,
             'name': self.name,
             'max_members': self.max_members,
             'max_members_used': self.max_members_used,
@@ -41,20 +39,16 @@ class Cluster(object):
             'routes': [r.asdict() for r in self.routes]
         }
 
-    def new_route(self):
-        route = Route(self)
+    def new_route(self, name):
+        route = Route(self.balancer_data, self.name, name)
         self.routes.append(route)
         return route
 
-    def get_routes(self):
-        return self.routes
-
-    def get_route(self, name):
+    def route(self, name):
         # find the route object in the route list
-        route = find_object(self.routes, 'name', name)
-        if route:
-            return route
-        else:
+        try:
+            return find_object(self.routes, 'name', name)
+        except ValueError:
             raise BalancerManagerError(f'could not locate route name in list of routes: {name}')
 
     async def edit_lbset(self, lbset_number, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):

@@ -9,7 +9,7 @@ if sys.version_info < __MIN_PYTHON__:
     sys.exit('python {}.{} or later is required'.format(*__MIN_PYTHON__))
 
 
-from .client import Client
+from .client import BalancerData, Client
 from .cluster import Cluster
 from .errors import BalancerManagerError, MultipleExceptions
 from .route import Route
