@@ -1,6 +1,11 @@
-from .errors import BalancerManagerError
+import logging
+
+from .errors import BalancerManagerError, MultipleExceptions
 from .helpers import find_object
 from .route import Route
+
+
+logger = logging.getLogger(__name__)
 
 
 class Cluster(object):
@@ -67,5 +72,12 @@ class Cluster(object):
             raise BalancerManagerError(f'lbset does not exist: {lbset_number}')
 
     async def edit_lbset(self, lbset_number, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):
+        exceptions = []
         for route in self.lbset(lbset_number):
-            await route.edit(force=force, factor=factor, route_redir=route_redir, **status_value_kwargs)
+            try:
+                await route.edit(force=force, factor=factor, route_redir=route_redir, **status_value_kwargs)
+            except Exception as e:
+                logger.exception(e)
+                exceptions.append(e)
+        if len(exceptions) > 0:
+            raise MultipleExceptions(exceptions)

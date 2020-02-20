@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 from packaging import version
 
-from py_balancer_manager import BalancerManager, BalancerManagerError, Client, Cluster, Route
+from py_balancer_manager import BalancerManager, BalancerManagerError, Client, Cluster, MultipleExceptions, Route
 from py_balancer_manager.status import Statuses, Status
 
 
@@ -93,7 +93,7 @@ async def test_route_status_changes(random_route):
 
 
 @pytest.mark.asyncio
-async def test_cluster_lbsets(balancer_manager):
+async def test_cluster_lbsets(httpd_instance, balancer_manager):
     cluster = balancer_manager.cluster('cluster4')
     lbsets = cluster.lbsets()
     assert len(lbsets) == 2
@@ -113,6 +113,14 @@ async def test_cluster_lbsets(balancer_manager):
     # verify before change
     for route in cluster.lbset(1):
         assert route.status('disabled').value is True
+
+    # test an enforce that throws exceptions
+    with pytest.raises(MultipleExceptions):
+        try:
+            httpd_instance.container.pause()
+            await cluster.edit_lbset(1, disabled=True)
+        finally:
+            httpd_instance.container.unpause()
 
 
 @pytest.mark.asyncio
