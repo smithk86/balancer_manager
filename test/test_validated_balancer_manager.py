@@ -107,11 +107,11 @@ async def test_compliance_with_enforce(httpd_instance, validated_balancer_manage
     await validated_balancer_manager.enforce()
     assert validated_balancer_manager.compliance_status is True
 
-    for cluster in validated_balancer_manager.clusters:
-        for route in cluster.routes:
-            assert route.compliance_status is True
-            await route.edit(force=True, disabled=not route._status.disabled.value)
-            assert route.compliance_status is False
+    for route in validated_balancer_manager.cluster('cluster0').routes:
+        assert route.compliance_status is True
+        await route.edit(force=True, disabled=not route._status.disabled.value)
+        assert route.compliance_status is False
+    assert validated_balancer_manager.compliance_status is False
 
     # test an enforce that throws exceptions
     with pytest.raises(MultipleExceptions):

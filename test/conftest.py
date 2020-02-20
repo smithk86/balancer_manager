@@ -55,7 +55,7 @@ def client(client_url):
         client_url,
         username='admin',
         password='password',
-        timeout=2
+        timeout=.25
     )
 
 
@@ -89,7 +89,7 @@ def validation_client(client_url):
         client_url,
         username='admin',
         password='password',
-        timeout=2
+        timeout=.25
     )
 
 
