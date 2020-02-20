@@ -8,7 +8,7 @@ from getpass import getpass
 from termcolor import cprint
 
 from py_balancer_manager import ValidationClient
-from printer import print_validated_routes
+from .printer import print_validated_routes
 
 
 async def main():

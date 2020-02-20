@@ -1,15 +1,17 @@
 import argparse
+import asyncio
 import logging
 import os
 from getpass import getpass
 from tzlocal import get_localzone
 
-from .. import Client
+from termcolor import colored
+
+from py_balancer_manager import Client
 from .printer import print_routes
-from .prettystring import PrettyString
 
 
-async def manage():
+async def main():
     def get_bool(value):
         if value is None:
             return False
@@ -45,57 +47,58 @@ async def manage():
     else:
         password = None
 
-    async with Client(getattr(args, 'balance-manager-url'), insecure=args.insecure, username=args.username, password=password) as client:
-        if (args.ignore_errors is not None or
-                args.draining_mode is not None or
-                args.disabled is not None or
-                args.hot_standby is not None):
+    client = Client(
+        getattr(args, 'balance-manager-url'),
+        insecure=args.insecure,
+        username=args.username,
+        password=password
+    )
+    balancer_manager = await client.balancer_manager()
 
-            if args.cluster is None or args.route is None:
-                raise ValueError('--cluster and --route are required')
+    if (args.ignore_errors is not None or
+            args.draining_mode is not None or
+            args.disabled is not None or
+            args.hot_standby is not None):
 
-            route = (await client.get_cluster(args.cluster)).get_route(args.route)
+        if args.cluster is None or args.route is None:
+            raise ValueError('--cluster and --route are required')
 
-            _kwargs = {}
-            try:
-                if args.ignore_errors is not None:
-                    _kwargs['status_ignore_errors'] = get_bool(args.ignore_errors)
-                if args.draining_mode is not None:
-                    _kwargs['status_draining_mode'] = get_bool(args.draining_mode)
-                if args.disabled is not None:
-                    _kwargs['status_disabled'] = get_bool(args.disabled)
-                if args.hot_standby is not None:
-                    _kwargs['status_ignore_errors'] = get_bool(args.hot_standby)
-            except ValueError:
-                raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
+        route = balancer_manager.cluster(args.cluster).route(args.route)
 
-            await route.edit(args.cluster, args.route, **_kwargs)
+        _kwargs = {}
+        try:
+            if args.ignore_errors is not None:
+                _kwargs['status_ignore_errors'] = get_bool(args.ignore_errors)
+            if args.draining_mode is not None:
+                _kwargs['status_draining_mode'] = get_bool(args.draining_mode)
+            if args.disabled is not None:
+                _kwargs['status_disabled'] = get_bool(args.disabled)
+            if args.hot_standby is not None:
+                _kwargs['status_ignore_errors'] = get_bool(args.hot_standby)
+        except ValueError:
+            raise ValueError('status value must be passed as either 0 (Off) or 1 (On)')
 
-        if args.cluster:
-            routes = (await client.get_cluster(args.cluster)).get_routes()
-        else:
-            routes = await client.get_routes()
+        await route.edit(args.cluster, args.route, **_kwargs)
 
-        print()
-        print('{label}: {val}'.format(
-            label=PrettyString('url', 'blue'),
-            val=client.url
-        ))
-        print('{label}: {val}'.format(
-            label=PrettyString('httpd version', 'blue'),
-            val=client.httpd_version
-        ))
-        print('{label}: {val}'.format(
-            label=PrettyString('httpd build time', 'blue'),
-            val=client.httpd_compile_datetime.astimezone(get_localzone())
-        ))
+    if args.cluster:
+        routes = balancer_manager.cluster(args.cluster).routes
+    else:
+        routes = list()
+        for cluster in balancer_manager.clusters:
+            routes += cluster.routes
 
-        if client.openssl_version:
-            print('{label}: {val}'.format(
-                label=PrettyString('openssl version', 'blue'),
-                val=client.openssl_version
-            ))
+    print()
+    print(f"{colored('url', 'blue')}: {balancer_manager.client.url}")
+    print(f"{colored('httpd version', 'blue')}: {balancer_manager.httpd_version}")
+    print(f"{colored('httpd build time', 'blue')}: {balancer_manager.httpd_compile_datetime.astimezone(get_localzone())}")
 
-        print()
-        print_routes(routes, args.verbose)
-        print()
+    if balancer_manager.openssl_version:
+        print(f"{colored('openssl version', 'blue')}: {balancer_manager.openssl_version}")
+
+    print()
+    print_routes(routes, args.verbose)
+    print()
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
