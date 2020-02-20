@@ -93,20 +93,43 @@ async def test_route_status_changes(random_route):
 
 
 @pytest.mark.asyncio
+async def test_cluster_lbsets(balancer_manager):
+    cluster = balancer_manager.cluster('cluster4')
+    lbsets = cluster.lbsets()
+    assert len(lbsets) == 2
+    assert len(lbsets[0]) == 5
+    assert len(lbsets[1]) == 5
+
+    # test bad lbset number
+    with pytest.raises(BalancerManagerError) as excinfo:
+        cluster.lbset(99)
+    assert 'lbset does not exist: 99' in str(excinfo.value)
+
+    # verify before change
+    for route in cluster.lbset(1):
+        assert route.status('disabled').value is False
+    # do change
+    await cluster.edit_lbset(1, disabled=True)
+    # verify before change
+    for route in cluster.lbset(1):
+        assert route.status('disabled').value is True
+
+
+@pytest.mark.asyncio
 async def test_taking_traffic(balancer_manager):
     cluster = balancer_manager.cluster('cluster2')
 
-    cluster.route('route20').taking_traffic is True
-    cluster.route('route21').taking_traffic is True
-    cluster.route('route22').taking_traffic is False
-    cluster.route('route23').taking_traffic is False
+    assert cluster.route('route20').taking_traffic is True
+    assert cluster.route('route21').taking_traffic is True
+    assert cluster.route('route22').taking_traffic is False
+    assert cluster.route('route23').taking_traffic is False
 
     await cluster.route('route20').edit(disabled=True, hot_standby=True)
 
-    cluster.route('route20').taking_traffic is False
-    cluster.route('route21').taking_traffic is True
-    cluster.route('route22').taking_traffic is False
-    cluster.route('route23').taking_traffic is False
+    assert cluster.route('route20').taking_traffic is False
+    assert cluster.route('route21').taking_traffic is True
+    assert cluster.route('route22').taking_traffic is False
+    assert cluster.route('route23').taking_traffic is False
 
 
 @pytest.mark.asyncio

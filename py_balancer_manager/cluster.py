@@ -51,7 +51,21 @@ class Cluster(object):
         except ValueError:
             raise BalancerManagerError(f'could not locate route name in list of routes: {name}')
 
-    async def edit_lbset(self, lbset_number, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):
+    def lbsets(self):
+        lbsets_ = dict()
         for route in self.routes:
-            if route.lbset == lbset_number:
-                await route.edit(force=force, factor=factor, route_redir=route_redir, **status_value_kwargs)
+            if route.lbset not in lbsets_:
+                lbsets_[route.lbset] = list()
+            lbsets_[route.lbset].append(route)
+        return lbsets_
+
+    def lbset(self, lbset_number):
+        lbsets = self.lbsets()
+        if lbset_number in lbsets:
+            return lbsets[lbset_number]
+        else:
+            raise BalancerManagerError(f'lbset does not exist: {lbset_number}')
+
+    async def edit_lbset(self, lbset_number, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):
+        for route in self.lbset(lbset_number):
+            await route.edit(force=force, factor=factor, route_redir=route_redir, **status_value_kwargs)

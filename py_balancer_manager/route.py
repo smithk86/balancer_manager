@@ -33,7 +33,7 @@ class Route(object):
             'priority': self.priority,
             'route_redir': self.route_redir,
             'factor': self.factor,
-            'set': self.lbset,
+            'lbset': self.lbset,
             'elected': self.elected,
             'traffic_to': self.traffic_to,
             'traffic_to_raw': self.traffic_to_raw,
