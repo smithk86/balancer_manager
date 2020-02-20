@@ -9,48 +9,11 @@ import httpx
 from bs4 import BeautifulSoup
 from packaging import version
 
-from .cluster import Cluster
+from .balancer_manager import BalancerManager
 from .errors import BalancerManagerError
-from .helpers import now, parse_from_local_timezone, find_object, VERSION_24
+from .helpers import now, parse_from_local_timezone, VERSION_24
 from .route import Route
 from .status import Statuses, Status
-
-
-class BalancerData(object):
-    def __init__(self, client):
-        self.client = client
-        self.updated_datetime = None
-        self.httpd_version = None
-        self.httpd_compile_datetime = None
-        self.openssl_version = None
-        self.clusters = list()
-
-    @property
-    def holistic_error_status(self):
-        for cluster in self.clusters:
-            # if self.holistic_error_status is True:
-            #     return False
-            for route in cluster.routes:
-                if route._status.error.value is True:
-                    return True
-            return False
-
-    def new_cluster(self, name):
-        cluster = Cluster(self, name)
-        self.clusters.append(cluster)
-        return cluster
-
-    def cluster(self, name):
-        try:
-            return find_object(self.clusters, 'name', name)
-        except ValueError:
-            raise BalancerManagerError(f'could not locate cluster name in list of clusters: {name}')
-
-    async def update(self, response_payload=None):
-        if response_payload is None:
-            await self.client.data(data=self)
-        else:
-            self.client._parse(response_payload, data=self)
 
 
 class Client(object):
@@ -64,7 +27,7 @@ class Client(object):
     route_used_pattern = re.compile(r'^(\d*) \[(\d*) Used\]$')
     route_data_used_pattern = re.compile(r'([0-9\d\.]*)([KMGT]?)')
 
-    def __init__(self, url, insecure=False, username=None, password=None, cache_ttl=60, timeout=30):
+    def __init__(self, url, insecure=False, username=None, password=None, timeout=30):
         self.logger = logging.getLogger(__name__)
 
         if type(insecure) is not bool:
@@ -84,14 +47,8 @@ class Client(object):
 
     def asdict(self):
         return {
-            'updated_datetime': self.updated_datetime,
             'url': self.url,
-            'insecure': self.insecure,
-            'httpd_version': self.httpd_version,
-            'httpd_compile_datetime': self.httpd_compile_datetime,
-            'openssl_version': self.openssl_version,
-            'holistic_error_status': self.holistic_error_status,
-            'clusters': [c.asdict() for c in self.clusters] if self.clusters else None
+            'insecure': self.insecure
         }
 
     def _http_client(self):
@@ -103,14 +60,18 @@ class Client(object):
             }
         )
 
-    async def data(self, data=None):
+    async def _http_get_payload(self):
         async with self._http_client() as client:
             r = await client.get(self.url)
-            response_payload = r.text
-        # update routes
-        return Client._parse(self, response_payload, data=data)
+            return r.text
 
-    def _parse(self, response_payload, data=None):
+    async def balancer_manager(self):
+        balancer_manager = BalancerManager(self)
+        response_payload = await self._http_get_payload()
+        self._parse(response_payload, balancer_manager)
+        return balancer_manager
+
+    def _parse(self, response_payload, balancer_manager):
         def _parse_max_members(value):
             m = Client.route_used_pattern.match(value)
             if m:
@@ -123,11 +84,7 @@ class Client(object):
         # parse payload with beautiful soup
         bsoup = BeautifulSoup(response_payload, 'html.parser')
 
-        # init the data container
-        if data is None:
-            data = BalancerData(self)
-
-        data.updated_datetime = now()
+        balancer_manager.updated_datetime = now()
 
         # remove form from page -- this contains extra tables which do not contain clusters or routes
         for form in bsoup.find_all('form'):
@@ -143,17 +100,17 @@ class Client(object):
             # set/update httpd version
             match = Client.httpd_server_version_pattern.match(_bs_dt[0].text)
             if match:
-                data.httpd_version = version.parse(match.group(1))
+                balancer_manager.httpd_version = version.parse(match.group(1))
             else:
                 raise BalancerManagerError('the content of the first "dt" element did not contain the version of httpd')
 
-            if data.httpd_version < VERSION_24:
+            if balancer_manager.httpd_version < VERSION_24:
                 raise BalancerManagerError('apache httpd versions less than 2.4 are not supported')
 
             # set/update openssl version
             match = Client.openssl_version_pattern.search(_bs_dt[0].text)
             if match:
-                data.openssl_version = version.parse(match.group(1))
+                balancer_manager.openssl_version = version.parse(match.group(1))
         else:
             raise BalancerManagerError('could not parse text from the first "dt" element')
 
@@ -161,7 +118,7 @@ class Client(object):
             # set/update httpd compile datetime
             match = Client.httpd_server_build_date_pattern.match(_bs_dt[1].text)
             if match:
-                data.httpd_compile_datetime = parse_from_local_timezone(match.group(1))
+                balancer_manager.httpd_compile_datetime = parse_from_local_timezone(match.group(1))
 
         # only iterate through odd tables which contain cluster data
         for table in _bs_table_clusters:
@@ -180,9 +137,9 @@ class Client(object):
                 raise ValueError('cluster name could not be parsed from <h3> tag')
 
             try:
-                cluster = data.cluster(cluster_name)
+                cluster = balancer_manager.cluster(cluster_name)
             except BalancerManagerError:
-                cluster = data.new_cluster(cluster_name)
+                cluster = balancer_manager.new_cluster(cluster_name)
 
             for row in table.find_all('tr'):
                 cells = row.find_all('td')
@@ -225,7 +182,7 @@ class Client(object):
                     raise BalancerManagerError("could not determine route's cluster")
 
                 cluster_name = cluster_name_match.group(1)
-                cluster = data.cluster(cluster_name)
+                cluster = balancer_manager.cluster(cluster_name)
 
                 try:
                     route = cluster.route(route_name)
@@ -252,12 +209,12 @@ class Client(object):
                     draining_mode=Status(value='Drn' in cells[5].text, immutable=False, http_form_code='N'),
                     disabled=Status(value='Dis' in cells[5].text, immutable=False, http_form_code='D'),
                     hot_standby=Status(value='Stby' in cells[5].text, immutable=False, http_form_code='H'),
-                    hot_spare=Status(value='Spar' in cells[5].text, immutable=False, http_form_code='R') if data.httpd_version >= version.parse('2.4.34') else None,
-                    stopped=Status(value='Stop' in cells[5].text, immutable=False, http_form_code='S') if data.httpd_version >= version.parse('2.4.23') else None
+                    hot_spare=Status(value='Spar' in cells[5].text, immutable=False, http_form_code='R') if balancer_manager.httpd_version >= version.parse('2.4.34') else None,
+                    stopped=Status(value='Stop' in cells[5].text, immutable=False, http_form_code='S') if balancer_manager.httpd_version >= version.parse('2.4.23') else None
                 )
 
         # iterate clusters for post-parse processing
-        for cluster in data.clusters:
+        for cluster in balancer_manager.clusters:
             # determine if standby routes are active for cluster
             cluster.standby_activated = True
             for route in cluster.routes:
@@ -272,8 +229,6 @@ class Client(object):
             for route in cluster.routes:
                 if route._status.error.value is False and route._status.disabled.value is False and (route._status.draining_mode is None or route._status.draining_mode.value is not True):
                     cluster.eligible_routes += 1
-
-        return data
 
     @staticmethod
     def _decode_data_usage(value):

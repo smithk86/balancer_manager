@@ -12,6 +12,9 @@ from py_balancer_manager import Client, ValidationClient
 import docker_helpers
 
 
+_dir = os.path.dirname(os.path.abspath(__file__))
+
+
 def pytest_addoption(parser):
     parser.addoption('--httpd-version', default='2.4.39')
 
@@ -22,46 +25,54 @@ def httpd_version(request):
     return version.parse(v)
 
 
-@pytest.fixture(scope='session')
-def httpd_instance(httpd_version):
-    _dir = os.path.dirname(os.path.abspath(__file__))
-    tag = f'pytest_httpd:{httpd_version}'
+# @pytest.fixture(scope='session')
+# def httpd_instance(httpd_version):
+#     _dir = os.path.dirname(os.path.abspath(__file__))
+#     tag = f'pytest_httpd:{httpd_version}'
 
-    docker.from_env().images.build(
-        path=f'{_dir}/httpd',
-        dockerfile='Dockerfile',
-        tag=tag,
-        buildargs={
-            'FROM': f'httpd:{httpd_version}'
-        }
-    )
+#     docker.from_env().images.build(
+#         path=f'{_dir}/httpd',
+#         dockerfile='Dockerfile',
+#         tag=tag,
+#         buildargs={
+#             'FROM': f'httpd:{httpd_version}'
+#         }
+#     )
 
-    container_info = docker_helpers.run(tag, ports=['80/tcp'])
-    yield container_info
-    container_info.container.stop()
+#     container_info = docker_helpers.run(tag, ports=['80/tcp'])
+#     yield container_info
+#     container_info.container.stop()
+
+
+# @pytest.fixture
+# def client_url(httpd_instance):
+#     return f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager"
 
 
 @pytest.fixture
-@pytest.mark.asyncio
-async def client(httpd_instance):
-    client = Client(
-        f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager",
+def client_url():
+    return f"http://docker.ksmith:8080/balancer-manager"
+
+
+@pytest.fixture
+def client(client_url):
+    return Client(
+        client_url,
         username='admin',
         password='password',
         timeout=2
     )
-    return client
 
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def balancer_data(client):
-    return await client.data()
+async def balancer_manager(client):
+    return await client.balancer_manager()
 
 
 @pytest.fixture
-def random_cluster(balancer_data):
-    clusters = balancer_data.clusters
+def random_cluster(balancer_manager):
+    clusters = balancer_manager.clusters
     if len(clusters) > 0:
         random_index = random.randrange(0, len(clusters) - 1) if len(clusters) > 1 else 0
         return clusters[random_index]
@@ -78,31 +89,18 @@ def random_route(random_cluster):
 
 
 @pytest.fixture
-@pytest.mark.asyncio
-async def validation_client(httpd_instance):
-    _dir = os.path.dirname(os.path.abspath(__file__))
-    with open(f'{_dir}/data/test_validation_profile.json') as fh:
-        profile = json.load(fh)
-
-    client = ValidationClient(
-        f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager",
+def validation_client(client_url):
+    return ValidationClient(
+        client_url,
         username='admin',
         password='password',
-        timeout=2,
-        profile=profile
+        timeout=2
     )
-    return client
 
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def random_validated_routes(validation_client):
-    random_routes = list()
-    for cluster in await validation_client.get_clusters():
-        routes = cluster.get_routes()
-        if len(routes) > 1:
-            random_index = random.randrange(0, len(routes) - 1) if len(routes) > 1 else 0
-            random_routes.append(routes[random_index])
-    if len(random_routes) == 0:
-        raise ValueError('no routes were found')
-    return random_routes
+async def validated_balancer_manager(validation_client):
+    with open(f'{_dir}/data/test_validation_profile.json') as fh:
+        profile = json.load(fh)
+    return await validation_client.balancer_manager(profile=profile)

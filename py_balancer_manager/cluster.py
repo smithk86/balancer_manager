@@ -4,8 +4,8 @@ from .route import Route
 
 
 class Cluster(object):
-    def __init__(self, balancer_data, name):
-        self.balancer_data = balancer_data
+    def __init__(self, balancer_manager, name):
+        self.balancer_manager = balancer_manager
         self.name = name
         self.max_members = None
         self.max_members_used = None
@@ -40,7 +40,7 @@ class Cluster(object):
         }
 
     def new_route(self, name):
-        route = Route(self.balancer_data, self.name, name)
+        route = Route(self, name)
         self.routes.append(route)
         return route
 

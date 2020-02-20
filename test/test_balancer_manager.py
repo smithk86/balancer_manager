@@ -4,20 +4,20 @@ from datetime import datetime
 import pytest
 from packaging import version
 
-from py_balancer_manager import BalancerData, BalancerManagerError, Client, Cluster, Route
+from py_balancer_manager import BalancerManager, BalancerManagerError, Client, Cluster, Route
 from py_balancer_manager.status import Statuses, Status
 
 
-def test_properties(balancer_data):
-    assert type(balancer_data.client) is Client
-    assert type(balancer_data.updated_datetime) is datetime
-    assert type(balancer_data.httpd_version) is version.Version
-    assert type(balancer_data.httpd_compile_datetime) is datetime
-    assert type(balancer_data.openssl_version) is version.Version
-    assert type(balancer_data.holistic_error_status) is bool
+def test_properties(balancer_manager):
+    assert type(balancer_manager.client) is Client
+    assert type(balancer_manager.updated_datetime) is datetime
+    assert type(balancer_manager.httpd_version) is version.Version
+    assert type(balancer_manager.httpd_compile_datetime) is datetime
+    assert type(balancer_manager.openssl_version) is version.Version
+    assert type(balancer_manager.holistic_error_status) is bool
 
-    for cluster in balancer_data.clusters:
-        assert type(cluster.balancer_data) is BalancerData
+    for cluster in balancer_manager.clusters:
+        assert type(cluster.balancer_manager) is BalancerManager
         assert cluster.max_members is None or type(cluster.max_members) == int
         assert cluster.max_members_used is None or type(cluster.max_members_used) == int
         assert type(cluster.sticky_session) is str or cluster.sticky_session is False
@@ -53,18 +53,18 @@ def test_properties(balancer_data):
 
 
 @pytest.mark.asyncio
-async def test_updated_datetime(balancer_data):
+async def test_updated_datetime(balancer_manager):
     """ confirm the updated_datetime attribute is updated """
-    first_datetime = balancer_data.updated_datetime
-    await balancer_data.update()
-    last_datetime = balancer_data.updated_datetime
+    first_datetime = balancer_manager.updated_datetime
+    await balancer_manager.update()
+    last_datetime = balancer_manager.updated_datetime
     assert first_datetime < last_datetime
 
 
 @pytest.mark.asyncio
-async def test_cluster_does_not_exist(balancer_data):
+async def test_cluster_does_not_exist(balancer_manager):
     with pytest.raises(BalancerManagerError) as excinfo:
-        balancer_data.cluster('does_not_exist')
+        balancer_manager.cluster('does_not_exist')
     assert 'could not locate cluster name in list of clusters: does_not_exist' in str(excinfo.value)
 
 
@@ -93,8 +93,8 @@ async def test_route_status_changes(random_route):
 
 
 @pytest.mark.asyncio
-async def test_taking_traffic(balancer_data):
-    cluster = balancer_data.cluster('cluster2')
+async def test_taking_traffic(balancer_manager):
+    cluster = balancer_manager.cluster('cluster2')
 
     cluster.route('route20').taking_traffic is True
     cluster.route('route21').taking_traffic is True
@@ -110,8 +110,8 @@ async def test_taking_traffic(balancer_data):
 
 
 @pytest.mark.asyncio
-async def test_route_disable_last(balancer_data):
-    cluster = balancer_data.cluster('cluster3')
+async def test_route_disable_last(balancer_manager):
+    cluster = balancer_manager.cluster('cluster3')
 
     try:
         with pytest.raises(BalancerManagerError) as excinfo:
@@ -131,8 +131,8 @@ async def test_route_disable_last(balancer_data):
 
 
 @pytest.mark.asyncio
-async def test_standby_activated(balancer_data):
-    cluster = balancer_data.cluster('cluster2')
+async def test_standby_activated(balancer_manager):
+    cluster = balancer_manager.cluster('cluster2')
 
     for route in cluster.routes:
         await route.edit(disabled=False)

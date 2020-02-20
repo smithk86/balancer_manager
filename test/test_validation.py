@@ -1,38 +1,40 @@
 import asyncio
 import dataclasses
 import pytest
-from py_balancer_manager import ValidationClient, ValidatedRoute, ValidatedCluster
+from py_balancer_manager import ValidatedBalancerManager, ValidationClient, ValidatedRoute, ValidatedCluster
 
 from py_balancer_manager.status import Status, ValidatedStatus
 from py_balancer_manager.errors import MultipleExceptions
 
 
-@pytest.mark.asyncio
-async def test_routes(validation_client):
-    assert type(await validation_client.get_routes()) is list
-    for route in await validation_client.get_routes():
-        assert type(route) is ValidatedRoute
+def test_routes(validated_balancer_manager):
+    assert type(validated_balancer_manager.clusters) is list
+    for cluster in validated_balancer_manager.clusters:
+        assert type(cluster.routes) is list
+        for route in cluster.routes:
+            assert type(route) is ValidatedRoute
 
 
 @pytest.mark.asyncio
-async def test_validate_clusters_and_routes(validation_client):
+async def test_validate_clusters_and_routes(validated_balancer_manager):
     # run enforce to normalize load-balancer
-    await validation_client.enforce()
+    await validated_balancer_manager.enforce()
     await asyncio.sleep(1)
-    assert validation_client.compliance_status is True
+    assert validated_balancer_manager.compliance_status is True
 
-    assert validation_client.compliance_status is True
-    assert type(validation_client.profile) is dict
-    assert validation_client.all_routes_are_profiled is True
+    assert validated_balancer_manager.compliance_status is True
+    assert type(validated_balancer_manager.profile) is dict
+    assert validated_balancer_manager.all_routes_are_profiled is True
     # there should be a entry per cluster
-    assert len(validation_client.profile) == len(await validation_client.get_clusters())
+    assert len(validated_balancer_manager.profile) == len(validated_balancer_manager.clusters)
 
-    assert type(validation_client) is ValidationClient
-    for cluster in await validation_client.get_clusters():
+    assert type(validated_balancer_manager) is ValidatedBalancerManager
+    assert type(validated_balancer_manager.client) is ValidationClient
+    for cluster in validated_balancer_manager.clusters:
         assert type(cluster) == ValidatedCluster
-        assert type(cluster.client) is ValidationClient
+        assert type(cluster.balancer_manager) is ValidatedBalancerManager
         assert type(cluster.profile) is dict
-        for route in cluster.get_routes():
+        for route in cluster.routes:
             assert type(route.cluster) == ValidatedCluster
             assert type(route.profile) is list
             assert route.compliance_status is True
@@ -46,22 +48,22 @@ async def test_validate_clusters_and_routes(validation_client):
 
 
 @pytest.mark.asyncio
-async def test_all_routes_are_profiled(validation_client):
+async def test_all_routes_are_profiled(validated_balancer_manager):
     # manually remove a route from the profile
-    validation_client.profile['cluster0'].pop('route00')
+    validated_balancer_manager.profile['cluster0'].pop('route00')
     # update
-    await validation_client.update()
-    # validate client
-    assert validation_client.compliance_status is True
-    assert validation_client.all_routes_are_profiled is False
+    await validated_balancer_manager.update()
+    # validate balancer manager
+    assert validated_balancer_manager.compliance_status is True
+    assert validated_balancer_manager.all_routes_are_profiled is False
     # validate cluster0
-    cluster0 = await validation_client.get_cluster('cluster0')
+    cluster0 = validated_balancer_manager.cluster('cluster0')
     assert cluster0.compliance_status is True
     assert cluster0.all_routes_are_profiled is False
     # validate route
-    route00 = cluster0.get_route('route00')
+    route00 = cluster0.route('route00')
     assert route00.compliance_status is None
-    route01 = cluster0.get_route('route01')
+    route01 = cluster0.route('route01')
     assert route01.compliance_status is True
 
 

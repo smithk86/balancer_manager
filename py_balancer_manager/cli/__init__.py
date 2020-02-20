@@ -1,6 +1,6 @@
 import asyncio
-from .manage import manage as async_manage
-from .validate import validate as async_validate
+from .manage import main as async_manage
+from .validate import main as async_validate
 
 
 def manage():

@@ -36,6 +36,7 @@ setup(
         'packaging',
         'pytz',
         'python-dateutil',
+        'termcolor',
         'tzlocal'
     ],
     setup_requires=[

@@ -1,4 +1,6 @@
-from .prettystring import PrettyString
+import dataclasses
+
+from termcolor import colored
 
 
 def get_formated_routes(routes, verbose=False):
@@ -19,44 +21,44 @@ def get_formated_routes(routes, verbose=False):
 
     if verbose:
         rows.append([
-            PrettyString('Cluster', 'bold'),
-            PrettyString('Worker URL', 'bold'),
-            PrettyString('Route', 'bold'),
-            PrettyString('Elected', 'bold'),
-            PrettyString('To', 'bold'),
-            PrettyString('From', 'bold'),
-            PrettyString('Status: Ok', 'bold'),
-            PrettyString('Active', 'bold'),
-            PrettyString('Status: Err', 'bold'),
-            PrettyString('Status: Ign', 'bold'),
-            PrettyString('Status: Drn', 'bold'),
-            PrettyString('Status: Dis', 'bold'),
-            PrettyString('Status: Stby', 'bold'),
-            PrettyString('Route Redir', 'bold'),
-            PrettyString('Factor', 'bold'),
-            PrettyString('Set', 'bold'),
-            PrettyString('Busy', 'bold'),
-            PrettyString('Load', 'bold')
+            colored('Cluster', 'white', attrs=['bold']),
+            colored('Worker URL', 'white', attrs=['bold']),
+            colored('Route', 'white', attrs=['bold']),
+            colored('Elected', 'white', attrs=['bold']),
+            colored('To', 'white', attrs=['bold']),
+            colored('From', 'white', attrs=['bold']),
+            colored('Status: Ok', 'white', attrs=['bold']),
+            colored('Active', 'white', attrs=['bold']),
+            colored('Status: Err', 'white', attrs=['bold']),
+            colored('Status: Ign', 'white', attrs=['bold']),
+            colored('Status: Drn', 'white', attrs=['bold']),
+            colored('Status: Dis', 'white', attrs=['bold']),
+            colored('Status: Stby', 'white', attrs=['bold']),
+            colored('Route Redir', 'white', attrs=['bold']),
+            colored('Factor', 'white', attrs=['bold']),
+            colored('Set', 'white', attrs=['bold']),
+            colored('Busy', 'white', attrs=['bold']),
+            colored('Load', 'white', attrs=['bold'])
         ])
     else:
         rows.append([
-            PrettyString('Cluster', 'bold'),
-            PrettyString('Worker URL', 'bold'),
-            PrettyString('Route', 'bold'),
-            PrettyString('Status: Ok', 'bold'),
-            PrettyString('Active', 'bold'),
-            PrettyString('Status: Err', 'bold'),
-            PrettyString('Status: Ign', 'bold'),
-            PrettyString('Status: Drn', 'bold'),
-            PrettyString('Status: Dis', 'bold'),
-            PrettyString('Status: Stby', 'bold')
+            colored('Cluster', 'white', attrs=['bold']),
+            colored('Worker URL', 'white', attrs=['bold']),
+            colored('Route', 'white', attrs=['bold']),
+            colored('Status: Ok', 'white', attrs=['bold']),
+            colored('Active', 'white', attrs=['bold']),
+            colored('Status: Err', 'white', attrs=['bold']),
+            colored('Status: Ign', 'white', attrs=['bold']),
+            colored('Status: Drn', 'white', attrs=['bold']),
+            colored('Status: Dis', 'white', attrs=['bold']),
+            colored('Status: Stby', 'white', attrs=['bold'])
         ])
 
     if verbose:
         for route in routes:
             rows.append([
-                PrettyString(_get_value(route.cluster.name), 'cyan'),
-                PrettyString(_get_value(route.worker), 'yellow'),
+                colored(_get_value(route.cluster.name), 'cyan'),
+                colored(_get_value(route.worker), 'yellow'),
                 _get_value(route.name),
                 _get_value(route.elected),
                 _get_value(route.traffic_to),
@@ -77,16 +79,16 @@ def get_formated_routes(routes, verbose=False):
     else:
         for route in routes:
             rows.append([
-                PrettyString(_get_value(route.cluster.name), 'cyan'),
-                PrettyString(_get_value(route.worker), 'yellow'),
+                colored(_get_value(route.cluster.name), 'cyan'),
+                colored(_get_value(route.worker), 'yellow'),
                 _get_value(route.name),
-                _get_value(route.status_ok),
+                _get_value(route.status('ok').value),
                 _get_value(route.taking_traffic),
-                _get_value(route.status_error),
-                _get_value(route.status_ignore_errors),
-                _get_value(route.status_draining_mode),
-                _get_value(route.status_disabled),
-                _get_value(route.status_hot_standby)
+                _get_value(route.status('error').value),
+                _get_value(route.status('ignore_errors').value),
+                _get_value(route.status('draining_mode').value),
+                _get_value(route.status('disabled').value),
+                _get_value(route.status('hot_standby').value)
             ])
     return rows
 
@@ -96,9 +98,9 @@ def get_formated_validated_routes(routes, hide_compliant_routes=False, verbose=F
         if hide_compliant_routes is True and route.compliance_status is True:
             routes.remove(route)
             continue
-        for status, _ in route.get_statuses().items():
-            if status != 'status_ok' and status != 'status_error':
-                validation = route.status_validation.get(status)
+        for status, _ in dataclasses.asdict(route._status).items():
+            if status != 'ok' and status != 'error':
+                validation = route.status(status)
                 if type(validation) is dict:
                     if validation['compliance'] is None:
                         char = ' X' if validation['value'] else ''
@@ -120,7 +122,7 @@ def get_formated_validated_routes(routes, hide_compliant_routes=False, verbose=F
                     setattr(
                         route,
                         status,
-                        PrettyString(char, color)
+                        colored(char, color)
                     )
     return get_formated_routes(routes, verbose)
 

@@ -11,50 +11,74 @@
         "route20": [],
         "route21": [],
         "route22": [
-            "disabled"
+            "hot_standby"
         ],
         "route23": [
-            "disabled"
+            "hot_standby"
         ]
     },
     "cluster3": {
         "route30": [],
         "route31": [],
-        "route32": [],
-        "route33": [],
-        "route34": [],
-        "route35": [],
-        "route36": [],
-        "route37": [],
-        "route38": [],
-        "route39": []
+        "route32": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route33": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route34": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route35": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route36": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route37": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route38": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route39": [
+            "disabled",
+            "hot_standby"
+        ]
     },
     "cluster4": {
         "route40": [],
         "route41": [
-            "standby"
+            "hot_standby"
         ],
         "route42": [
-            "standby"
+            "hot_standby"
         ],
         "route43": [
-            "standby"
+            "hot_standby"
         ],
         "route44": [
-            "standby"
+            "hot_standby"
         ],
         "route45": [],
         "route46": [
-            "standby"
+            "hot_standby"
         ],
         "route47": [
-            "standby"
+            "hot_standby"
         ],
         "route48": [
-            "standby"
+            "hot_standby"
         ],
         "route49": [
-            "standby"
+            "hot_standby"
         ]
     }
 }

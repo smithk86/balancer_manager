@@ -4,9 +4,8 @@ from .errors import BalancerManagerError
 
 
 class Route(object):
-    def __init__(self, balancer_data, cluster_name, name):
-        self.balancer_data = balancer_data
-        self.cluster_name = cluster_name
+    def __init__(self, cluster, name):
+        self.cluster = cluster
         self.name = name
         self.worker = None
         self.priority = None
@@ -26,10 +25,6 @@ class Route(object):
 
     def __repr__(self):
         return f'<py_balancer_manager.Route object: {self.cluster.name} -> {self.name}>'
-
-    @property
-    def cluster(self):
-        return self.balancer_data.cluster(self.cluster_name)
 
     def asdict(self):
         return {
@@ -98,12 +93,12 @@ class Route(object):
             http_form_code = self.status(status_name).http_form_code
             post_data[f'w_status_{http_form_code}'] = int(new_route_statuses[status_name])
 
-        self.balancer_data.client.logger.debug(f'post payload: {post_data}')
+        self.cluster.balancer_manager.client.logger.debug(f'post payload: {post_data}')
 
-        async with self.balancer_data.client._http_client() as client:
-            r = await client.post(self.balancer_data.client.url, data=post_data)
+        async with self.cluster.balancer_manager.client._http_client() as client:
+            r = await client.post(self.cluster.balancer_manager.client.url, data=post_data)
 
-        await self.balancer_data.update(response_payload=r.text)
+        await self.cluster.balancer_manager.update(response_payload=r.text)
 
         # validate new values against load balancer
         for status_name, expected_value in new_route_statuses.items():

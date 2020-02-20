@@ -1,14 +1,17 @@
 import argparse
+import asyncio
+import json
 import logging
 import os
 from getpass import getpass
 
-from .. import ValidationClient
-from .printer import print_validated_routes
-from .prettystring import PrettyString
+from termcolor import cprint
+
+from py_balancer_manager import ValidationClient
+from printer import print_validated_routes
 
 
-async def validate():
+async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action', help='validate, enforce, build')
     parser.add_argument('balance-manager-url')
@@ -43,30 +46,38 @@ async def validate():
     else:
         password = None
 
-    async with ValidationClient(
+    client = ValidationClient(
         getattr(args, 'balance-manager-url'),
         username=args.username,
         password=password,
-        insecure=args.insecure,
-        profile=profile
-    ) as client:
-        if args.action == 'validate' or args.action == 'enforce':
-            print_validated_routes(
-                client.get_routes()
-            )
-            if args.action == 'enforce' and client.holistic_compliance_status is False:
-                print()
-                print(PrettyString('***** compliance has been enforced *****', 'red'))
-                await client.enforce()
-                print_validated_routes(
-                    client.get_routes()
-                )
-                if client.holistic_compliance_status is False:
-                    raise Exception('profile has been enforced but still not compliant')
+        insecure=args.insecure
+    )
+    balancer_manager = await client.balancer_manager(profile)
+    if args.action == 'validate' or args.action == 'enforce':
+        routes = list()
+        for cluster in balancer_manager.clusters:
+            routes += cluster.routes
+        print_validated_routes(routes)
+        if args.action == 'enforce' and balancer_manager.holistic_compliance_status is False:
+            print()
+            cprint('***** compliance has been enforced *****', 'red')
+            await balancer_manager.enforce()
 
-        elif args.action == 'build':
-            profile = await client.get_profile()
-            if args.pretty:
-                print(json.dumps(profile, indent=4))
-            else:
-                print(json.dumps(profile))
+            routes = list()
+            for cluster in balancer_manager.clusters:
+                routes += cluster.routes
+            print_validated_routes(routes)
+
+            if balancer_manager.holistic_compliance_status is False:
+                raise Exception('profile has been enforced but still not compliant')
+
+    elif args.action == 'build':
+        profile = balancer_manager.get_profile()
+        if args.pretty:
+            print(json.dumps(profile, indent=4))
+        else:
+            print(json.dumps(profile))
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
