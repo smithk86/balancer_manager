@@ -174,7 +174,7 @@ class ValidationClient(Client):
                 route._parse()
 
                 # this route is not part of the profile
-                if balancer_manager.profile is None:
+                if route.profile is None:
                     route.compliance_status = None
                 else:
                     route.compliance_status = True
@@ -184,10 +184,10 @@ class ValidationClient(Client):
                     status.profile = None
                     status.compliance = None
 
-                    if balancer_manager.profile is None:
+                    if route.profile is None:
                         continue
 
-                    status.profile = status_name in balancer_manager.profile
+                    status.profile = status_name in route.profile
                     if status.value is status.profile:
                         status.compliance = True
                     else:

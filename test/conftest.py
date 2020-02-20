@@ -25,33 +25,28 @@ def httpd_version(request):
     return version.parse(v)
 
 
-# @pytest.fixture(scope='session')
-# def httpd_instance(httpd_version):
-#     _dir = os.path.dirname(os.path.abspath(__file__))
-#     tag = f'pytest_httpd:{httpd_version}'
+@pytest.fixture(scope='session')
+def httpd_instance(httpd_version):
+    _dir = os.path.dirname(os.path.abspath(__file__))
+    tag = f'pytest_httpd:{httpd_version}'
 
-#     docker.from_env().images.build(
-#         path=f'{_dir}/httpd',
-#         dockerfile='Dockerfile',
-#         tag=tag,
-#         buildargs={
-#             'FROM': f'httpd:{httpd_version}'
-#         }
-#     )
+    docker.from_env().images.build(
+        path=f'{_dir}/httpd',
+        dockerfile='Dockerfile',
+        tag=tag,
+        buildargs={
+            'FROM': f'httpd:{httpd_version}'
+        }
+    )
 
-#     container_info = docker_helpers.run(tag, ports=['80/tcp'])
-#     yield container_info
-#     container_info.container.stop()
-
-
-# @pytest.fixture
-# def client_url(httpd_instance):
-#     return f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager"
+    container_info = docker_helpers.run(tag, ports=['80/tcp'])
+    yield container_info
+    container_info.container.stop()
 
 
 @pytest.fixture
-def client_url():
-    return f"http://docker.ksmith:8080/balancer-manager"
+def client_url(httpd_instance):
+    return f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager"
 
 
 @pytest.fixture

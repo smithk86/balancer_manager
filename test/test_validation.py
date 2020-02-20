@@ -68,52 +68,55 @@ async def test_all_routes_are_profiled(validated_balancer_manager):
 
 
 @pytest.mark.asyncio
-async def test_compliance_manually(validation_client, random_validated_routes):
+async def test_compliance_manually(validated_balancer_manager):
     # run enforce to normalize load-balancer
-    await validation_client.enforce()
-    assert validation_client.compliance_status is True
+    await validated_balancer_manager.enforce()
+    assert validated_balancer_manager.compliance_status is True
 
-    for route in random_validated_routes:
-        status_disabled = route._status.disabled.value
-        assert route._status.disabled.value is status_disabled
-        assert route.compliance_status is True
-        assert validation_client.compliance_status is True
-        await route.edit(force=True, disabled=not status_disabled)
+    for cluster in validated_balancer_manager.clusters:
+        for route in cluster.routes:
+            status_disabled = route._status.disabled.value
+            assert route._status.disabled.value is status_disabled
+            assert route.compliance_status is True
+            assert validated_balancer_manager.compliance_status is True
+            await route.edit(force=True, disabled=not status_disabled)
 
-        assert route._status.disabled.value is not status_disabled
-        assert route.compliance_status is False
-        assert validation_client.compliance_status is False
-        await route.edit(force=True, disabled=status_disabled)
+            assert route._status.disabled.value is not status_disabled
+            assert route.compliance_status is False
+            assert validated_balancer_manager.compliance_status is False
+            await route.edit(force=True, disabled=status_disabled)
 
-        assert route._status.disabled.value is status_disabled
-        assert route.compliance_status is True
-        assert validation_client.compliance_status is True
+            assert route._status.disabled.value is status_disabled
+            assert route.compliance_status is True
+            assert validated_balancer_manager.compliance_status is True
 
 
 @pytest.mark.asyncio
-async def test_compliance_with_enforce(httpd_instance, validation_client, random_validated_routes):
+async def test_compliance_with_enforce(httpd_instance, validated_balancer_manager):
     # run enforce to normalize load-balancer
-    await validation_client.enforce()
-    assert validation_client.compliance_status is True
+    await validated_balancer_manager.enforce()
+    assert validated_balancer_manager.compliance_status is True
 
-    for route in random_validated_routes:
-        assert route.compliance_status is True
-        await route.edit(force=True, disabled=not route._status.disabled.value)
-        assert route.compliance_status is False
+    for cluster in validated_balancer_manager.clusters:
+        for route in cluster.routes:
+            assert route.compliance_status is True
+            await route.edit(force=True, disabled=not route._status.disabled.value)
+            assert route.compliance_status is False
 
-    assert validation_client.compliance_status is False
-    await validation_client.enforce()
-    assert validation_client.compliance_status is True
+    assert validated_balancer_manager.compliance_status is False
+    await validated_balancer_manager.enforce()
+    assert validated_balancer_manager.compliance_status is True
 
-    for route in random_validated_routes:
-        assert route.compliance_status is True
-        await route.edit(force=True, disabled=not route._status.disabled.value)
-        assert route.compliance_status is False
+    for cluster in validated_balancer_manager.clusters:
+        for route in cluster.routes:
+            assert route.compliance_status is True
+            await route.edit(force=True, disabled=not route._status.disabled.value)
+            assert route.compliance_status is False
 
     # test an enforce that throws exceptions
     with pytest.raises(MultipleExceptions):
         try:
             httpd_instance.container.pause()
-            await validation_client.enforce()
+            await validated_balancer_manager.enforce()
         finally:
             httpd_instance.container.unpause()
