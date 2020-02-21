@@ -17,7 +17,8 @@ class BalancerManager(object):
 
     def asdict(self):
         return {
-            'client': self.client.asdict(),
+            'url': self.client.url,
+            'insecure': self.client.insecure,
             'updated_datetime': self.updated_datetime,
             'httpd_version': self.httpd_version,
             'httpd_compile_datetime': self.httpd_compile_datetime,

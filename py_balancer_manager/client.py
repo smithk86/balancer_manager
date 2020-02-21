@@ -45,12 +45,6 @@ class Client(object):
     def __repr__(self):
         return f'<py_balancer_manager.Client object: {self.url}>'
 
-    def asdict(self):
-        return {
-            'url': self.url,
-            'insecure': self.insecure
-        }
-
     def _http_client(self):
         return httpx.AsyncClient(
             auth=self.http_auth,
