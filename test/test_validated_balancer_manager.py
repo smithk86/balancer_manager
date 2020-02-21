@@ -16,7 +16,7 @@ def test_routes(validated_balancer_manager):
 
 
 @pytest.mark.asyncio
-async def test_validate_clusters_and_routes(validated_balancer_manager):
+async def test_properties(validated_balancer_manager):
     # run enforce to normalize load-balancer
     await validated_balancer_manager.enforce()
     await asyncio.sleep(1)
@@ -48,7 +48,7 @@ async def test_validate_clusters_and_routes(validated_balancer_manager):
 
 
 @pytest.mark.asyncio
-async def test_all_routes_are_profiled(validated_balancer_manager):
+async def test_confirm_all_routes_are_profiled(validated_balancer_manager):
     # manually remove a route from the profile
     validated_balancer_manager.profile['cluster0'].pop('route00')
     # update
@@ -68,7 +68,7 @@ async def test_all_routes_are_profiled(validated_balancer_manager):
 
 
 @pytest.mark.asyncio
-async def test_compliance_manually(validated_balancer_manager):
+async def test_compliance(validated_balancer_manager):
     # run enforce to normalize load-balancer
     await validated_balancer_manager.enforce()
     assert validated_balancer_manager.compliance_status is True
@@ -92,7 +92,7 @@ async def test_compliance_manually(validated_balancer_manager):
 
 
 @pytest.mark.asyncio
-async def test_compliance_with_enforce(httpd_instance, validated_balancer_manager):
+async def test_enforce(validated_balancer_manager):
     # run enforce to normalize load-balancer
     await validated_balancer_manager.enforce()
     assert validated_balancer_manager.compliance_status is True
@@ -113,6 +113,9 @@ async def test_compliance_with_enforce(httpd_instance, validated_balancer_manage
         assert route.compliance_status is False
     assert validated_balancer_manager.compliance_status is False
 
+
+@pytest.mark.asyncio
+async def test_enforce_with_errors(httpd_instance, validated_balancer_manager):
     # test an enforce that throws exceptions
     with pytest.raises(MultipleExceptions):
         try:

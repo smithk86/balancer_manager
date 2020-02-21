@@ -79,9 +79,9 @@ class ValidatedCluster(Cluster):
 
 
 class ValidatedBalancerManager(BalancerManager):
-    def __init__(self, client):
+    def __init__(self, client, profile=None):
         super().__init__(client)
-        self.profile = None
+        self.profile = profile
 
     def __repr__(self):
         return f'<py_balancer_manager.validate.ValidatedBalancerManager object: {self.client.url} [clusters={len(self.clusters)}]>'
@@ -108,6 +108,9 @@ class ValidatedBalancerManager(BalancerManager):
             'profile': self.profile
         })
         return d
+
+    def new_client(self, **kwargs):
+        return ValidationClient(**kwargs)
 
     def new_cluster(self, name):
         cluster = ValidatedCluster(self, name)

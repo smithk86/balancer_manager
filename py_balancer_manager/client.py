@@ -9,7 +9,6 @@ import httpx
 from bs4 import BeautifulSoup
 from packaging import version
 
-from .balancer_manager import BalancerManager
 from .errors import BalancerManagerError
 from .helpers import now, parse_from_local_timezone, VERSION_24
 from .route import Route
@@ -27,20 +26,16 @@ class Client(object):
     route_used_pattern = re.compile(r'^(\d*) \[(\d*) Used\]$')
     route_data_used_pattern = re.compile(r'([0-9\d\.]*)([KMGT]?)')
 
-    def __init__(self, url, insecure=False, username=None, password=None, timeout=30):
+    def __init__(self, url: str, insecure=False, username=None, password=None, timeout=5):
         self.logger = logging.getLogger(__name__)
-
-        if type(insecure) is not bool:
-            raise TypeError('insecure must be type bool')
-
-        if insecure is True:
-            self.logger.warning('ssl certificate verification is disabled')
-
         self.url = url
         self.insecure = insecure
         self.timeout = timeout
         self.user_agent = 'py-balancer-manager.Client'
         self.http_auth = httpx.BasicAuth(username, password=password) if (username and password) else None
+
+        if self.insecure is True:
+            self.logger.warning('ssl certificate verification is disabled')
 
     def __repr__(self):
         return f'<py_balancer_manager.Client object: {self.url}>'
@@ -48,6 +43,7 @@ class Client(object):
     def _http_client(self):
         return httpx.AsyncClient(
             auth=self.http_auth,
+            verify=not self.insecure,
             timeout=self.timeout,
             headers={
                 'User-Agent': self.user_agent
@@ -58,12 +54,6 @@ class Client(object):
         async with self._http_client() as client:
             r = await client.get(self.url)
             return r.text
-
-    async def balancer_manager(self):
-        balancer_manager = BalancerManager(self)
-        response_payload = await self._http_get_payload()
-        self._parse(response_payload, balancer_manager)
-        return balancer_manager
 
     def _parse(self, response_payload, balancer_manager):
         def _parse_max_members(value):

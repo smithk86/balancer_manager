@@ -1,3 +1,4 @@
+from .client import Client
 from .cluster import Cluster
 from .errors import BalancerManagerError
 from .helpers import find_object
@@ -5,7 +6,13 @@ from .helpers import find_object
 
 class BalancerManager(object):
     def __init__(self, client):
-        self.client = client
+        if type(client) is Client:
+            self.client = client
+        elif isinstance(client, dict):
+            self.client = self.new_client(**client)
+        else:
+            raise TypeError('client arg must be either py_balancer_manager.Client object or dict')
+
         self.updated_datetime = None
         self.httpd_version = None
         self.httpd_compile_datetime = None
@@ -35,6 +42,9 @@ class BalancerManager(object):
                     return True
             return False
 
+    def new_client(self, **kwargs):
+        return Client(**kwargs)
+
     def new_cluster(self, name):
         cluster = Cluster(self, name)
         self.clusters.append(cluster)
@@ -50,3 +60,4 @@ class BalancerManager(object):
         if response_payload is None:
             response_payload = await self.client._http_get_payload()
         self.client._parse(response_payload, self)
+        return self

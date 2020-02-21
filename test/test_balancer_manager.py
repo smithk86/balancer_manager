@@ -52,6 +52,10 @@ def test_properties(balancer_manager):
                 assert type(route.status(status_name)) is Status
 
 
+def test_version(balancer_manager, httpd_version):
+    assert balancer_manager.httpd_version == httpd_version
+
+
 @pytest.mark.asyncio
 async def test_updated_datetime(balancer_manager):
     """ confirm the updated_datetime attribute is updated """
@@ -69,27 +73,28 @@ async def test_cluster_does_not_exist(balancer_manager):
 
 
 @pytest.mark.asyncio
-async def test_route_status_changes(random_route):
-    for status_name in random_route.mutable_statuses():
-        status_value = random_route.status(status_name).value
+async def test_route_status_changes(balancer_manager):
+    route = balancer_manager.cluster('cluster0').route('route00')
+    for status_name in route.mutable_statuses():
+        status_value = route.status(status_name).value
 
         # toggle status to the oposite value
         kwargs = {status_name: not status_value}
 
         # continue with route testing
-        await random_route.edit(**kwargs)
+        await route.edit(**kwargs)
 
         # assert new status value
-        assert random_route.status(status_name).value is not status_value
+        assert route.status(status_name).value is not status_value
 
         # toggle status back to original value
-        await random_route.edit(**{
+        await route.edit(**{
             'force': True,
             status_name: status_value
         })
 
         # assert original status value
-        assert random_route.status(status_name).value is status_value
+        assert route.status(status_name).value is status_value
 
 
 @pytest.mark.asyncio

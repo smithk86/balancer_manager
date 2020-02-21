@@ -7,7 +7,7 @@ from packaging import version
 
 import docker
 import pytest
-from py_balancer_manager import Client, ValidationClient
+from py_balancer_manager import BalancerManager, ValidatedBalancerManager
 
 import docker_helpers
 
@@ -50,52 +50,26 @@ def client_url(httpd_instance):
 
 
 @pytest.fixture
-def client(client_url):
-    return Client(
-        client_url,
-        username='admin',
-        password='password',
-        timeout=.25
-    )
+@pytest.mark.asyncio
+async def balancer_manager(client_url):
+    balancer_manager = BalancerManager(client={
+        'url': client_url,
+        'username': 'admin',
+        'password': 'password',
+        'timeout': .25
+    })
+    return await balancer_manager.update()
 
 
 @pytest.fixture
 @pytest.mark.asyncio
-async def balancer_manager(client):
-    return await client.balancer_manager()
-
-
-@pytest.fixture
-def random_cluster(balancer_manager):
-    clusters = balancer_manager.clusters
-    if len(clusters) > 0:
-        random_index = random.randrange(0, len(clusters) - 1) if len(clusters) > 1 else 0
-        return clusters[random_index]
-    raise ValueError('no clusters were found')
-
-
-@pytest.fixture
-def random_route(random_cluster):
-    routes = random_cluster.routes
-    if len(routes) > 0:
-        random_index = random.randrange(0, len(routes) - 1) if len(routes) > 1 else 0
-        return routes[random_index]
-    raise ValueError('no routes were found')
-
-
-@pytest.fixture
-def validation_client(client_url):
-    return ValidationClient(
-        client_url,
-        username='admin',
-        password='password',
-        timeout=.25
-    )
-
-
-@pytest.fixture
-@pytest.mark.asyncio
-async def validated_balancer_manager(validation_client):
+async def validated_balancer_manager(client_url):
     with open(f'{_dir}/data/test_validation_profile.json') as fh:
         profile = json.load(fh)
-    return await validation_client.balancer_manager(profile=profile)
+    balancer_manager = ValidatedBalancerManager(client={
+        'url': client_url,
+        'username': 'admin',
+        'password': 'password',
+        'timeout': .25
+    }, profile=profile)
+    return await balancer_manager.update()
