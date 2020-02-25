@@ -7,7 +7,7 @@ from tzlocal import get_localzone
 
 from termcolor import colored
 
-from py_balancer_manager import Client
+from py_balancer_manager import BalancerManager
 from .printer import print_routes
 
 
@@ -47,13 +47,13 @@ async def main():
     else:
         password = None
 
-    client = Client(
-        getattr(args, 'balance-manager-url'),
-        insecure=args.insecure,
-        username=args.username,
-        password=password
-    )
-    balancer_manager = await client.balancer_manager()
+    balancer_manager = BalancerManager(client={
+        'url': getattr(args, 'balance-manager-url'),
+        'insecure': args.insecure,
+        'username': args.username,
+        'password': password
+    })
+    await balancer_manager.update()
 
     if (args.ignore_errors is not None or
             args.draining_mode is not None or

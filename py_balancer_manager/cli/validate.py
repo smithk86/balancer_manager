@@ -7,7 +7,7 @@ from getpass import getpass
 
 from termcolor import cprint
 
-from py_balancer_manager import ValidationClient
+from py_balancer_manager import ValidatedBalancerManager
 from .printer import print_validated_routes
 
 
@@ -46,14 +46,15 @@ async def main():
     else:
         password = None
 
-    client = ValidationClient(
-        getattr(args, 'balance-manager-url'),
-        username=args.username,
-        password=password,
-        insecure=args.insecure
-    )
-    balancer_manager = await client.balancer_manager(profile)
+    balancer_manager = ValidatedBalancerManager(client={
+        'url': getattr(args, 'balance-manager-url'),
+        'insecure': args.insecure,
+        'username': args.username,
+        'password': password
+    })
+
     if args.action == 'validate' or args.action == 'enforce':
+        await balancer_manager.update()
         routes = list()
         for cluster in balancer_manager.clusters:
             routes += cluster.routes
@@ -72,11 +73,14 @@ async def main():
                 raise Exception('profile has been enforced but still not compliant')
 
     elif args.action == 'build':
-        profile = balancer_manager.get_profile()
+        profile = await balancer_manager.get_profile()
         if args.pretty:
             print(json.dumps(profile, indent=4))
         else:
             print(json.dumps(profile))
+
+    else:
+        raise RuntimeError(f'action does not exist: {args.action}')
 
 
 if __name__ == '__main__':
