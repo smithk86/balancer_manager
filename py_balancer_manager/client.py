@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import re
-from collections import namedtuple
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -17,6 +16,7 @@ from .status import Statuses, Status
 
 class Client(object):
     # compile patterns
+    url_endpoint_pattern = re.compile(r'(.*)\/balancer-manager')
     httpd_server_version_pattern = re.compile(r'^Server\ Version:\ Apache/([\.0-9]*)')
     httpd_server_build_date_pattern = re.compile(r'Server Built:\ (.*)')
     openssl_version_pattern = re.compile(r'OpenSSL\/([0-9\.a-z]*)')
@@ -40,14 +40,25 @@ class Client(object):
     def __repr__(self):
         return f'<py_balancer_manager.Client object: {self.url}>'
 
-    def _http_client(self):
+    def _http_client(self, referer_params=None):
+        headers={
+            'User-Agent': self.user_agent
+        }
+
+        if referer_params:
+            m = Client.url_endpoint_pattern.match(self.url)
+            if m:
+                headers['Origin'] = m.group(1)
+
+            referer_dict = referer_params._asdict()
+            referer_pairs = [f'{key}={value}' for key, value in referer_dict.items()]
+            headers['Referer'] = f"{self.url}?{'&'.join(referer_pairs)}"
+
         return httpx.AsyncClient(
             auth=self.http_auth,
             verify=not self.insecure,
             timeout=self.timeout,
-            headers={
-                'User-Agent': self.user_agent
-            }
+            headers=headers
         )
 
     async def _http_get_payload(self):

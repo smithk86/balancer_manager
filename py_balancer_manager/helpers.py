@@ -1,5 +1,6 @@
 import re
 import time
+from collections import namedtuple
 from datetime import datetime
 
 from packaging import version
@@ -10,6 +11,7 @@ from .errors import BalancerManagerError
 
 
 VERSION_24 = version.parse('2.4')
+RefererParams = namedtuple('RefererParams', ['cluster', 'w', 'nonce'])
 
 
 def now():

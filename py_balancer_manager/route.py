@@ -1,5 +1,6 @@
 import dataclasses
 
+from .helpers import RefererParams
 from .errors import BalancerManagerError
 
 
@@ -95,7 +96,12 @@ class Route(object):
 
         self.cluster.balancer_manager.client.logger.debug(f'post payload: {post_data}')
 
-        async with self.cluster.balancer_manager.client._http_client() as client:
+        referer_params = RefererParams(
+            cluster=self.cluster.name,
+            w=self.worker,
+            nonce=str(self.session_nonce_uuid)
+        )
+        async with self.cluster.balancer_manager.client._http_client(referer_params=referer_params) as client:
             r = await client.post(self.cluster.balancer_manager.client.url, data=post_data)
 
         await self.cluster.balancer_manager.update(response_payload=r.text)
