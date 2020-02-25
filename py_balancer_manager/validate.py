@@ -141,7 +141,8 @@ class ValidatedBalancerManager(BalancerManager):
         # refresh routes to include profile information
         await self.update()
 
-    def get_profile(self):
+    async def get_profile(self):
+        await self.update()
         # init empty list for the profile
         profile = dict()
         for cluster in self.clusters:
