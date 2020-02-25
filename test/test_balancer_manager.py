@@ -11,9 +11,9 @@ from py_balancer_manager.status import Statuses, Status
 def test_properties(balancer_manager):
     assert type(balancer_manager.client) is Client
     assert type(balancer_manager.updated_datetime) is datetime
-    assert type(balancer_manager.httpd_version) is version.Version
+    assert isinstance(balancer_manager.httpd_version, version._BaseVersion)
     assert type(balancer_manager.httpd_compile_datetime) is datetime
-    assert type(balancer_manager.openssl_version) is version.Version
+    assert isinstance(balancer_manager.openssl_version, version._BaseVersion)
     assert type(balancer_manager.holistic_error_status) is bool
 
     for cluster in balancer_manager.clusters:
