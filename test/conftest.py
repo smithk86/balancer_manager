@@ -16,7 +16,7 @@ _dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def pytest_addoption(parser):
-    parser.addoption('--httpd-version', default='2.4.39')
+    parser.addoption('--httpd-version', default='2.4.41')
 
 
 @pytest.fixture(scope='session')
