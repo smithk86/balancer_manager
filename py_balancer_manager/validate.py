@@ -46,6 +46,27 @@ class ValidatedRoute(Route):
                 compliance=None
             ))
 
+            # this route is not part of the profile
+            if self.profile is None:
+                self.compliance_status = None
+            else:
+                self.compliance_status = True
+
+            for status_name in self.mutable_statuses():
+                status = self.status(status_name)
+                status.profile = None
+                status.compliance = None
+
+                if self.profile is None:
+                    continue
+
+                status.profile = status_name in self.profile
+                if status.value is status.profile:
+                    status.compliance = True
+                else:
+                    status.compliance = False
+                    self.compliance_status = False
+
 
 class ValidatedCluster(Cluster):
     def __repr__(self):
@@ -176,24 +197,3 @@ class ValidationClient(Client):
         for cluster in balancer_manager.clusters:
             for route in cluster.routes:
                 route._parse()
-
-                # this route is not part of the profile
-                if route.profile is None:
-                    route.compliance_status = None
-                else:
-                    route.compliance_status = True
-
-                for status_name in route.mutable_statuses():
-                    status = route.status(status_name)
-                    status.profile = None
-                    status.compliance = None
-
-                    if route.profile is None:
-                        continue
-
-                    status.profile = status_name in route.profile
-                    if status.value is status.profile:
-                        status.compliance = True
-                    else:
-                        status.compliance = False
-                        route.compliance_status = False
