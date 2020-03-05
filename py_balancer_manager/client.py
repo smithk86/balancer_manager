@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from packaging import version
 
 from .errors import BalancerManagerError
-from .helpers import now, parse_from_local_timezone, VERSION_24
+from .helpers import now, parse_from_local_timezone, TrafficData, VERSION_24
 from .route import Route
 from .status import Statuses, Status
 
@@ -192,10 +192,8 @@ class Client(object):
                 route.elected = int(cells[6].text)
                 route.busy = int(cells[7].text)
                 route.load = int(cells[8].text)
-                route.traffic_to = cells[9].text
-                route.traffic_to_raw = Client._decode_data_usage(cells[9].text)
-                route.traffic_from = cells[10].text
-                route.traffic_from_raw = Client._decode_data_usage(cells[10].text)
+                route.traffic_to = TrafficData(value=cells[9].text, decoded=Client._decode_data_usage(cells[9].text))
+                route.traffic_from = TrafficData(value=cells[10].text, decoded=Client._decode_data_usage(cells[10].text))
                 route.session_nonce_uuid = UUID(session_nonce_uuid)
                 route._status = Statuses(
                     ok=Status(value='Ok' in cells[5].text, immutable=True, http_form_code=None),

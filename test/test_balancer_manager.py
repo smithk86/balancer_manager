@@ -5,6 +5,7 @@ import pytest
 from packaging import version
 
 from py_balancer_manager import BalancerManager, BalancerManagerError, Client, Cluster, MultipleExceptions, Route
+from py_balancer_manager.helpers import TrafficData
 from py_balancer_manager.status import Statuses, Status
 
 
@@ -40,10 +41,8 @@ def test_properties(balancer_manager):
             assert type(route.elected) is int
             assert route.busy is None or type(route.busy) is int
             assert route.load is None or type(route.load) is int
-            assert type(route.traffic_to) is str
-            assert type(route.traffic_to_raw) is int
-            assert type(route.traffic_from) is str
-            assert type(route.traffic_from_raw) is int
+            assert type(route.traffic_to) is TrafficData
+            assert type(route.traffic_from) is TrafficData
             assert type(route.session_nonce_uuid) is UUID
             assert type(route._status) is Statuses
             assert type(route._status.ok) is Status

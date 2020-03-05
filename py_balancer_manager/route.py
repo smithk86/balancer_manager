@@ -17,9 +17,7 @@ class Route(object):
         self.busy = None
         self.load = None
         self.traffic_to = None
-        self.traffic_to_raw = None
         self.traffic_from = None
-        self.traffic_from_raw = None
         self.session_nonce_uuid = None
         self.taking_traffic = None
         self._status = None
@@ -36,10 +34,9 @@ class Route(object):
             'factor': self.factor,
             'lbset': self.lbset,
             'elected': self.elected,
-            'traffic_to': self.traffic_to,
-            'traffic_to_raw': self.traffic_to_raw,
-            'traffic_from': self.traffic_from,
-            'traffic_from_raw': self.traffic_from_raw,
+            'busy': self.busy,
+            'traffic_to': self.traffic_to._asdict(),
+            'traffic_from': self.traffic_from._asdict(),
             'session_nonce_uuid': self.session_nonce_uuid,
             'taking_traffic': self.taking_traffic,
             'status': self._status

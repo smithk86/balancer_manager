@@ -12,6 +12,7 @@ from .errors import BalancerManagerError
 
 VERSION_24 = version.parse('2.4')
 RefererParams = namedtuple('RefererParams', ['cluster', 'w', 'nonce'])
+TrafficData = namedtuple('TrafficData', ['value', 'decoded'])
 
 
 def now():
