@@ -13,11 +13,11 @@ class BalancerManager(object):
         else:
             raise TypeError('client arg must be either py_balancer_manager.Client object or dict')
 
-        self.updated_datetime = None
         self.httpd_version = None
         self.httpd_compile_datetime = None
         self.openssl_version = None
         self.clusters = list()
+        self.date = None
 
     def __repr__(self):
         return f'<py_balancer_manager.BalancerManager object: {self.client.url} [clusters={len(self.clusters)}]>'
@@ -26,10 +26,10 @@ class BalancerManager(object):
         return {
             'url': self.client.url,
             'insecure': self.client.insecure,
-            'updated_datetime': self.updated_datetime,
             'httpd_version': self.httpd_version,
             'httpd_compile_datetime': self.httpd_compile_datetime,
-            'openssl_version': self.openssl_version
+            'openssl_version': self.openssl_version,
+            'date': self.date
         }
 
     @property

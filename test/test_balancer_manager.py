@@ -11,7 +11,7 @@ from py_balancer_manager.status import Statuses, Status
 
 def test_properties(balancer_manager):
     assert type(balancer_manager.client) is Client
-    assert type(balancer_manager.updated_datetime) is datetime
+    assert type(balancer_manager.date) is datetime
     assert isinstance(balancer_manager.httpd_version, version._BaseVersion)
     assert type(balancer_manager.httpd_compile_datetime) is datetime
     assert isinstance(balancer_manager.openssl_version, version._BaseVersion)
@@ -56,11 +56,11 @@ def test_version(balancer_manager, httpd_version):
 
 
 @pytest.mark.asyncio
-async def test_updated_datetime(balancer_manager):
-    """ confirm the updated_datetime attribute is updated """
-    first_datetime = balancer_manager.updated_datetime
+async def test_date(balancer_manager):
+    """ confirm the date attribute is updated """
+    first_datetime = balancer_manager.date
     await balancer_manager.update()
-    last_datetime = balancer_manager.updated_datetime
+    last_datetime = balancer_manager.date
     assert first_datetime < last_datetime
 
 

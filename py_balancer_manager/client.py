@@ -79,7 +79,7 @@ class Client(object):
         # parse payload with beautiful soup
         bsoup = BeautifulSoup(response_payload, 'html.parser')
 
-        balancer_manager.updated_datetime = now()
+        balancer_manager.date = now()
 
         # remove form from page -- this contains extra tables which do not contain clusters or routes
         for form in bsoup.find_all('form'):
