@@ -14,7 +14,7 @@ class BalancerManager(object):
             raise TypeError('client arg must be either py_balancer_manager.Client object or dict')
 
         self.httpd_version = None
-        self.httpd_compile_datetime = None
+        self.httpd_compile_date = None
         self.openssl_version = None
         self.clusters = list()
         self.date = None
@@ -27,7 +27,7 @@ class BalancerManager(object):
             'url': self.client.url,
             'insecure': self.client.insecure,
             'httpd_version': self.httpd_version,
-            'httpd_compile_datetime': self.httpd_compile_datetime,
+            'httpd_compile_date': self.httpd_compile_date,
             'openssl_version': self.openssl_version,
             'date': self.date
         }

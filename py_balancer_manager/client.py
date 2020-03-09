@@ -113,7 +113,7 @@ class Client(object):
             # set/update httpd compile datetime
             match = Client.httpd_server_build_date_pattern.match(_bs_dt[1].text)
             if match:
-                balancer_manager.httpd_compile_datetime = parse_from_local_timezone(match.group(1))
+                balancer_manager.httpd_compile_date = parse_from_local_timezone(match.group(1))
 
         # only iterate through odd tables which contain cluster data
         for table in _bs_table_clusters:

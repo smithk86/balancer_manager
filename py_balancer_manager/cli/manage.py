@@ -90,7 +90,7 @@ async def main():
     print()
     print(f"{colored('url', 'blue')}: {balancer_manager.client.url}")
     print(f"{colored('httpd version', 'blue')}: {balancer_manager.httpd_version}")
-    print(f"{colored('httpd build time', 'blue')}: {balancer_manager.httpd_compile_datetime.astimezone(get_localzone())}")
+    print(f"{colored('httpd build time', 'blue')}: {balancer_manager.httpd_compile_date.astimezone(get_localzone())}")
 
     if balancer_manager.openssl_version:
         print(f"{colored('openssl version', 'blue')}: {balancer_manager.openssl_version}")

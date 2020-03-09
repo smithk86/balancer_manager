@@ -13,7 +13,7 @@ def test_properties(balancer_manager):
     assert type(balancer_manager.client) is Client
     assert type(balancer_manager.date) is datetime
     assert isinstance(balancer_manager.httpd_version, version._BaseVersion)
-    assert type(balancer_manager.httpd_compile_datetime) is datetime
+    assert type(balancer_manager.httpd_compile_date) is datetime
     assert isinstance(balancer_manager.openssl_version, version._BaseVersion)
     assert type(balancer_manager.holistic_error_status) is bool
 
