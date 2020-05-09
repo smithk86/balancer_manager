@@ -14,6 +14,9 @@ from .route import Route
 from .status import Statuses, Status
 
 
+logger = logging.getLogger(__name__)
+
+
 class Client(object):
     # compile patterns
     url_endpoint_pattern = re.compile(r'(.*)\/balancer-manager')
@@ -27,7 +30,6 @@ class Client(object):
     route_data_used_pattern = re.compile(r'([0-9\d\.]*)([KMGT]?)')
 
     def __init__(self, url: str, insecure=False, username=None, password=None, timeout=5):
-        self.logger = logging.getLogger(__name__)
         self.url = url
         self.insecure = insecure
         self.timeout = timeout
@@ -35,7 +37,7 @@ class Client(object):
         self.http_auth = httpx.BasicAuth(username, password=password) if (username and password) else None
 
         if self.insecure is True:
-            self.logger.warning('ssl certificate verification is disabled')
+            logger.warning('ssl certificate verification is disabled')
 
     def __repr__(self):
         return f'<py_balancer_manager.Client object: {self.url}>'
@@ -136,6 +138,9 @@ class Client(object):
             except BalancerManagerError:
                 cluster = balancer_manager.new_cluster(cluster_name)
 
+            # update cluster date
+            cluster._date = balancer_manager.date
+
             for row in table.find_all('tr'):
                 cells = row.find_all('td')
 
@@ -184,6 +189,9 @@ class Client(object):
                 except BalancerManagerError:
                     route = cluster.new_route(route_name)
 
+                # update route date
+                route._date = balancer_manager.date
+
                 route.worker = cells[0].find('a').text
                 route.priority = i
                 route.route_redir = cells[2].text
@@ -205,6 +213,17 @@ class Client(object):
                     hot_spare=Status(value='Spar' in cells[5].text, immutable=False, http_form_code='R') if balancer_manager.httpd_version >= version.parse('2.4.34') else None,
                     stopped=Status(value='Stop' in cells[5].text, immutable=False, http_form_code='S') if balancer_manager.httpd_version >= version.parse('2.4.23') else None
                 )
+
+        # remove orphaned cluster/routes
+        for c in balancer_manager.clusters:
+            if c._date < balancer_manager.date:
+                logger.warning(f'removing orphaned cluster: {c.name}')
+                balancer_manager.clusters.remove(c)
+                continue
+            for r in c.routes:
+                if r._date < balancer_manager.date:
+                    logger.warning(f'removing orphaned route: {c.name}->{r.name}')
+                    c.routes.remove(r)
 
         # iterate clusters for post-parse processing
         for cluster in balancer_manager.clusters:

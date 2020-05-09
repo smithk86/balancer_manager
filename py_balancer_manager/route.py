@@ -1,7 +1,11 @@
 import dataclasses
+import logging
 
 from .helpers import RefererParams
 from .errors import BalancerManagerError
+
+
+logger = logging.getLogger(__name__)
 
 
 class Route(object):
@@ -21,6 +25,7 @@ class Route(object):
         self.session_nonce_uuid = None
         self.taking_traffic = None
         self._status = None
+        self._date = None
 
     def __repr__(self):
         return f'<py_balancer_manager.Route object: {self.cluster.name} -> {self.name}>'
@@ -91,7 +96,7 @@ class Route(object):
             http_form_code = self.status(status_name).http_form_code
             post_data[f'w_status_{http_form_code}'] = int(new_route_statuses[status_name])
 
-        self.cluster.balancer_manager.client.logger.debug(f'post payload: {post_data}')
+        logger.debug(f'post payload {self.cluster.name}->{self.name}: {post_data}')
 
         referer_params = RefererParams(
             cluster=self.cluster.name,

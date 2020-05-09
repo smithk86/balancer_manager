@@ -1,3 +1,5 @@
+pytest_plugins = ['helpers_namespace']
+
 import asyncio
 import json
 import os
@@ -7,6 +9,7 @@ from packaging import version
 
 import docker
 import pytest
+import respx
 from py_balancer_manager import BalancerManager, ValidatedBalancerManager
 
 import docker_helpers
@@ -28,7 +31,7 @@ def httpd_version(request):
 @pytest.fixture(scope='session')
 def httpd_instance(httpd_version):
     _dir = os.path.dirname(os.path.abspath(__file__))
-    tag = f'pytest_httpd:{httpd_version}'
+    tag = f'py_balancer_manager-pytest_httpd_1:{httpd_version}'
 
     docker.from_env().images.build(
         path=f'{_dir}/httpd',
@@ -73,3 +76,25 @@ async def validated_balancer_manager(client_url):
         'timeout': .25
     }, profile=profile)
     return await balancer_manager.update()
+
+
+@pytest.fixture
+@pytest.mark.asyncio
+async def mocked_balancer_manager():
+    balancer_manager = BalancerManager(client={
+        'url': 'http://respx/balancer-manager'
+    })
+
+    await update_mocked_balancer_manager(balancer_manager, 'balancer-manager-mock-1.html')
+
+    return balancer_manager
+
+
+@pytest.helpers.register
+async def update_mocked_balancer_manager(balancer_manager, filename):
+    with open(f'{_dir}/data/{filename}', 'r') as fh:
+        html_payload = fh.read()
+
+    with respx.mock:
+        respx.get('http://respx/balancer-manager', content=html_payload)
+        await balancer_manager.update()

@@ -45,6 +45,7 @@ setup(
     tests_require=[
         'docker',
         'pytest',
-        'pytest-asyncio'
+        'pytest-asyncio',
+        'pytest-helpers-namespace'
     ]
 )
