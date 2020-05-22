@@ -16,7 +16,6 @@ more-itertools==8.2.0
 packaging==20.3
 pluggy==0.13.1
 py==1.8.1
-py-balancer-manager==3.4.0.dev0
 pyparsing==2.4.7
 pytest==5.4.1
 pytest-asyncio==0.12.0
