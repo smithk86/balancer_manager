@@ -1,25 +1,32 @@
+# add the project directory to the pythonpath
+import os.path
+import sys
+from pathlib import Path
+dir_ = Path(os.path.dirname(os.path.realpath(__file__)))
+sys.path.insert(0, str(dir_.parent))
+
+# enable helpers_namespace before importing pytest
 pytest_plugins = ['helpers_namespace']
 
 import asyncio
 import json
 import os
 import random
+import re
 from collections import namedtuple
 from packaging import version
 
 import docker
 import pytest
 import respx
+from packaging import version as version_parser
 from py_balancer_manager import BalancerManager, ValidatedBalancerManager
 
 import docker_helpers
 
 
-_dir = os.path.dirname(os.path.abspath(__file__))
-
-
 def pytest_addoption(parser):
-    parser.addoption('--httpd-version', default='2.4.41')
+    parser.addoption('--httpd-version', required=True)
 
 
 @pytest.fixture(scope='session')
@@ -30,11 +37,11 @@ def httpd_version(request):
 
 @pytest.fixture(scope='session')
 def httpd_instance(httpd_version):
-    _dir = os.path.dirname(os.path.abspath(__file__))
+    dir_ = os.path.dirname(os.path.abspath(__file__))
     tag = f'py_balancer_manager-pytest_httpd_1:{httpd_version}'
 
     docker.from_env().images.build(
-        path=f'{_dir}/httpd',
+        path=f'{dir_}/httpd',
         dockerfile='Dockerfile',
         tag=tag,
         buildargs={
@@ -67,7 +74,7 @@ async def balancer_manager(client_url):
 @pytest.fixture
 @pytest.mark.asyncio
 async def validated_balancer_manager(client_url):
-    with open(f'{_dir}/data/test_validation_profile.json') as fh:
+    with open(f'{dir_}/data/test_validation_profile.json') as fh:
         profile = json.load(fh)
     balancer_manager = ValidatedBalancerManager(client={
         'url': client_url,
@@ -81,20 +88,33 @@ async def validated_balancer_manager(client_url):
 @pytest.fixture
 @pytest.mark.asyncio
 async def mocked_balancer_manager():
-    balancer_manager = BalancerManager(client={
+    return BalancerManager(client={
         'url': 'http://respx/balancer-manager'
     })
-
-    await update_mocked_balancer_manager(balancer_manager, 'balancer-manager-mock-1.html')
-
-    return balancer_manager
 
 
 @pytest.helpers.register
 async def update_mocked_balancer_manager(balancer_manager, filename):
-    with open(f'{_dir}/data/{filename}', 'r') as fh:
+    with open(f'{dir_}/data/{filename}', 'r') as fh:
         html_payload = fh.read()
 
     with respx.mock:
         respx.get('http://respx/balancer-manager', content=html_payload)
         await balancer_manager.update()
+
+
+@pytest.helpers.register
+def mocked_balancer_manager_files():
+    filenames = list()
+    mock_file_pattern = re.compile(r'^balancer-manager-([\d\.]*)\.html$')
+
+    for f in os.listdir(f'{dir_}/data'):
+        m = mock_file_pattern.match(f)
+        if m:
+            version_str = version_parser.parse(m.group(1))
+            filenames.append((version_str, f))
+
+    # confirm the list of file is not empty
+    assert len(filenames) > 0
+
+    return filenames
