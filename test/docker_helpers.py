@@ -1,4 +1,3 @@
-import asyncio
 import os
 import re
 import socket
@@ -29,7 +28,7 @@ def parse_docker_host():
         )
 
 
-def wait_for_port(host, port, timeout=5):
+def wait_for_port(host, port, timeout=5, wait=None):
     start_time = time.perf_counter()
     while True:
         try:

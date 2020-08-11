@@ -10,6 +10,7 @@ pytest_plugins = ['helpers_namespace']
 
 import asyncio
 import json
+import logging
 import os
 import random
 import re
@@ -17,12 +18,16 @@ from collections import namedtuple
 from packaging import version
 
 import docker
+import httpx
 import pytest
 import respx
 from packaging import version as version_parser
 from py_balancer_manager import BalancerManager, ValidatedBalancerManager
 
 import docker_helpers
+
+
+logger = logging.getLogger(__name__)
 
 
 def pytest_addoption(parser):
@@ -55,20 +60,31 @@ def httpd_instance(httpd_version):
 
 
 @pytest.fixture
-def client_url(httpd_instance):
-    return f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager"
+@pytest.mark.asyncio
+async def client_url(httpd_instance):
+    # build the url using the information about the docker container
+    url = f"http://{httpd_instance.address}:{httpd_instance.ports['80/tcp']}/balancer-manager"
+    # wait until we can properly connect to Apache before return the URL
+    while True:
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get(url)
+            break
+        except httpx.ConnectionClosed:
+            logger.warning('apache is not ready')
+            await asyncio.sleep(.25)
+    return url
 
 
 @pytest.fixture
 @pytest.mark.asyncio
 async def balancer_manager(client_url):
-    balancer_manager = BalancerManager(client={
+    return await BalancerManager(client={
         'url': client_url,
         'username': 'admin',
         'password': 'password',
         'timeout': .25
-    })
-    return await balancer_manager.update()
+    }).update()
 
 
 @pytest.fixture
@@ -76,18 +92,16 @@ async def balancer_manager(client_url):
 async def validated_balancer_manager(client_url):
     with open(f'{dir_}/data/test_validation_profile.json') as fh:
         profile = json.load(fh)
-    balancer_manager = ValidatedBalancerManager(client={
+    return await ValidatedBalancerManager(client={
         'url': client_url,
         'username': 'admin',
         'password': 'password',
         'timeout': .25
-    }, profile=profile)
-    return await balancer_manager.update()
+    }, profile=profile).update()
 
 
 @pytest.fixture
-@pytest.mark.asyncio
-async def mocked_balancer_manager():
+def mocked_balancer_manager():
     return BalancerManager(client={
         'url': 'http://respx/balancer-manager'
     })
