@@ -9,9 +9,9 @@ from py_balancer_manager import Client, BalancerManager, BalancerManagerError
 @pytest.mark.asyncio
 async def test_bad_url():
     client = Client(f'http://{uuid4()}.com/balancer-manager', insecure=False, username=None, password=None, timeout=1)
-    with pytest.raises(httpx.NetworkError) as excinfo:
+    with pytest.raises(BalancerManagerError) as excinfo:
         await client._http_get_payload()
-    assert 'Name or service not known' in str(excinfo.value)
+    assert 'http call to apache failed' in str(excinfo.value)
 
 
 @pytest.mark.asyncio

@@ -64,9 +64,12 @@ class Client(object):
         )
 
     async def _http_get_payload(self):
-        async with self._http_client() as client:
-            r = await client.get(self.url)
-            return r.text
+        try:
+            async with self._http_client() as client:
+                r = await client.get(self.url)
+                return r.text
+        except httpx.HTTPError as e:
+            raise BalancerManagerError(f'http call to apache failed [url={self.url}]')
 
     def _parse(self, response_payload, balancer_manager):
         def _parse_max_members(value):
