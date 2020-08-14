@@ -29,22 +29,6 @@ class Cluster(object):
     def __repr__(self):
         return f'<py_balancer_manager.Cluster object: {self.name}>'
 
-    def asdict(self):
-        return {
-            'name': self.name,
-            'max_members': self.max_members,
-            'max_members_used': self.max_members_used,
-            'sticky_session': self.sticky_session,
-            'timeout': self.timeout,
-            'failover_attempts': self.failover_attempts,
-            'method': self.method,
-            'path': self.path,
-            'active': self.active,
-            'standby_activated': self.standby_activated,
-            'eligible_routes': self.eligible_routes,
-            'routes': [r.asdict() for r in self.routes]
-        }
-
     def new_route(self, name):
         route = Route(self, name)
         self.routes.append(route)

@@ -21,13 +21,6 @@ class ValidatedRoute(Route):
     def __repr__(self):
         return f'<py_balancer_manager.validate.ValidatedRoute object: {self.name}>'
 
-    def asdict(self):
-        d = super().asdict()
-        d.update({
-            'compliance_status': self.compliance_status
-        })
-        return d
-
     @property
     def profile(self):
         cluster_profile = self.cluster.profile
@@ -121,15 +114,6 @@ class ValidatedBalancerManager(BalancerManager):
             if cluster.all_routes_are_profiled is False:
                 return False
         return True
-
-    def asdict(self):
-        d = super().asdict()
-        d.update({
-            'compliance_status': self.compliance_status,
-            'all_routes_are_profiled': self.all_routes_are_profiled,
-            'profile': self.profile
-        })
-        return d
 
     def new_client(self, **kwargs):
         return ValidationClient(**kwargs)

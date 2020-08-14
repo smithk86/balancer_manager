@@ -30,23 +30,6 @@ class Route(object):
     def __repr__(self):
         return f'<py_balancer_manager.Route object: {self.cluster.name} -> {self.name}>'
 
-    def asdict(self):
-        return {
-            'name': self.name,
-            'worker': self.worker,
-            'priority': self.priority,
-            'route_redir': self.route_redir,
-            'factor': self.factor,
-            'lbset': self.lbset,
-            'elected': self.elected,
-            'busy': self.busy,
-            'traffic_to': self.traffic_to._asdict(),
-            'traffic_from': self.traffic_from._asdict(),
-            'session_nonce_uuid': self.session_nonce_uuid,
-            'taking_traffic': self.taking_traffic,
-            'status': self._status
-        }
-
     def mutable_statuses(self):
         allowed_statuses = list()
         for k, v in dataclasses.asdict(self._status).items():

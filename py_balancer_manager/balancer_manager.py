@@ -25,16 +25,6 @@ class BalancerManager(object):
     def __repr__(self):
         return f'<py_balancer_manager.BalancerManager object: {self.client.url} [clusters={len(self.clusters)}]>'
 
-    def asdict(self):
-        return {
-            'url': self.client.url,
-            'insecure': self.client.insecure,
-            'httpd_version': self.httpd_version,
-            'httpd_compile_date': self.httpd_compile_date,
-            'openssl_version': self.openssl_version,
-            'date': self.date
-        }
-
     @property
     def holistic_error_status(self):
         for cluster in self.clusters:
