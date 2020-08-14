@@ -1,8 +1,8 @@
 import sys
 
 
-__VERSION__ = '3.4.6'
-__DATE__ = '2020-08-11'
+__VERSION__ = '3.5.0-dev'
+__DATE__ = '2020-08-14'
 __MIN_PYTHON__ = (3, 7)
 
 
@@ -15,4 +15,4 @@ from .client import Client
 from .cluster import Cluster
 from .errors import BalancerManagerError, MultipleExceptions
 from .route import Route
-from .validate import ValidatedBalancerManager, ValidationClient, ValidatedRoute, ValidatedCluster
+from .validate import ValidatedBalancerManager, ValidatedRoute, ValidatedCluster

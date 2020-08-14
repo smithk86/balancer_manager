@@ -1,6 +1,7 @@
 import logging
 from collections import namedtuple
 
+from ._parse import parse
 from .balancer_manager import BalancerManager
 from .client import Client
 from .cluster import Cluster
@@ -180,20 +181,9 @@ class ValidatedBalancerManager(BalancerManager):
             profile[cluster.name] = cluster_profile
         return profile
 
-
-class ValidationClient(Client):
-    def __repr__(self):
-        return f'<py_balancer_manager.validate.ValidationClient object: {self.client.url}>'
-
-    async def balancer_manager(self, profile):
-        balancer_manager = ValidatedBalancerManager(self)
-        balancer_manager.profile = profile
-        response_payload = await self._http_get_payload()
-        self._parse(response_payload, balancer_manager)
-        return balancer_manager
-
-    def _parse(self, response_payload, balancer_manager):
-        super()._parse(response_payload, balancer_manager)
-        for cluster in balancer_manager.clusters:
+    async def update(self, response_payload=None):
+        await super().update(response_payload)
+        for cluster in self.clusters:
             for route in cluster.routes:
                 route._parse()
+        return self

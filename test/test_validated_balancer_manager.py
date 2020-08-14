@@ -1,7 +1,7 @@
 import asyncio
 import dataclasses
 import pytest
-from py_balancer_manager import ValidatedBalancerManager, ValidationClient, ValidatedRoute, ValidatedCluster
+from py_balancer_manager import ValidatedBalancerManager, ValidatedRoute, ValidatedCluster
 
 from py_balancer_manager.status import Status, ValidatedStatus
 from py_balancer_manager.errors import MultipleExceptions
@@ -29,7 +29,6 @@ async def test_properties(validated_balancer_manager):
     assert len(validated_balancer_manager.profile) == len(validated_balancer_manager.clusters)
 
     assert type(validated_balancer_manager) is ValidatedBalancerManager
-    assert type(validated_balancer_manager.client) is ValidationClient
     for cluster in validated_balancer_manager.clusters:
         assert type(cluster) == ValidatedCluster
         assert type(cluster.balancer_manager) is ValidatedBalancerManager

@@ -1,3 +1,6 @@
+import asyncio
+
+from ._parse import parse
 from .client import Client
 from .cluster import Cluster
 from .errors import BalancerManagerError
@@ -6,10 +9,10 @@ from .helpers import find_object
 
 class BalancerManager(object):
     def __init__(self, client):
-        if type(client) is Client:
+        if isinstance(client, Client):
             self.client = client
         elif isinstance(client, dict):
-            self.client = self.new_client(**client)
+            self.client = Client(**client)
         else:
             raise TypeError('client arg must be either py_balancer_manager.Client object or dict')
 
@@ -42,9 +45,6 @@ class BalancerManager(object):
                     return True
             return False
 
-    def new_client(self, **kwargs):
-        return Client(**kwargs)
-
     def new_cluster(self, name):
         cluster = Cluster(self, name)
         self.clusters.append(cluster)
@@ -57,7 +57,9 @@ class BalancerManager(object):
             raise BalancerManagerError(f'could not locate cluster name in list of clusters: {name}')
 
     async def update(self, response_payload=None):
+        loop = asyncio.get_running_loop()
         if response_payload is None:
-            response_payload = await self.client._http_get_payload()
-        self.client._parse(response_payload, self)
+            async with self.client:
+                response_payload = await self.client.get()
+        await loop.run_in_executor(None, parse, response_payload, self)
         return self

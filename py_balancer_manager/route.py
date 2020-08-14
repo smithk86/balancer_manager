@@ -103,8 +103,9 @@ class Route(object):
             w=self.worker,
             nonce=str(self.session_nonce_uuid)
         )
-        async with self.cluster.balancer_manager.client._http_client(referer_params=referer_params) as client:
-            r = await client.post(self.cluster.balancer_manager.client.url, data=post_data)
+
+        async with self.cluster.balancer_manager.client:
+            r = await self.cluster.balancer_manager.client.post(data=post_data, referer_params=referer_params)
 
         await self.cluster.balancer_manager.update(response_payload=r.text)
 
