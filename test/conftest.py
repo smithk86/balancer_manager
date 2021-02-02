@@ -70,7 +70,7 @@ async def client_url(httpd_instance):
             async with httpx.AsyncClient() as client:
                 await client.get(url)
             break
-        except httpx.ConnectionClosed:
+        except httpx.HTTPError:
             logger.warning('apache is not ready')
             await asyncio.sleep(.25)
     return url
@@ -112,8 +112,8 @@ async def update_mocked_balancer_manager(balancer_manager, filename):
     with open(f'{dir_}/data/{filename}', 'r') as fh:
         html_payload = fh.read()
 
-    with respx.mock:
-        respx.get('http://respx/balancer-manager', content=html_payload)
+    with respx.mock as respx_mock:
+        respx_mock.get('http://respx/balancer-manager').mock(return_value=httpx.Response(status_code=200, text=html_payload))
         await balancer_manager.update()
 
 
