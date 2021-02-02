@@ -44,6 +44,13 @@ class Client(httpx.AsyncClient):
 
         return headers
 
+    @property
+    def ssl_context(self):
+        if hasattr(self, '_transport'):
+            return self._transport._ssl_context
+        else:
+            return None
+
     async def get(self):
         try:
             return await super().get(self.url)
