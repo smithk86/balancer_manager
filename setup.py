@@ -32,7 +32,7 @@ setup(
     ],
     install_requires=[
         'beautifulsoup4',
-        'httpx==0.12.1',
+        'httpx==0.16.1',
         'packaging',
         'pytz',
         'python-dateutil',
