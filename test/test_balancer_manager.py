@@ -112,7 +112,7 @@ async def test_cluster_lbsets(httpd_instance, balancer_manager):
     assert 'lbset does not exist: 99' in str(excinfo.value)
 
     # verify before change
-    for route in cluster.lbset(1):
+    for route in cluster.routes:
         assert route.status('disabled').value is False
 
     # do change

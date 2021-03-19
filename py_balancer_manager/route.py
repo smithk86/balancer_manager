@@ -47,8 +47,8 @@ class Route(object):
             return (
                 self._status.error.value is False and
                 self._status.disabled.value is False and
-                (self._status.draining_mode is None or self._status.draining_mode.value is False)
-                and (self._status.hot_standby.value is False or self.cluster.standby_activated is True)
+                (self._status.draining_mode is None or self._status.draining_mode.value is False) and
+                (self._status.hot_standby.value is False or self.cluster.standby_activated is True)
             )
 
     async def edit(self, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):
