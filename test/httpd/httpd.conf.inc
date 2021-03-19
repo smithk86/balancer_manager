@@ -44,16 +44,16 @@ LoadModule lbmethod_byrequests_module modules/mod_lbmethod_byrequests.so
 </Proxy>
 
 <Proxy balancer://cluster4>
-    BalancerMember http://route40/ route=route40 lbset=0
-    BalancerMember http://route41/ route=route41 lbset=0 status=+H
-    BalancerMember http://route42/ route=route42 lbset=0 status=+H
-    BalancerMember http://route43/ route=route43 lbset=0 status=+H
-    BalancerMember http://route44/ route=route44 lbset=0 status=+H
     BalancerMember http://route45/ route=route45 lbset=1
     BalancerMember http://route46/ route=route46 lbset=1 status=+H
     BalancerMember http://route47/ route=route47 lbset=1 status=+H
     BalancerMember http://route48/ route=route48 lbset=1 status=+H
     BalancerMember http://route49/ route=route49 lbset=1 status=+H
+    BalancerMember http://route40/ route=route40 lbset=0
+    BalancerMember http://route41/ route=route41 lbset=0 status=+H
+    BalancerMember http://route42/ route=route42 lbset=0 status=+H
+    BalancerMember http://route43/ route=route43 lbset=0 status=+H
+    BalancerMember http://route44/ route=route44 lbset=0 status=+H
 </Proxy>
 
 <Location /balancer-manager>

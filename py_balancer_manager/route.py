@@ -23,7 +23,6 @@ class Route(object):
         self.traffic_to = None
         self.traffic_from = None
         self.session_nonce_uuid = None
-        self.taking_traffic = None
         self._status = None
         self._date = None
 
@@ -39,6 +38,18 @@ class Route(object):
 
     def status(self, name):
         return getattr(self._status, name)
+
+    @property
+    def taking_traffic(self):
+        if self.lbset != self.cluster.active_lbset:
+            return False
+        else:
+            return (
+                self._status.error.value is False and
+                self._status.disabled.value is False and
+                (self._status.draining_mode is None or self._status.draining_mode.value is False)
+                and (self._status.hot_standby.value is False or self.cluster.standby_activated is True)
+            )
 
     async def edit(self, force=False, factor=None, lbset=None, route_redir=None, **status_value_kwargs):
         _mutable_statuses = self.mutable_statuses()

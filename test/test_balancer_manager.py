@@ -104,6 +104,8 @@ async def test_cluster_lbsets(httpd_instance, balancer_manager):
     assert len(lbsets[0]) == 5
     assert len(lbsets[1]) == 5
 
+    assert cluster.active_lbset == 0
+
     # test bad lbset number
     with pytest.raises(BalancerManagerError) as excinfo:
         cluster.lbset(99)
@@ -112,11 +114,30 @@ async def test_cluster_lbsets(httpd_instance, balancer_manager):
     # verify before change
     for route in cluster.lbset(1):
         assert route.status('disabled').value is False
+
     # do change
     await cluster.edit_lbset(1, disabled=True)
-    # verify before change
+    # verify after change
     for route in cluster.lbset(1):
         assert route.status('disabled').value is True
+    # verify active lbset
+    assert cluster.active_lbset == 0
+
+    # do change
+    await cluster.edit_lbset(1, disabled=False)
+    # verify after change
+    for route in cluster.lbset(1):
+        assert route.status('disabled').value is False
+    # verify active lbset
+    assert cluster.active_lbset == 0
+
+    # do change
+    await cluster.edit_lbset(0, disabled=True)
+    # verify after change
+    for route in cluster.lbset(0):
+        assert route.status('disabled').value is True
+    # verify active lbset
+    assert cluster.active_lbset == 1
 
     # test an enforce that throws exceptions
     with pytest.raises(MultipleExceptions):

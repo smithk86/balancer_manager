@@ -23,6 +23,7 @@ class Cluster(object):
         self.active = None
         self.standby_activated = None
         self.eligible_routes = None
+        self.active_lbset = None
         self._date = None
         self.routes = list()
 

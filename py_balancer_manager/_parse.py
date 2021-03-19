@@ -182,15 +182,19 @@ def parse(response_payload, balancer_manager):
 
     # iterate clusters for post-parse processing
     for cluster in balancer_manager.clusters:
-        # determine if standby routes are active for cluster
+        # determine the active lbset
+        for lbset_number, lbset in cluster.lbsets().items():
+            for route in lbset:
+                if route._status.ok.value and route._status.hot_standby.value is False:
+                    cluster.active_lbset = lbset_number
+                    break
+        # determine if standby routes are active the current active lbset
         cluster.standby_activated = True
-        for route in cluster.routes:
-            if route._status.ok.value and route._status.hot_standby.value is False:
-                cluster.standby_activated = False
-                break
-        # determine if the route is actively taking taffic
-        for route in cluster.routes:
-            route.taking_traffic = (route._status.error.value is False and route._status.disabled.value is False and (route._status.draining_mode is None or route._status.draining_mode.value is False) and (route._status.hot_standby.value is False or cluster.standby_activated is True))
+        if cluster.active_lbset is not None:
+            for route in cluster.lbset(cluster.active_lbset):
+                if route._status.ok.value and route._status.hot_standby.value is False:
+                    cluster.standby_activated = False
+                    break
         # calculate the number of routes which are eligible to take traffic
         cluster.eligible_routes = 0
         for route in cluster.routes:
