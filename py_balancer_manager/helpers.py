@@ -3,16 +3,17 @@ import time
 from collections import namedtuple
 from datetime import datetime
 
+import dateparser
 from packaging import version
 from pytz import utc
 from tzlocal import get_localzone
-from dateutil.parser import parse as date_parser
 from .errors import BalancerManagerError
 
 
 VERSION_24 = version.parse('2.4')
 RefererParams = namedtuple('RefererParams', ['cluster', 'w', 'nonce'])
 TrafficData = namedtuple('TrafficData', ['value', 'decoded'])
+localtz = get_localzone()
 
 
 def now():
@@ -20,7 +21,8 @@ def now():
 
 
 def parse_from_local_timezone(date_string):
-    return get_localzone().localize(date_parser(date_string)).astimezone(utc)
+    dtime = dateparser.parse(date_string)
+    return localtz.localize(dtime).astimezone(utc)
 
 
 def filter_objects(list_of_objects, prop_name, value, regex=False):

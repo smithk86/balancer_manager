@@ -32,10 +32,10 @@ setup(
     ],
     install_requires=[
         'beautifulsoup4',
-        'httpx==0.16.1',
+        'dateparser',
+        'httpx==0.18.1',
         'packaging',
         'pytz',
-        'python-dateutil',
         'termcolor',
         'tzlocal'
     ],
