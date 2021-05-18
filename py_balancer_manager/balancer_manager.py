@@ -8,7 +8,7 @@ from .helpers import find_object
 
 
 class BalancerManager(object):
-    def __init__(self, client):
+    def __init__(self, client, use_lxml=True):
         if isinstance(client, Client):
             self.client = client
         elif isinstance(client, dict):
@@ -16,6 +16,7 @@ class BalancerManager(object):
         else:
             raise TypeError('client arg must be either py_balancer_manager.Client object or dict')
 
+        self.use_lxml = use_lxml
         self.httpd_version = None
         self.httpd_compile_date = None
         self.openssl_version = None

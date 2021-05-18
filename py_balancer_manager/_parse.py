@@ -34,7 +34,8 @@ def parse(response_payload, balancer_manager):
         raise ValueError('MaxMembers value from httpd could not be parsed')
 
     # parse payload with beautiful soup
-    bsoup = BeautifulSoup(response_payload, 'html.parser')
+    bs4_features = 'lxml' if balancer_manager.use_lxml is True else 'html.parser'
+    bsoup = BeautifulSoup(response_payload, features=bs4_features)
 
     balancer_manager.date = now()
 

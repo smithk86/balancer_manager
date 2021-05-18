@@ -15,6 +15,7 @@ hyperframe==6.0.1
 idna==3.1
 importlib-metadata==4.0.1
 iniconfig==1.1.1
+lxml==4.6.3
 more-itertools==8.7.0
 packaging==20.9
 pluggy==0.13.1

@@ -39,6 +39,9 @@ setup(
         'termcolor',
         'tzlocal'
     ],
+    extras_require={
+        'lxml':  ['lxml']
+    },
     setup_requires=[
         'pytest-runner'
     ],

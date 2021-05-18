@@ -51,6 +51,17 @@ def test_properties(balancer_manager):
                 assert type(route.status(status_name)) is Status
 
 
+@pytest.mark.asyncio
+async def test_properties_without_lxml(client_url):
+    balancer_manager = await BalancerManager(client={
+        'url': client_url,
+        'username': 'admin',
+        'password': 'password',
+        'timeout': .25
+    }, use_lxml=False).update()
+    test_properties(balancer_manager)
+
+
 def test_version(balancer_manager, httpd_version):
     assert balancer_manager.httpd_version == httpd_version
 

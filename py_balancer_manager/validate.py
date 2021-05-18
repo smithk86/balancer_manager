@@ -94,8 +94,8 @@ class ValidatedCluster(Cluster):
 
 
 class ValidatedBalancerManager(BalancerManager):
-    def __init__(self, client, profile=None):
-        super().__init__(client)
+    def __init__(self, client, profile=None, use_lxml=False):
+        super().__init__(client, use_lxml=use_lxml)
         self.profile = profile
 
     def __repr__(self):

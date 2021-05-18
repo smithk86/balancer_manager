@@ -84,7 +84,7 @@ async def balancer_manager(client_url):
         'username': 'admin',
         'password': 'password',
         'timeout': .25
-    }).update()
+    }, use_lxml=True).update()
 
 
 @pytest.fixture
@@ -97,14 +97,14 @@ async def validated_balancer_manager(client_url):
         'username': 'admin',
         'password': 'password',
         'timeout': .25
-    }, profile=profile).update()
+    }, profile=profile, use_lxml=True).update()
 
 
 @pytest.fixture
 def mocked_balancer_manager():
     return BalancerManager(client={
         'url': 'http://respx/balancer-manager'
-    })
+    }, use_lxml=True)
 
 
 @pytest.helpers.register
