@@ -11,14 +11,12 @@ from py_balancer_manager._parse import parse
 @pytest.mark.asyncio
 async def test_ssl_context():
     async with Client(f'http://{uuid4()}.com/balancer-manager', insecure=False, username=None, password=None, timeout=1) as client:
-        ssl_context = client._transport._pool._ssl_context
-        assert type(ssl_context) is ssl.SSLContext
-        assert ssl_context.verify_mode is ssl.VerifyMode.CERT_REQUIRED
+        assert type(client.ssl_context) is ssl.SSLContext
+        assert client.ssl_context.verify_mode is ssl.VerifyMode.CERT_REQUIRED
 
     async with Client(f'http://{uuid4()}.com/balancer-manager', insecure=True, username=None, password=None, timeout=1) as client:
-        ssl_context = client._transport._pool._ssl_context
-        assert type(ssl_context) is ssl.SSLContext
-        assert ssl_context.verify_mode is ssl.VerifyMode.CERT_NONE
+        assert type(client.ssl_context) is ssl.SSLContext
+        assert client.ssl_context.verify_mode is ssl.VerifyMode.CERT_NONE
 
 
 @pytest.mark.asyncio

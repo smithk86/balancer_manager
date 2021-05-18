@@ -46,7 +46,7 @@ class Client(httpx.AsyncClient):
 
     @property
     def ssl_context(self):
-        return self._transport._ssl_context
+        return self._transport._pool._ssl_context
 
     async def get(self):
         try:
