@@ -1,7 +1,7 @@
 import sys
 
 
-__VERSION__ = '3.6.1'
+__VERSION__ = '3.6.2-dev'
 __DATE__ = '2021-05-18'
 __MIN_PYTHON__ = (3, 7)
 
