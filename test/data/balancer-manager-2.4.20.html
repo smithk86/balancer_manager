@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<!-- saved from url=(0039)http://localhost:32786/balancer-manager -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"><title>Balancer Manager</title>
+<style type="text/css">
+table {
+ border-width: 1px;
+ border-spacing: 3px;
+ border-style: solid;
+ border-color: gray;
+ border-collapse: collapse;
+ background-color: white;
+ text-align: center;
+}
+th {
+ border-width: 1px;
+ padding: 2px;
+ border-style: dotted;
+ border-color: gray;
+ background-color: white;
+ text-align: center;
+}
+td {
+ border-width: 1px;
+ padding: 2px;
+ border-style: dotted;
+ border-color: gray;
+ background-color: white;
+ text-align: center;
+}
+</style>
+</head>
+<body><h1>Load Balancer Manager for localhost</h1>
+
+<dl><dt>Server Version: Apache/2.4.20 (Unix) OpenSSL/1.0.1t</dt>
+<dt>Server Built: Jun  7 2016 17:55:26</dt>
+<dt>Balancer changes will NOT be persisted on restart.</dt><dt>Balancers are inherited from main server.</dt><dt>ProxyPass settings are inherited from main server.</dt></dl>
+<hr>
+<h3>LoadBalancer Status for <a href="http://localhost:32786/balancer-manager?b=cluster0&amp;nonce=577743eb-5df4-42e5-8eeb-fa3331222621">balancer://cluster0</a> [p223604ac_cluster0]</h3>
+
+
+<table><tbody><tr><th>MaxMembers</th><th>StickySession</th><th>DisableFailover</th><th>Timeout</th><th>FailoverAttempts</th><th>Method</th><th>Path</th><th>Active</th></tr>
+<tr><td>2 [2 Used]</td>
+<td> (None) </td><td>Off</td>
+<td>0</td><td>1</td>
+<td>byrequests</td>
+<td>/</td>
+<td>Yes</td>
+</tr></tbody></table>
+<br>
+
+<table><tbody><tr><th>Worker URL</th><th>Route</th><th>RouteRedir</th><th>Factor</th><th>Set</th><th>Status</th><th>Elected</th><th>Busy</th><th>Load</th><th>To</th><th>From</th></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster0&amp;w=http://route00/&amp;nonce=577743eb-5df4-42e5-8eeb-fa3331222621">http://route00/</a></td><td>route00</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster0&amp;w=http://route01/&amp;nonce=577743eb-5df4-42e5-8eeb-fa3331222621">http://route01/</a></td><td>route01</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+</tbody></table>
+<hr>
+<h3>LoadBalancer Status for <a href="http://localhost:32786/balancer-manager?b=cluster1&amp;nonce=3b6d8749-f1bb-417d-8bf7-8403211375fe">balancer://cluster1</a> [p223604ac_cluster1]</h3>
+
+
+<table><tbody><tr><th>MaxMembers</th><th>StickySession</th><th>DisableFailover</th><th>Timeout</th><th>FailoverAttempts</th><th>Method</th><th>Path</th><th>Active</th></tr>
+<tr><td>2 [2 Used]</td>
+<td> (None) </td><td>Off</td>
+<td>0</td><td>1</td>
+<td>byrequests</td>
+<td>/</td>
+<td>Yes</td>
+</tr></tbody></table>
+<br>
+
+<table><tbody><tr><th>Worker URL</th><th>Route</th><th>RouteRedir</th><th>Factor</th><th>Set</th><th>Status</th><th>Elected</th><th>Busy</th><th>Load</th><th>To</th><th>From</th></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster1&amp;w=http://route10/&amp;nonce=3b6d8749-f1bb-417d-8bf7-8403211375fe">http://route10/</a></td><td>route10</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster1&amp;w=http://route11/&amp;nonce=3b6d8749-f1bb-417d-8bf7-8403211375fe">http://route11/</a></td><td>route11</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+</tbody></table>
+<hr>
+<h3>LoadBalancer Status for <a href="http://localhost:32786/balancer-manager?b=cluster2&amp;nonce=48d84e14-39d5-4e96-977e-fa205783da4d">balancer://cluster2</a> [p223604ac_cluster2]</h3>
+
+
+<table><tbody><tr><th>MaxMembers</th><th>StickySession</th><th>DisableFailover</th><th>Timeout</th><th>FailoverAttempts</th><th>Method</th><th>Path</th><th>Active</th></tr>
+<tr><td>4 [4 Used]</td>
+<td> (None) </td><td>Off</td>
+<td>0</td><td>3</td>
+<td>byrequests</td>
+<td>/</td>
+<td>Yes</td>
+</tr></tbody></table>
+<br>
+
+<table><tbody><tr><th>Worker URL</th><th>Route</th><th>RouteRedir</th><th>Factor</th><th>Set</th><th>Status</th><th>Elected</th><th>Busy</th><th>Load</th><th>To</th><th>From</th></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster2&amp;w=http://route20/&amp;nonce=48d84e14-39d5-4e96-977e-fa205783da4d">http://route20/</a></td><td>route20</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster2&amp;w=http://route21/&amp;nonce=48d84e14-39d5-4e96-977e-fa205783da4d">http://route21/</a></td><td>route21</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster2&amp;w=http://route22/&amp;nonce=48d84e14-39d5-4e96-977e-fa205783da4d">http://route22/</a></td><td>route22</td><td></td><td>1</td><td>0</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster2&amp;w=http://route23/&amp;nonce=48d84e14-39d5-4e96-977e-fa205783da4d">http://route23/</a></td><td>route23</td><td></td><td>1</td><td>0</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+</tbody></table>
+<hr>
+<h3>LoadBalancer Status for <a href="http://localhost:32786/balancer-manager?b=cluster3&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">balancer://cluster3</a> [p223604ac_cluster3]</h3>
+
+
+<table><tbody><tr><th>MaxMembers</th><th>StickySession</th><th>DisableFailover</th><th>Timeout</th><th>FailoverAttempts</th><th>Method</th><th>Path</th><th>Active</th></tr>
+<tr><td>10 [10 Used]</td>
+<td> (None) </td><td>Off</td>
+<td>0</td><td>9</td>
+<td>byrequests</td>
+<td>/</td>
+<td>Yes</td>
+</tr></tbody></table>
+<br>
+
+<table><tbody><tr><th>Worker URL</th><th>Route</th><th>RouteRedir</th><th>Factor</th><th>Set</th><th>Status</th><th>Elected</th><th>Busy</th><th>Load</th><th>To</th><th>From</th></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route30/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route30/</a></td><td>route30</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route31/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route31/</a></td><td>route31</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route32/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route32/</a></td><td>route32</td><td></td><td>1</td><td>0</td><td>Init Dis Stby </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route33/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route33/</a></td><td>route33</td><td></td><td>1</td><td>0</td><td>Init Dis Stby </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route34/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route34/</a></td><td>route34</td><td></td><td>1</td><td>0</td><td>Init Dis Stby </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route35/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route35/</a></td><td>route35</td><td></td><td>1</td><td>0</td><td>Init Dis Stby </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route36/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route36/</a></td><td>route36</td><td></td><td>1</td><td>0</td><td>Init Dis Stby </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route37/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route37/</a></td><td>route37</td><td></td><td>1</td><td>0</td><td>Init Dis Stby </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route38/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route38/</a></td><td>route38</td><td></td><td>1</td><td>0</td><td>Init Dis Stby </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster3&amp;w=http://route39/&amp;nonce=52fceee5-ccfd-4c4c-883a-d532b5f6548b">http://route39/</a></td><td>route39</td><td></td><td>1</td><td>0</td><td>Init Dis Stby </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+</tbody></table>
+<hr>
+<h3>LoadBalancer Status for <a href="http://localhost:32786/balancer-manager?b=cluster4&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">balancer://cluster4</a> [p223604ac_cluster4]</h3>
+
+
+<table><tbody><tr><th>MaxMembers</th><th>StickySession</th><th>DisableFailover</th><th>Timeout</th><th>FailoverAttempts</th><th>Method</th><th>Path</th><th>Active</th></tr>
+<tr><td>10 [10 Used]</td>
+<td> (None) </td><td>Off</td>
+<td>0</td><td>9</td>
+<td>byrequests</td>
+<td>/</td>
+<td>Yes</td>
+</tr></tbody></table>
+<br>
+
+<table><tbody><tr><th>Worker URL</th><th>Route</th><th>RouteRedir</th><th>Factor</th><th>Set</th><th>Status</th><th>Elected</th><th>Busy</th><th>Load</th><th>To</th><th>From</th></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route40/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route40/</a></td><td>route40</td><td></td><td>1</td><td>0</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route41/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route41/</a></td><td>route41</td><td></td><td>1</td><td>0</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route42/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route42/</a></td><td>route42</td><td></td><td>1</td><td>0</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route43/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route43/</a></td><td>route43</td><td></td><td>1</td><td>0</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route44/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route44/</a></td><td>route44</td><td></td><td>1</td><td>0</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route45/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route45/</a></td><td>route45</td><td></td><td>1</td><td>1</td><td>Init Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route46/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route46/</a></td><td>route46</td><td></td><td>1</td><td>1</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route47/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route47/</a></td><td>route47</td><td></td><td>1</td><td>1</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route48/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route48/</a></td><td>route48</td><td></td><td>1</td><td>1</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+<tr>
+<td><a href="http://localhost:32786/balancer-manager?b=cluster4&amp;w=http://route49/&amp;nonce=b4fcb2b5-0a4a-4644-855d-f98bff62fa5a">http://route49/</a></td><td>route49</td><td></td><td>1</td><td>1</td><td>Init Stby Ok </td><td>0</td><td>0</td><td>0</td><td>  0 </td><td>  0 </td></tr>
+</tbody></table>
+<hr>
+
+</body></html>

@@ -1,0 +1,8 @@
+*.pyc
+/*egg-info*
+/.eggs
+/dist
+/build
+/.cache
+/.pytest_cache
+/test/vars.json*

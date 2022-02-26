@@ -1,0 +1,84 @@
+{
+    "cluster0": {
+        "route00": [],
+        "route01": []
+    },
+    "cluster1": {
+        "route10": [],
+        "route11": []
+    },
+    "cluster2": {
+        "route20": [],
+        "route21": [],
+        "route22": [
+            "hot_standby"
+        ],
+        "route23": [
+            "hot_standby"
+        ]
+    },
+    "cluster3": {
+        "route30": [],
+        "route31": [],
+        "route32": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route33": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route34": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route35": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route36": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route37": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route38": [
+            "disabled",
+            "hot_standby"
+        ],
+        "route39": [
+            "disabled",
+            "hot_standby"
+        ]
+    },
+    "cluster4": {
+        "route40": [],
+        "route41": [
+            "hot_standby"
+        ],
+        "route42": [
+            "hot_standby"
+        ],
+        "route43": [
+            "hot_standby"
+        ],
+        "route44": [
+            "hot_standby"
+        ],
+        "route45": [],
+        "route46": [
+            "hot_standby"
+        ],
+        "route47": [
+            "hot_standby"
+        ],
+        "route48": [
+            "hot_standby"
+        ],
+        "route49": [
+            "hot_standby"
+        ]
+    }
+}
