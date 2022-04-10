@@ -6,7 +6,8 @@ import ssl
 import sys
 import warnings
 from concurrent.futures import Executor
-from typing import Any, Optional
+from contextvars import ContextVar, Token
+from typing import Any, Dict, Optional
 
 import httpx
 from httpx._client import ClientState
@@ -46,37 +47,29 @@ class Client:
         self.balancer_manager_path = balancer_manager_path
         self.disable_lxml = disable_lxml
         self.executor = executor
-        self._http_client_kwargs = http_client_kwargs
-        self.__http_client: Optional[httpx.AsyncClient] = None
-
-    def __del__(self) -> None:
-        if self.__http_client and self.__http_client._state is ClientState.OPENED:
-            warnings.warn(
-                f"py_httpd_manager.Client for {self.endpoint} "
-                "was not properly closed",
-                UserWarning,
-            )
-
-    @property
-    def _http_client(self) -> httpx.AsyncClient:
-        if (
-            self.__http_client is None
-            or self.__http_client._state is ClientState.CLOSED
-        ):
-            self.__http_client = httpx.AsyncClient(**self._http_client_kwargs)
-        return self.__http_client
+        self._http_client: ContextVar[httpx.AsyncClient] = ContextVar(
+            "Client._http_client"
+        )
+        self._http_client_kwargs: Dict[str, Any] = http_client_kwargs
+        self._http_client_token: Optional[Token] = None
 
     async def __aenter__(self) -> Client:
-        if self._http_client._state is ClientState.UNOPENED:
-            await self._http_client.__aenter__()
+        if not self.http_client:
+            self._http_client_token = self._http_client.set(
+                httpx.AsyncClient(**self._http_client_kwargs)
+            )
         return self
 
     async def __aexit__(self, *args, **kwargs) -> None:
-        if self._http_client._state is not ClientState.CLOSED:
-            await self._http_client.__aexit__(*args, **kwargs)
+        _client = self._http_client.get()
+        await _client.aclose()
+        if self._http_client_token:
+            self._http_client.reset(self._http_client_token)
+            self._http_client_token = None
 
-    async def close(self) -> None:
-        await self._http_client.aclose()
+    @property
+    def http_client(self) -> Optional[httpx.AsyncClient]:
+        return self._http_client.get(None)
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
@@ -90,20 +83,38 @@ class Client:
     async def run_in_executor(self, *args) -> Any:
         return await self.loop.run_in_executor(self.executor, *args)
 
-    async def get(self, path) -> httpx.Response:
+    async def _request(self, method, path, *args, **kwargs) -> httpx.Response:
         url = f"{self.endpoint}{path}"
-        r = await self._http_client.get(url)
-        _raise_for_status(r)
-        return r
+        headers = kwargs.pop("headers", {})
+        headers["Referer"] = url
+        if self.http_client:
+            _response = await self.http_client.request(
+                method, url, *args, headers=headers, **kwargs
+            )
+        else:
+            async with httpx.AsyncClient(**self._http_client_kwargs) as _client:
+                _response = await _client.request(
+                    method, url, *args, headers=headers, **kwargs
+                )
+        _raise_for_status(_response)
+        return _response
+
+    async def get(self, path) -> httpx.Response:
+        return await self._request("get", path)
 
     async def post(self, path, data) -> httpx.Response:
-        url = f"{self.endpoint}{path}"
-        r = await self._http_client.post(url, headers={"Referer": url}, data=data)
-        _raise_for_status(r)
-        return r
+        return await self._request("post", path, data=data)
 
     async def server_status(self, include_workers=False) -> ServerStatus:
         return await ServerStatus(self).update(include_workers=include_workers)
 
     async def balancer_manager(self) -> BalancerManager:
         return await BalancerManager(self).update()
+
+    def __del__(self) -> None:
+        if self.http_client and self.http_client._state is ClientState.OPENED:
+            warnings.warn(
+                f"py_httpd_manager.Client for {self.endpoint} "
+                "was not properly closed",
+                UserWarning,
+            )
