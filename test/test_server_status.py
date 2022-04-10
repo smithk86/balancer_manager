@@ -4,7 +4,6 @@ import httpx
 import pytest
 import respx
 from packaging import version
-from pytz import utc
 
 from httpd_manager.server_status import Bytes, ServerStatus, Worker, WorkerStates
 

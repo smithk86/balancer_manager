@@ -1,12 +1,3 @@
-# add the project directory to the pythonpath
-import os.path
-import sys
-from pathlib import Path
-
-dir_ = Path(os.path.dirname(os.path.realpath(__file__)))
-sys.path.insert(0, str(dir_.parent))
-
-
 import asyncio
 import json
 import logging
@@ -14,16 +5,19 @@ import os
 import random
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
 import docker  # type: ignore
 import httpx
 import pytest
+import pytest_asyncio
 from packaging import version
 from httpd_manager import BalancerManager, HttpdManagerError, Client
 
 import docker_helpers
 
 
+dir_ = Path(__file__).parent
 logger = logging.getLogger(__name__)
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -53,16 +47,15 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope="session")
 def test_files_dir():
-    return f"{dir_}/data"
+    return dir_.joinpath("data")
 
 
 @pytest.fixture(scope="session")
 def httpd_instance(httpd_version):
-    dir_ = os.path.dirname(os.path.abspath(__file__))
     tag = f"httpd_manager-pytest_httpd_1:{httpd_version}"
 
     docker.from_env().images.build(
-        path=f"{dir_}/httpd",
+        path=str(dir_.joinpath("httpd")),
         dockerfile="Dockerfile",
         tag=tag,
         buildargs={"FROM": f"httpd:{httpd_version}"},
@@ -72,8 +65,7 @@ def httpd_instance(httpd_version):
         yield container
 
 
-@pytest.fixture
-@pytest.mark.asyncio
+@pytest_asyncio.fixture
 async def py_httpd_client(httpd_instance):
     # build the url using the information about the docker container
     client = Client(
@@ -96,8 +88,7 @@ async def py_httpd_client(httpd_instance):
     return client
 
 
-@pytest.fixture
-@pytest.mark.asyncio
+@pytest_asyncio.fixture
 async def balancer_manager(py_httpd_client):
     async with py_httpd_client:
         return await py_httpd_client.balancer_manager()

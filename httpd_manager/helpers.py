@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, InitVar
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, Union
 
 from packaging import version
-from pytz import utc
 
 from .errors import HttpdManagerError
 
@@ -17,7 +16,7 @@ __all__ = ["Bytes", "HttpxClientWrapper", "now", "RegexPatterns", "TypeVersion"]
 
 
 def now() -> datetime:
-    return datetime.now(utc)
+    return datetime.now(timezone.utc)
 
 
 class HttpdVersions(Enum):
