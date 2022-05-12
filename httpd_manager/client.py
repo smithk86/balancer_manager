@@ -1,120 +1,63 @@
 from __future__ import annotations
 
-import asyncio
 import logging
-import ssl
-import sys
-import warnings
-from concurrent.futures import Executor
-from contextvars import ContextVar, Token
-from typing import Any, Dict, Optional
+from contextvars import ContextVar
+from functools import partial
+from inspect import iscoroutinefunction
+from typing import Any, Callable, Dict, TYPE_CHECKING
 
 import httpx
-from httpx._client import ClientState
 
-from .balancer_manager import BalancerManager
-from .errors import HttpdManagerError
-from .server_status import ServerStatus
+
+if TYPE_CHECKING:
+    from .balancer_manager import BalancerManager
+    from .server_status import ServerStatus
+
 
 logger = logging.getLogger(__name__)
-
-
-try:
-    import lxml  # type: ignore
-except ModuleNotFoundError:
-    logger.debug("lxml is not installed; " "parsing performance could be impacted")
-
-
-def _raise_for_status(response: httpx.Response) -> None:
-    try:
-        response.raise_for_status()
-    except httpx.HTTPError as e:
-        raise HttpdManagerError(e)
 
 
 class Client:
     def __init__(
         self,
-        endpoint: str,
-        server_status_path: str = "/server-status",
-        balancer_manager_path: Optional[str] = "/balancer-manager",
-        disable_lxml: bool = False,
-        executor: Optional[Executor] = None,
+        base_url: str,
+        server_status_path="/server-status",
+        balancer_manager_path="/balancer-manager",
+        async_parse_handler=None,
         **http_client_kwargs,
     ):
-        self.endpoint = endpoint
-        self.server_status_path = server_status_path
-        self.balancer_manager_path = balancer_manager_path
-        self.disable_lxml = disable_lxml
-        self.executor = executor
-        self._http_client: ContextVar[httpx.AsyncClient] = ContextVar(
-            "Client._http_client"
-        )
-        self._http_client_kwargs: Dict[str, Any] = http_client_kwargs
-        self._http_client_token: Optional[Token] = None
+        headers = http_client_kwargs.pop("headers", {})
+        headers["Referer"] = base_url
+        http_client_kwargs.update({"base_url": base_url, "headers": headers})
 
-    async def __aenter__(self) -> Client:
-        if not self.http_client:
-            self._http_client_token = self._http_client.set(
-                httpx.AsyncClient(**self._http_client_kwargs)
-            )
-        return self
+        assert not (
+            async_parse_handler and not iscoroutinefunction(async_parse_handler)
+        ), "async_parse_handler must be a coroutine"
 
-    async def __aexit__(self, *args, **kwargs) -> None:
-        _client = self._http_client.get()
-        await _client.aclose()
-        if self._http_client_token:
-            self._http_client.reset(self._http_client_token)
-            self._http_client_token = None
+        self.server_status_path: str = server_status_path
+        self.balancer_manager_path: str | None = balancer_manager_path
+        self.async_parse_handler: Callable | None = async_parse_handler
+        self.http_client_kwargs = http_client_kwargs
 
-    @property
-    def http_client(self) -> Optional[httpx.AsyncClient]:
-        return self._http_client.get(None)
+    def http_client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(**self.http_client_kwargs)
 
-    @property
-    def loop(self) -> asyncio.AbstractEventLoop:
-        return asyncio.get_running_loop()
-
-    @property
-    def use_lxml(self) -> bool:
-        _installed = "lxml" in sys.modules
-        return not (self.disable_lxml is True or _installed is False)
-
-    async def run_in_executor(self, *args) -> Any:
-        return await self.loop.run_in_executor(self.executor, *args)
-
-    async def _request(self, method, path, *args, **kwargs) -> httpx.Response:
-        url = f"{self.endpoint}{path}"
-        headers = kwargs.pop("headers", {})
-        headers["Referer"] = url
-        if self.http_client:
-            _response = await self.http_client.request(
-                method, url, *args, headers=headers, **kwargs
-            )
+    async def _sync_handler(self, handler: Callable, *args, **kwargs) -> Any:
+        assert not iscoroutinefunction(handler), "handler must not be a coroutine"
+        if self.async_parse_handler:
+            return await self.async_parse_handler(partial(handler, *args, **kwargs))
         else:
-            async with httpx.AsyncClient(**self._http_client_kwargs) as _client:
-                _response = await _client.request(
-                    method, url, *args, headers=headers, **kwargs
-                )
-        _raise_for_status(_response)
-        return _response
-
-    async def get(self, path) -> httpx.Response:
-        return await self._request("get", path)
-
-    async def post(self, path, data) -> httpx.Response:
-        return await self._request("post", path, data=data)
+            return handler(*args, **kwargs)
 
     async def server_status(self, include_workers=False) -> ServerStatus:
-        return await ServerStatus(self).update(include_workers=include_workers)
+        from .server_status import ServerStatus
 
-    async def balancer_manager(self) -> BalancerManager:
-        return await BalancerManager(self).update()
+        return await ServerStatus.create(
+            client=self,
+            include_workers=include_workers,
+        )
 
-    def __del__(self) -> None:
-        if self.http_client and self.http_client._state is ClientState.OPENED:
-            warnings.warn(
-                f"py_httpd_manager.Client for {self.endpoint} "
-                "was not properly closed",
-                UserWarning,
-            )
+    async def balancer_manager(self, use_lxml=True) -> BalancerManager:
+        from .balancer_manager import BalancerManager
+
+        return await BalancerManager.create(client=self)

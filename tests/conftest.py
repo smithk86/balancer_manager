@@ -3,18 +3,18 @@ import json
 import logging
 import os
 import random
+import time
 from collections import namedtuple
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
+from typing import Callable
 
-import docker  # type: ignore
+import docker
 import httpx
 import pytest
 import pytest_asyncio
-from packaging import version
-from httpd_manager import BalancerManager, HttpdManagerError, Client
+from httpd_manager import BalancerManager, Client
 
-import docker_helpers
+from . import docker_helpers
 
 
 dir_ = Path(__file__).parent
@@ -29,8 +29,7 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def httpd_version(request):
-    v = request.config.getoption("httpd_version")
-    return version.parse(v)
+    return request.config.getoption("httpd_version")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -62,43 +61,47 @@ def httpd_instance(httpd_version):
     )
 
     with docker_helpers.run(tag, ports=["80/tcp"]) as container:
+        # wait until we can properly connect to Apache before return the URL
+        while True:
+            try:
+                with httpx.Client(
+                    base_url=f"http://localhost:{container.ports['80/tcp']}"
+                ) as _client:
+                    _client.get("/server-status")
+                break
+            except httpx.HTTPError:
+                # apache is not ready
+                time.sleep(0.25)
+
         yield container
 
 
-@pytest_asyncio.fixture
-async def py_httpd_client(httpd_instance):
+@pytest.fixture(scope="session")
+def create_client(httpd_instance) -> Callable:
     # build the url using the information about the docker container
-    client = Client(
-        f"http://localhost:{httpd_instance.ports['80/tcp']}",
-        auth=("admin", "password"),
-        executor=ProcessPoolExecutor(),
-        timeout=0.25,
-    )
 
-    # wait until we can properly connect to Apache before return the URL
-    while True:
-        try:
-            async with client:
-                await client.get("/server-status")
-            break
-        except httpx.HTTPError:
-            # apache is not ready
-            await asyncio.sleep(0.25)
+    def handler(base_url=None, **client_kwargs):
+        base_url = (
+            base_url
+            if base_url
+            else f"http://localhost:{httpd_instance.ports['80/tcp']}"
+        )
+        return Client(
+            base_url=base_url, auth=("admin", "password"), timeout=0.25, **client_kwargs
+        )
 
-    return client
+    return handler
 
 
-@pytest_asyncio.fixture
-async def balancer_manager(py_httpd_client):
-    async with py_httpd_client:
-        return await py_httpd_client.balancer_manager()
+@pytest.fixture(scope="session")
+def client(create_client) -> Client:
+    return create_client()
 
 
-@pytest.fixture
-def mocked_client():
-    return Client("http://respx")
+@pytest.fixture(scope="session")
+def enable_all_routes():
+    async def handler(balancer_manager, cluster):
+        for route in cluster.routes.values():
+            await balancer_manager.edit_route(cluster, route, disabled=False)
 
-
-@pytest.fixture
-def mocked_balancer_manager(mocked_client):
-    return BalancerManager(mocked_client)
+    return handler

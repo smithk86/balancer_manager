@@ -11,20 +11,21 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 httpx = "*"
 beautifulsoup4 = "*"
 dateparser = "*"
 packaging = "*"
 lxml = "*"
+pydantic = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
 mypy = "*"
 pytest-asyncio = "*"
 pytest-mypy = "*"
+pytest-httpx = "*"
 docker = "*"
-respx = "*"
 types-beautifulsoup4 = "*"
 types-dateparser = "*"
 types-pytz = "*"
@@ -36,12 +37,19 @@ pytest = "pytest:main"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[[tool.mypy.overrides]]
-module = [
-    "pytest_asyncio"
-]
-ignore_missing_imports = true
-
 [tool.pytest.ini_options]
 addopts = "--mypy"
 asyncio_mode = "strict"
+
+[tool.mypy]
+plugins = [
+  "pydantic.mypy"
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "docker.*",
+    "lxml",
+    "pytest_asyncio"
+]
+ignore_missing_imports = true
