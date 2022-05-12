@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import random
+import socket
 import time
 from collections import namedtuple
 from pathlib import Path
@@ -13,8 +14,6 @@ import httpx
 import pytest
 import pytest_asyncio
 from httpd_manager import BalancerManager, Client
-
-from . import docker_helpers
 
 
 dir_ = Path(__file__).parent
@@ -27,9 +26,23 @@ def pytest_addoption(parser):
     parser.addoption("--disable-docker", action="store_true", default=False)
 
 
+def port_is_ready(host: str, port: int, timeout: int = 5) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError as ex:
+        return False
+
+
 @pytest.fixture(scope="session")
 def httpd_version(request):
     return request.config.getoption("httpd_version")
+
+
+@pytest.fixture(scope="session")
+def docker_setup(httpd_version):
+    os.environ["HTTPD_VERSION"] = httpd_version
+    return "up --build -d"
 
 
 def pytest_collection_modifyitems(config, items):
@@ -40,7 +53,7 @@ def pytest_collection_modifyitems(config, items):
             reason="skip tests that require the Docker Engine"
         )
         for item in items:
-            if hasattr(item, "fixturenames") and "httpd_instance" in item.fixturenames:
+            if hasattr(item, "fixturenames") and "docker_services" in item.fixturenames:
                 item.add_marker(_skip_docker)
 
 
@@ -50,42 +63,14 @@ def test_files_dir():
 
 
 @pytest.fixture(scope="session")
-def httpd_instance(httpd_version):
-    tag = f"httpd_manager-pytest_httpd_1:{httpd_version}"
-
-    docker.from_env().images.build(
-        path=str(dir_.joinpath("httpd")),
-        dockerfile="Dockerfile",
-        tag=tag,
-        buildargs={"FROM": f"httpd:{httpd_version}"},
+def create_client(docker_ip, docker_services) -> Callable:
+    httpd_port = docker_services.port_for("httpd", 80)
+    docker_services.wait_until_responsive(
+        timeout=30.0, pause=0.1, check=lambda: port_is_ready(docker_ip, httpd_port)
     )
 
-    with docker_helpers.run(tag, ports=["80/tcp"]) as container:
-        # wait until we can properly connect to Apache before return the URL
-        while True:
-            try:
-                with httpx.Client(
-                    base_url=f"http://localhost:{container.ports['80/tcp']}"
-                ) as _client:
-                    _client.get("/server-status")
-                break
-            except httpx.HTTPError:
-                # apache is not ready
-                time.sleep(0.25)
-
-        yield container
-
-
-@pytest.fixture(scope="session")
-def create_client(httpd_instance) -> Callable:
-    # build the url using the information about the docker container
-
     def handler(base_url=None, **client_kwargs):
-        base_url = (
-            base_url
-            if base_url
-            else f"http://localhost:{httpd_instance.ports['80/tcp']}"
-        )
+        base_url = base_url if base_url else f"http://{docker_ip}:{httpd_port}"
         return Client(
             base_url=base_url, auth=("admin", "password"), timeout=0.25, **client_kwargs
         )

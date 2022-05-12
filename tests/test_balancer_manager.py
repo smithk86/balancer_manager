@@ -3,6 +3,7 @@ from datetime import datetime
 
 import httpx
 import pytest
+from pytest_docker.plugin import DockerComposeExecutor
 
 from httpd_manager import Bytes, Client
 from httpd_manager.balancer_manager import *
@@ -124,7 +125,13 @@ async def test_route_status_changes(client):
 
 
 @pytest.mark.asyncio
-async def test_cluster_lbsets(client, httpd_instance):
+async def test_cluster_lbsets(
+    client, docker_services, docker_compose_file, docker_compose_project_name
+):
+    docker_compose = DockerComposeExecutor(
+        docker_compose_file, docker_compose_project_name
+    )
+
     balancer_manager = await client.balancer_manager()
     cluster = balancer_manager.cluster("cluster4")
     lbsets = cluster.lbsets
@@ -176,12 +183,12 @@ async def test_cluster_lbsets(client, httpd_instance):
         edit_lbset_exceptions.append(e)
 
     try:
-        httpd_instance.container.pause()
+        docker_compose.execute("pause httpd")
         await balancer_manager.edit_lbset(
             cluster, 1, disabled=True, exception_handler=_exception_handler
         )
     finally:
-        httpd_instance.container.unpause()
+        docker_compose.execute("unpause httpd")
 
     assert len(edit_lbset_exceptions) == 5
     for e in edit_lbset_exceptions:

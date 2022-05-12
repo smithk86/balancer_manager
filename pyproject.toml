@@ -25,10 +25,10 @@ mypy = "*"
 pytest-asyncio = "*"
 pytest-mypy = "*"
 pytest-httpx = "*"
-docker = "*"
 types-beautifulsoup4 = "*"
 types-dateparser = "*"
 types-pytz = "*"
+pytest-docker = "*"
 
 [tool.poetry.scripts]
 pytest = "pytest:main"
@@ -48,7 +48,7 @@ plugins = [
 
 [[tool.mypy.overrides]]
 module = [
-    "docker.*",
+    "pytest_docker.plugin",
     "lxml",
     "pytest_asyncio"
 ]
