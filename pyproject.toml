@@ -22,13 +22,13 @@ pydantic = "*"
 [tool.poetry.dev-dependencies]
 pytest = "*"
 mypy = "*"
-pytest-asyncio = "*"
+anyio = "*"
 pytest-mypy = "*"
 pytest-httpx = "*"
+pytest-docker = "*"
 types-beautifulsoup4 = "*"
 types-dateparser = "*"
 types-pytz = "*"
-pytest-docker = "*"
 
 [tool.poetry.scripts]
 pytest = "pytest:main"

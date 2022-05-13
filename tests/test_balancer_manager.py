@@ -9,6 +9,9 @@ from httpd_manager import Bytes, Client
 from httpd_manager.balancer_manager import *
 
 
+pytestmark = pytest.mark.anyio
+
+
 def validate_properties(balancer_manager):
     assert isinstance(balancer_manager.date, datetime)
     assert isinstance(balancer_manager.httpd_version, str)
@@ -61,7 +64,6 @@ def validate_properties(balancer_manager):
             assert isinstance(route.health, bool)
 
 
-@pytest.mark.asyncio
 async def test_properties(client):
     balancer_manager = await client.balancer_manager()
     validate_properties(balancer_manager)
@@ -72,20 +74,17 @@ async def test_properties(client):
     assert _original_date < balancer_manager.date
 
 
-@pytest.mark.asyncio
 async def test_httpd_version(client, httpd_version):
     balancer_manager = await client.balancer_manager()
     assert balancer_manager.httpd_version == httpd_version
 
 
-@pytest.mark.asyncio
 async def test_cluster_does_not_exist(client):
     balancer_manager = await client.balancer_manager()
     with pytest.raises(KeyError, match=r"\'does_not_exist\'"):
         balancer_manager.cluster("does_not_exist")
 
 
-@pytest.mark.asyncio
 async def test_route_status_changes(client):
     balancer_manager = await client.balancer_manager()
 
@@ -124,7 +123,6 @@ async def test_route_status_changes(client):
         assert route_status_1[name].value is status.value
 
 
-@pytest.mark.asyncio
 async def test_cluster_lbsets(
     client, docker_services, docker_compose_file, docker_compose_project_name
 ):
@@ -195,7 +193,6 @@ async def test_cluster_lbsets(
         assert isinstance(e, httpx.ReadTimeout)
 
 
-@pytest.mark.asyncio
 async def test_accepting_requests(client):
     balancer_manager = await client.balancer_manager()
     cluster = balancer_manager.cluster("cluster2")
@@ -216,7 +213,6 @@ async def test_accepting_requests(client):
     assert cluster.route("route23").accepting_requests is False
 
 
-@pytest.mark.asyncio
 async def test_route_disable_last(client, enable_all_routes):
     balancer_manager = await client.balancer_manager()
     cluster = balancer_manager.cluster("cluster3")
@@ -237,7 +233,6 @@ async def test_route_disable_last(client, enable_all_routes):
         await enable_all_routes(balancer_manager, cluster)
 
 
-@pytest.mark.asyncio
 async def test_standby(client, enable_all_routes):
     balancer_manager = await client.balancer_manager()
 

@@ -10,6 +10,9 @@ from httpd_manager import ServerStatus
 from httpd_manager.immutable.server_status import Worker, WorkerStateCount
 
 
+pytestmark = pytest.mark.anyio
+
+
 def validate_properties(server_status):
     assert isinstance(server_status, ServerStatus)
     assert isinstance(server_status.date, datetime)
@@ -24,7 +27,6 @@ def validate_properties(server_status):
     assert server_status.workers is None or isinstance(server_status.workers, List)
 
 
-@pytest.mark.asyncio
 async def test_server_status(client):
     server_status = await client.server_status()
     validate_properties(server_status)
@@ -41,7 +43,6 @@ async def test_server_status(client):
     assert isinstance(server_status.workers, List)
 
 
-@pytest.mark.asyncio
 async def test_mocked_server_status(create_client, httpx_mock, test_files_dir):
     mocked_client = create_client("https://pytest-httpx")
 
@@ -74,7 +75,6 @@ async def test_mocked_server_status(create_client, httpx_mock, test_files_dir):
         assert isinstance(w, Worker)
 
 
-@pytest.mark.asyncio
 async def test_async_parse_handler(create_client):
     async def _async_parse_handler(handler: Callable):
         warnings.warn("async_parse_handler has executed", UserWarning)

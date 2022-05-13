@@ -10,6 +10,7 @@ from .test_balancer_manager import validate_properties
 
 
 dir_ = Path(__file__).parent
+pytestmark = pytest.mark.anyio
 
 
 @pytest.fixture
@@ -44,7 +45,6 @@ def get_mocked_files():
     return files
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "version,filename", get_mocked_files(), ids=[x for x, _ in get_mocked_files()]
 )
@@ -62,7 +62,6 @@ async def test_balancer_manager(mocked_client, httpx_mock, version, filename):
     assert isinstance(balancer_manager.cluster("cluster4"), Cluster)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "status_code,error_message",
     [
@@ -81,7 +80,6 @@ async def test_status_errors(mocked_client, httpx_mock, status_code, error_messa
         await mocked_client.balancer_manager()
 
 
-@pytest.mark.asyncio
 async def test_with_route_gc(mocked_client, httpx_mock):
     # create BalancerManager with mock-1
     add_mocked_response(httpx_mock, "balancer-manager-mock-1.html")

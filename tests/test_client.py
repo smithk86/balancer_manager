@@ -7,19 +7,18 @@ import httpx
 from httpx._client import ClientState
 
 from httpd_manager import Client
-
-# from httpd_manager import get_balancer_manager, get_server_status
 from httpd_manager.immutable import ImmutableBalancerManager, ImmutableServerStatus
 
 
-@pytest.mark.asyncio
+pytestmark = pytest.mark.anyio
+
+
 async def test_bad_url(create_client):
     client = create_client(f"http://{uuid4()}.com")
     with pytest.raises(httpx.ConnectError) as excinfo:
         await client.server_status()
 
 
-@pytest.mark.asyncio
 async def test_bad_payload(create_client):
     client = create_client("https://www.google.com")
     async with client.http_client() as http_client:
@@ -33,7 +32,6 @@ async def test_bad_payload(create_client):
             ImmutableBalancerManager.parse_payload(response.text)
 
 
-@pytest.mark.asyncio
 async def test_async_parse_handler(create_client):
     async def _async_parse_handler(handler: Callable):
         warnings.warn("async_parse_handler has executed", UserWarning)

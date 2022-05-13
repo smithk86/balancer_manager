@@ -1,24 +1,17 @@
-import asyncio
-import json
 import logging
 import os
-import random
 import socket
-import time
 from collections import namedtuple
 from pathlib import Path
 from typing import Callable
 
-import docker
 import httpx
 import pytest
-import pytest_asyncio
-from httpd_manager import BalancerManager, Client
+from httpd_manager import Client
 
 
 dir_ = Path(__file__).parent
 logger = logging.getLogger(__name__)
-# logging.basicConfig(level=logging.DEBUG)
 
 
 def pytest_addoption(parser):
@@ -32,6 +25,11 @@ def port_is_ready(host: str, port: int, timeout: int = 5) -> bool:
             return True
     except OSError as ex:
         return False
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
 
 
 @pytest.fixture(scope="session")
