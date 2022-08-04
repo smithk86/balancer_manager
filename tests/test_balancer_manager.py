@@ -1,11 +1,11 @@
-from uuid import UUID
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+from uuid import UUID
 
 import httpx
 import pytest
 from pytest_docker.plugin import DockerComposeExecutor
 
-from httpd_manager import Bytes, Client
 from httpd_manager.balancer_manager import *
 
 
@@ -17,7 +17,6 @@ def validate_properties(balancer_manager):
     assert isinstance(balancer_manager.httpd_version, str)
     assert isinstance(balancer_manager.httpd_built_date, datetime)
     assert isinstance(balancer_manager.openssl_version, str)
-    assert isinstance(balancer_manager.health, bool)
 
     for cluster in balancer_manager.clusters.values():
         assert isinstance(cluster.max_members, int)
@@ -33,7 +32,6 @@ def validate_properties(balancer_manager):
         assert isinstance(cluster.method, str)
         assert isinstance(cluster.path, str)
         assert isinstance(cluster.active, bool)
-        assert isinstance(cluster.health, bool)
 
         for route in cluster.routes.values():
             assert isinstance(route, Route)
@@ -51,7 +49,6 @@ def validate_properties(balancer_manager):
             assert isinstance(route.to_, int)
             assert isinstance(route.from_, int)
             assert isinstance(route.session_nonce_uuid, UUID)
-            assert isinstance(route.health, bool)
             assert isinstance(route.status, RouteStatus)
             assert isinstance(route.status.ok, ImmutableStatus)
             assert isinstance(route.status.error, ImmutableStatus)
@@ -61,7 +58,6 @@ def validate_properties(balancer_manager):
             assert isinstance(route.status.hot_standby, Status)
             assert isinstance(route.status.hot_spare, Status)
             assert isinstance(route.status.stopped, Status)
-            assert isinstance(route.health, bool)
 
 
 async def test_properties(client):
@@ -72,6 +68,21 @@ async def test_properties(client):
     _original_date = balancer_manager.date
     await balancer_manager.update()
     assert _original_date < balancer_manager.date
+
+
+async def test_with_process_pool(client):
+    with ProcessPoolExecutor(max_workers=10) as ppexec:
+        _token = executor.set(ppexec)
+
+        balancer_manager = await client.balancer_manager()
+        validate_properties(balancer_manager)
+
+        # test update
+        _original_date = balancer_manager.date
+        await balancer_manager.update()
+        assert _original_date < balancer_manager.date
+
+        executor.reset(_token)
 
 
 async def test_httpd_version(client, httpd_version):
@@ -123,11 +134,9 @@ async def test_route_status_changes(client):
         assert route_status_1[name].value is status.value
 
 
-async def test_cluster_lbsets(
-    client, docker_services, docker_compose_file, docker_compose_project_name
-):
+async def test_cluster_lbsets(client, docker_compose_file, docker_compose_project_name):
     docker_compose = DockerComposeExecutor(
-        docker_compose_file, docker_compose_project_name
+        "docker-compose", docker_compose_file, docker_compose_project_name
     )
 
     balancer_manager = await client.balancer_manager()
@@ -140,7 +149,7 @@ async def test_cluster_lbsets(
     assert cluster.active_lbset == 0
 
     # test bad lbset number
-    with pytest.raises(AssertionError, match=r"lbset 99 does not exist in cluster4"):
+    with pytest.raises(AssertionError, match=r"lbset 99 does not exist"):
         cluster.lbset(99)
 
     # verify before change

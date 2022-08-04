@@ -29,6 +29,7 @@ pytest-docker = "*"
 types-beautifulsoup4 = "*"
 types-dateparser = "*"
 types-pytz = "*"
+black = "*"
 
 [tool.poetry.scripts]
 pytest = "pytest:main"

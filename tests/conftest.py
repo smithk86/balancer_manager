@@ -5,7 +5,6 @@ from collections import namedtuple
 from pathlib import Path
 from typing import Callable
 
-import httpx
 import pytest
 from httpd_manager import Client
 
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def pytest_addoption(parser):
-    parser.addoption("--httpd-version", default="2.4.48")
+    parser.addoption("--httpd-version", default="2.4.53")
     parser.addoption("--disable-docker", action="store_true", default=False)
 
 

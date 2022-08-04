@@ -2,17 +2,19 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
-from typing import Any, Dict, Generator, List, Tuple
+from typing import Any, Generator
+
+from pydantic import validator
 
 from .route import ImmutableRoute
-
-from ...utils import BaseModel, RegexPatterns
+from ...utils import RegexPatterns
+from ...models import ParsableModel
 
 
 logger = logging.getLogger(__name__)
 
 
-class ImmutableCluster(BaseModel, allow_mutation=False):
+class ImmutableCluster(ParsableModel, allow_mutation=False):
     name: str
     max_members: int
     max_members_used: int
@@ -23,63 +25,44 @@ class ImmutableCluster(BaseModel, allow_mutation=False):
     method: str
     path: str
     active: bool
-    routes: Dict[str, ImmutableRoute]
+    routes: dict[str, ImmutableRoute]
+    lbsets: dict[int, list[ImmutableRoute]] = dict()
+    active_lbset: int | None = None
+    number_of_eligible_routes: int = 0
+    standby: bool = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for route in self.routes.values():
-            route._cluster = self
+            route.set_cluster(self)
 
-    def route(self, name: str):
-        return self.routes[name]
-
-    @property
-    def health(self) -> bool | None:
-        """
-        return False if len(self) == 0 or
-            if any route.health is False
-        """
-
-        if len(self.routes) == 0:
-            return None
-
-        for route in self.routes.values():
-            if route.health is False:
-                return False
-        return True
-
-    @property
-    def lbsets(self) -> Dict[int, List[ImmutableRoute]]:
-        lbset_dict: Dict[int, List[ImmutableRoute]] = dict()
-        for route in self.routes.values():
+    @validator("lbsets", always=True)
+    def _get_lbsets(cls, v, values) -> dict[int, list[ImmutableRoute]]:
+        lbset_dict: dict[int, list[ImmutableRoute]] = dict()
+        for route in values["routes"].values():
             if route.lbset not in lbset_dict:
                 lbset_dict[route.lbset] = list()
             lbset_dict[route.lbset].append(route)
         return OrderedDict(sorted(lbset_dict.items()))
 
-    def lbset(self, number: int) -> List[ImmutableRoute]:
-        lbsets = self.lbsets
-        assert number in lbsets, f"lbset {number} does not exist in {self.name}"
-        return lbsets[number]
-
-    @property
-    def active_lbset(self) -> int | None:
-        for number, lbset in self.lbsets.items():
+    @validator("active_lbset", always=True)
+    def _get_active_lbset(cls, v, values) -> int | None:
+        for number, lbset in values["lbsets"].items():
             for route in lbset:
                 if route.status.ok.value is True:
                     return number
         return None
 
-    @property
-    def standby(self) -> bool:
+    @validator("standby", always=True)
+    def _get_standby(cls, v, values) -> bool:
         """
         return True if hot_standby routes are active
         """
 
-        if self.active_lbset is None:
+        if values["active_lbset"] is None:
             return False
         else:
-            for route in self.lbset(self.active_lbset):
+            for route in cls._get_lbset(values["lbsets"], values["active_lbset"]):
                 if (
                     route.status.ok.value is True
                     and route.status.hot_standby.value is False
@@ -87,45 +70,64 @@ class ImmutableCluster(BaseModel, allow_mutation=False):
                     return False
             return True
 
-    @property
-    def number_of_eligible_routes(self) -> int:
-        return len(self.eligible_routes())
+    @validator("number_of_eligible_routes", always=True)
+    def _get_number_of_eligible_routes(cls, v, values) -> int:
+        return len(cls._get_eligible_routes(values["routes"]))
 
-    def eligible_routes(self) -> List[ImmutableRoute]:
+    def route(self, name: str):
+        return self.routes[name]
+
+    def lbset(self, number: int) -> list[ImmutableRoute]:
+        return self._get_lbset(self.lbsets, number)
+
+    def eligible_routes(self) -> list[ImmutableRoute]:
+        return self._get_eligible_routes(self.routes)
+
+    @staticmethod
+    def _get_eligible_routes(routes: dict[str, ImmutableRoute]) -> list[ImmutableRoute]:
         """
         return list of ImmutableRoutes that are capable of
         accepting incoming traffic
         """
 
-        return list(
+        return [
             route
-            for route in self.routes.values()
+            for route in routes.values()
             if (
                 route.status.error.value is False
                 and route.status.disabled.value is False
                 and route.status.draining_mode.value is not True
             )
-        )
+        ]
 
     @staticmethod
+    def _get_lbset(
+        lbsets: dict[int, list[ImmutableRoute]], number: int
+    ) -> list[ImmutableRoute]:
+        assert number in lbsets, f"lbset {number} does not exist"
+        return lbsets[number]
+
+    @classmethod
     def _get_parsed_pairs(
-        obj: Dict[str, str], routes: List[ImmutableRoute]
-    ) -> Generator[Tuple[str, Any], None, None]:
-        m = RegexPatterns.BALANCER_URI.match(obj["name"])
+        cls, data: dict[str, str], **kwargs
+    ) -> Generator[tuple[str, Any], None, None]:
+        _routes: list[ImmutableRoute] = kwargs.get("routes", [])
+
+        m = RegexPatterns.BALANCER_URI.match(data["name"])
         name = m.group(1)
         yield ("name", name)
 
-        m = RegexPatterns.ROUTE_USED.match(obj["max_members"])
+        m = RegexPatterns.ROUTE_USED.match(data["max_members"])
         yield ("max_members", int(m.group(1)))
         yield ("max_members_used", int(m.group(2)))
         yield (
             "sticky_session",
-            None if obj["sticky_session"] == "(None)" else obj["sticky_session"],
+            None if data["sticky_session"] == "(None)" else data["sticky_session"],
         )
-        yield ("disable_failover", "On" in obj["disable_failover"])
-        yield ("timeout", int(obj["timeout"]))
-        yield ("failover_attempts", int(obj["failover_attempts"]))
-        yield ("method", obj["method"])
-        yield ("path", obj["path"])
-        yield ("active", "Yes" in obj["active"])
-        yield ("routes", {x.name: x for x in routes if x.cluster == name})
+        yield ("disable_failover", "On" in data["disable_failover"])
+        yield ("timeout", int(data["timeout"]))
+        yield ("failover_attempts", int(data["failover_attempts"]))
+        yield ("method", data["method"])
+        yield ("path", data["path"])
+        yield ("active", "Yes" in data["active"])
+        yield ("routes", {x.name: x for x in _routes if x.cluster == name})

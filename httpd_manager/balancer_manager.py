@@ -1,16 +1,18 @@
-from __future__ import annotations
-
+import asyncio
 import logging
-from typing import Any, Callable, Dict, Type
+from functools import partial
+from typing import Any, Callable, TypedDict
 
 from pydantic import PrivateAttr
 
 from .client import Client
+from .executor import executor
 from .immutable.balancer_manager import (
     ImmutableBalancerManager,
     ImmutableCluster,
     ImmutableRoute,
     ImmutableStatus,
+    ParsedBalancerManager,
     RouteStatus,
     Status,
 )
@@ -21,48 +23,54 @@ Cluster = ImmutableCluster
 logger = logging.getLogger(__name__)
 
 
+class ParseKwargs(TypedDict):
+    client: Client
+
+
 class BalancerManager(ImmutableBalancerManager):
     _client: Client = PrivateAttr()
-    _path: str = PrivateAttr()
 
     class Config:
         allow_mutation = True
         validate_assignment = True
 
     def __init__(self, *args, **kwargs):
-        self._client = kwargs.pop("client")
-        self._path = kwargs.pop("path")
+        assert "client" in kwargs, "client argument is required"
+        self._client = kwargs["client"]
         super().__init__(*args, **kwargs)
 
     async def update(self) -> None:
         async with self._client.http_client() as http_client:
-            response = await http_client.get(self._path)
+            response = await http_client.get(self._client.balancer_manager_path)
         await self._update_from_payload(response.text)
 
     async def _update_from_payload(self, payload: str) -> None:
-        new_model = await self.async_parse(
-            client=self._client, path=self._path, payload=payload
-        )
+        new_model = await self.async_parse_payload(client=self._client, payload=payload)
         for field, value in new_model:
             setattr(self, field, value)
 
     @classmethod
-    async def create(cls, client: Client) -> BalancerManager:
-        assert isinstance(
-            client.balancer_manager_path, str
-        ), "Client.balancer_manager_path is not defined"
+    async def parse(cls, client: Client) -> "BalancerManager":
         async with client.http_client() as http_client:
             response = await http_client.get(client.balancer_manager_path)
         response.raise_for_status()
-        return await cls.async_parse(
-            client, client.balancer_manager_path, response.text
-        )
+
+        return await cls.async_parse_payload(response.text, client=client)
 
     @classmethod
-    async def async_parse(cls, client: Client, path: str, payload: str) -> Any:
-        return await client._sync_handler(
-            cls.parse_payload, payload=payload, client=client, path=path
-        )
+    async def async_parse_payload(
+        cls, payload: str, client: Client, **kwargs
+    ) -> "BalancerManager":
+        _executor = executor.get()
+        _loop = asyncio.get_running_loop()
+        _func = partial(cls.parse_payload, payload=payload, client=client, **kwargs)
+        return await _loop.run_in_executor(_executor, _func)
+
+    @classmethod
+    def parse_payload(cls, payload: str, **kwargs: ParseKwargs) -> "BalancerManager":
+        parsed_model = ParsedBalancerManager.parse_payload(payload, **kwargs)
+        model_props = dict(cls._get_parsed_pairs(parsed_model, **kwargs))
+        return cls.parse_obj(model_props)
 
     async def edit_route(
         self,
@@ -89,13 +97,13 @@ class BalancerManager(ImmutableBalancerManager):
         assert isinstance(route, Route)
 
         # get a dict of Status objects
-        _status: Dict[str, Status] = route.status.mutable()
+        _status: dict[str, Status] = route.status.mutable()
 
         # input validation
         for name in status_value_kwargs.keys():
             assert name in _status, f'status "{name}" does not exist'
 
-        status_updates: Dict[str, bool] = dict()
+        status_updates: dict[str, bool] = dict()
         # prepare new values to be sent to server
         for name in _status.keys():
             if name in status_value_kwargs:
@@ -135,7 +143,9 @@ class BalancerManager(ImmutableBalancerManager):
         logger.debug(f"edit route cluster={cluster} route={route} payload={payload}")
 
         async with self._client.http_client() as http_client:
-            response = await http_client.post(self._path, data=payload)
+            response = await http_client.post(
+                self._client.balancer_manager_path, data=payload
+            )
         response.raise_for_status()
         await self._update_from_payload(response.text)
 

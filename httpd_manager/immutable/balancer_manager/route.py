@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Generator, Tuple, TYPE_CHECKING
+from typing import Any, Generator, TYPE_CHECKING
 from uuid import UUID
 
-import httpx
-from pydantic import validator, PrivateAttr
-from pydantic.fields import ModelField, Field
+from pydantic import BaseModel, PrivateAttr
 
 from ...models import Bytes
-from ...utils import RegexPatterns, PropertyBaseModel as BaseModel
+from ...utils import RegexPatterns
+from ...models import ParsableModel
 
 
 if TYPE_CHECKING:
@@ -43,7 +42,7 @@ class RouteStatus(BaseModel):
     hot_spare: Status
     stopped: Status
 
-    def mutable(self) -> Dict[str, Status]:
+    def mutable(self) -> dict[str, Status]:
         return {
             name: status
             for name, status in self
@@ -51,7 +50,7 @@ class RouteStatus(BaseModel):
         }
 
 
-class ImmutableRoute(BaseModel, validate_assignment=True):
+class ImmutableRoute(ParsableModel, validate_assignment=True):
     name: str
     cluster: str
     worker: str
@@ -66,20 +65,14 @@ class ImmutableRoute(BaseModel, validate_assignment=True):
     from_: int
     session_nonce_uuid: UUID
     status: RouteStatus
+    accepting_requests: bool = False
     _cluster: ImmutableCluster = PrivateAttr()
 
-    @property
-    def health(self) -> bool:
-        """
-        return False if self['error'] does not exist or
-            if self['error'].value is True
-        return True otherwise
-        """
+    def set_cluster(self, cluster: ImmutableCluster):
+        object.__setattr__(self, "_cluster", cluster)
+        object.__setattr__(self, "accepting_requests", self._get_accepting_requests())
 
-        return False if self.status.error.value is True else True
-
-    @property
-    def accepting_requests(self) -> bool:
+    def _get_accepting_requests(self) -> bool:
         if self.lbset != self._cluster.active_lbset:
             return False
         else:
@@ -93,55 +86,55 @@ class ImmutableRoute(BaseModel, validate_assignment=True):
                 )
             )
 
-    @staticmethod
+    @classmethod
     def _get_parsed_pairs(
-        obj: Dict[str, str]
-    ) -> Generator[Tuple[str, Any], None, None]:
-        yield ("name", obj["name"])
+        cls, data: dict[str, str], **kwargs
+    ) -> Generator[tuple[str, Any], None, None]:
+        yield ("name", data["name"])
 
-        m = RegexPatterns.CLUSTER_NAME.match(obj["worker_url"])
+        m = RegexPatterns.CLUSTER_NAME.match(data["worker_url"])
         yield ("cluster", m.group(1))
 
-        m = RegexPatterns.SESSION_NONCE_UUID.search(obj["worker_url"])
+        m = RegexPatterns.SESSION_NONCE_UUID.search(data["worker_url"])
         yield ("session_nonce_uuid", m.group(1))
 
-        m = RegexPatterns.BANDWIDTH_USAGE.search(obj["to"])
+        m = RegexPatterns.BANDWIDTH_USAGE.search(data["to"])
         yield ("to_", int(Bytes(value=m.group(1), unit=m.group(2))))
 
-        m = RegexPatterns.BANDWIDTH_USAGE.search(obj["from"])
+        m = RegexPatterns.BANDWIDTH_USAGE.search(data["from"])
         yield ("from_", int(Bytes(value=m.group(1), unit=m.group(2))))
 
-        yield ("worker", obj["worker"])
-        yield ("priority", obj["priority"])
-        yield ("route_redir", obj["route_redir"])
-        yield ("factor", obj["factor"])
-        yield ("lbset", obj["lbset"])
-        yield ("elected", obj["elected"])
-        yield ("busy", obj["busy"])
-        yield ("load", obj["load"])
+        yield ("worker", data["worker"])
+        yield ("priority", data["priority"])
+        yield ("route_redir", data["route_redir"])
+        yield ("factor", data["factor"])
+        yield ("lbset", data["lbset"])
+        yield ("elected", data["elected"])
+        yield ("busy", data["busy"])
+        yield ("load", data["load"])
 
         yield (
             "status",
             RouteStatus(
-                ok=ImmutableStatus(value="Ok" in obj["active_status_codes"]),
-                error=ImmutableStatus(value="Err" in obj["active_status_codes"]),
+                ok=ImmutableStatus(value="Ok" in data["active_status_codes"]),
+                error=ImmutableStatus(value="Err" in data["active_status_codes"]),
                 ignore_errors=Status(
-                    http_form_code="I", value="Ign" in obj["active_status_codes"]
+                    http_form_code="I", value="Ign" in data["active_status_codes"]
                 ),
                 draining_mode=Status(
-                    http_form_code="N", value="Drn" in obj["active_status_codes"]
+                    http_form_code="N", value="Drn" in data["active_status_codes"]
                 ),
                 disabled=Status(
-                    http_form_code="D", value="Dis" in obj["active_status_codes"]
+                    http_form_code="D", value="Dis" in data["active_status_codes"]
                 ),
                 hot_standby=Status(
-                    http_form_code="H", value="Stby" in obj["active_status_codes"]
+                    http_form_code="H", value="Stby" in data["active_status_codes"]
                 ),
                 hot_spare=Status(
-                    http_form_code="R", value="Spar" in obj["active_status_codes"]
+                    http_form_code="R", value="Spar" in data["active_status_codes"]
                 ),
                 stopped=Status(
-                    http_form_code="S", value="Stop" in obj["active_status_codes"]
+                    http_form_code="S", value="Stop" in data["active_status_codes"]
                 ),
             ),
         )

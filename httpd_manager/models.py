@@ -1,11 +1,23 @@
-import re
-from datetime import datetime
+from abc import abstractmethod
 from enum import Enum
-from functools import lru_cache
-from typing import Pattern, Tuple
+from typing import Any, Dict, Generator, Tuple
 
-import dateparser
 from pydantic import BaseModel, Field, validator
+
+
+class ParsableModel(BaseModel):
+    _parse_options: Any
+
+    @classmethod
+    def parse_payload(cls, payload: str, **kwargs) -> Any:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def _get_parsed_pairs(
+        cls, data: Any, **kwargs
+    ) -> Generator[Tuple[str, Any], None, None]:
+        ...
 
 
 class DataUnit(str, Enum):

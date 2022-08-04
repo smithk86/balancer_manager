@@ -1,13 +1,9 @@
-import asyncio
-import warnings
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
-from typing import Callable, List
 
-import httpx
 import pytest
 
-from httpd_manager import ServerStatus
-from httpd_manager.immutable.server_status import Worker, WorkerStateCount
+from httpd_manager import *
 
 
 pytestmark = pytest.mark.anyio
@@ -24,7 +20,7 @@ def validate_properties(server_status):
     assert isinstance(server_status.bytes_per_request, int)
     assert isinstance(server_status.ms_per_request, float)
     assert isinstance(server_status.worker_states, WorkerStateCount)
-    assert server_status.workers is None or isinstance(server_status.workers, List)
+    assert server_status.workers is None or isinstance(server_status.workers, list)
 
 
 async def test_server_status(client):
@@ -40,7 +36,28 @@ async def test_server_status(client):
     # confirm workers if include_workers=True
     server_status = await client.server_status(include_workers=True)
     validate_properties(server_status)
-    assert isinstance(server_status.workers, List)
+    assert isinstance(server_status.workers, list)
+
+
+async def test_with_process_pool(client):
+    with ProcessPoolExecutor(max_workers=10) as ppexec:
+        _token = executor.set(ppexec)
+
+        server_status = await client.server_status()
+        validate_properties(server_status)
+        assert server_status.workers is None
+
+        # test update
+        _original_date = server_status.date
+        await server_status.update()
+        assert _original_date < server_status.date
+
+        # confirm workers if include_workers=True
+        server_status = await client.server_status(include_workers=True)
+        validate_properties(server_status)
+        assert isinstance(server_status.workers, list)
+
+        executor.reset(_token)
 
 
 async def test_mocked_server_status(create_client, httpx_mock, test_files_dir):
@@ -73,16 +90,3 @@ async def test_mocked_server_status(create_client, httpx_mock, test_files_dir):
 
     for w in server_status.workers:
         assert isinstance(w, Worker)
-
-
-async def test_async_parse_handler(create_client):
-    async def _async_parse_handler(handler: Callable):
-        warnings.warn("async_parse_handler has executed", UserWarning)
-        return await asyncio.to_thread(handler)
-
-    client = create_client(async_parse_handler=_async_parse_handler)
-
-    with pytest.warns(UserWarning, match=f"async_parse_handler has executed"):
-        server_status = await client.server_status()
-
-    validate_properties(server_status)

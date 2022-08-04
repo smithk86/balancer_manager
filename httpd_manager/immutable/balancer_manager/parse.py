@@ -1,15 +1,15 @@
 import warnings
 from datetime import datetime
-from typing import Any, Dict, List, Generator, Tuple
+from typing import Any, Generator, Tuple
 
 from bs4 import BeautifulSoup
-from pydantic import BaseModel
 
+from ...models import ParsableModel
 from ...utils import utcnow
 
 
 try:
-    import lxml
+    import lxml as _
 
     lxml_loaded = True
 except ModuleNotFoundError:
@@ -19,43 +19,45 @@ except ModuleNotFoundError:
     )
 
 
-class ParsedBalancerManager(BaseModel):
+class ParsedBalancerManager(ParsableModel):
     date: datetime
     httpd_version: str
     httpd_built_date: str
     openssl_version: str
-    clusters: List[Dict[str, str]]
-    routes: List[Dict[str, str]]
+    clusters: list[dict[str, str]]
+    routes: list[dict[str, str]]
 
     @classmethod
-    def parse_payload(cls, payload: str) -> "ParsedBalancerManager":
-        return cls.parse_obj(cls._get_parsed_pairs(payload))
-
-    @staticmethod
-    def _get_parsed_pairs(payload: str) -> Generator[Tuple[str, Any], None, None]:
+    def parse_payload(cls, payload: str, **kwargs) -> "ParsedBalancerManager":
         # parse payload with beautiful soup
         bs4_features = "lxml" if lxml_loaded is True else "html.parser"
-        bsoup = BeautifulSoup(payload, features=bs4_features)
+        data = BeautifulSoup(payload, features=bs4_features)
+        model_data = dict(cls._get_parsed_pairs(data, **kwargs))
+        return cls.parse_obj(model_data)
 
+    @classmethod
+    def _get_parsed_pairs(
+        cls, data: BeautifulSoup, **kwargs
+    ) -> Generator[Tuple[str, Any], None, None]:
         # record date of initial parse
         yield ("date", utcnow())
 
         # remove form from page -- this contains extra tables which do not contain clusters or routes
-        for form in bsoup.find_all("form"):
+        for form in data.find_all("form"):
             form.extract()
 
         # initial payload validation
-        _bs_h1 = bsoup.find_all("h1")
+        _bs_h1 = data.find_all("h1")
         assert (
             len(_bs_h1) == 1 and "Load Balancer Manager" in _bs_h1[0].text
         ), "initial html validation failed; is this really an Httpd Balancer Manager page?"
 
-        _bs_dt = bsoup.find_all("dt")
+        _bs_dt = data.find_all("dt")
         assert (
             len(_bs_dt) >= 2
         ), f"at least 2 <dt> tags are expected ({len(_bs_dt)} found)"
 
-        _bs_table = bsoup.find_all("table")
+        _bs_table = data.find_all("table")
         _bs_table_clusters = _bs_table[::2]  # only capture the even indexes
         _bs_table_routes = _bs_table[1::2]  # only capture the even indexes
 
