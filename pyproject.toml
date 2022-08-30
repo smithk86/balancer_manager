@@ -40,7 +40,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 addopts = "--mypy"
-asyncio_mode = "strict"
 
 [tool.mypy]
 plugins = [
