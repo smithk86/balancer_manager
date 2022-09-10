@@ -26,7 +26,6 @@ class ImmutableCluster(ParsableModel, allow_mutation=False):
     path: str
     active: bool
     routes: dict[str, ImmutableRoute]
-    lbsets: dict[int, list[ImmutableRoute]] = dict()
     active_lbset: int | None = None
     number_of_eligible_routes: int = 0
     standby: bool = False
@@ -36,18 +35,10 @@ class ImmutableCluster(ParsableModel, allow_mutation=False):
         for route in self.routes.values():
             route.set_cluster(self)
 
-    @validator("lbsets", always=True)
-    def _get_lbsets(cls, v, values) -> dict[int, list[ImmutableRoute]]:
-        lbset_dict: dict[int, list[ImmutableRoute]] = dict()
-        for route in values["routes"].values():
-            if route.lbset not in lbset_dict:
-                lbset_dict[route.lbset] = list()
-            lbset_dict[route.lbset].append(route)
-        return OrderedDict(sorted(lbset_dict.items()))
-
     @validator("active_lbset", always=True)
     def _get_active_lbset(cls, v, values) -> int | None:
-        for number, lbset in values["lbsets"].items():
+        _lbsets = cls._get_lbsets(values["routes"])
+        for number, lbset in _lbsets.items():
             for route in lbset:
                 if route.status.ok.value is True:
                     return number
@@ -62,7 +53,7 @@ class ImmutableCluster(ParsableModel, allow_mutation=False):
         if values["active_lbset"] is None:
             return False
         else:
-            for route in cls._get_lbset(values["lbsets"], values["active_lbset"]):
+            for route in cls._get_lbset(values["routes"], values["active_lbset"]):
                 if (
                     route.status.ok.value is True
                     and route.status.hot_standby.value is False
@@ -77,8 +68,11 @@ class ImmutableCluster(ParsableModel, allow_mutation=False):
     def route(self, name: str):
         return self.routes[name]
 
+    def lbsets(self) -> dict[int, list[ImmutableRoute]]:
+        return self._get_lbsets(self.routes)
+
     def lbset(self, number: int) -> list[ImmutableRoute]:
-        return self._get_lbset(self.lbsets, number)
+        return self._get_lbset(self.routes, number)
 
     def eligible_routes(self) -> list[ImmutableRoute]:
         return self._get_eligible_routes(self.routes)
@@ -101,11 +95,23 @@ class ImmutableCluster(ParsableModel, allow_mutation=False):
         ]
 
     @staticmethod
+    def _get_lbsets(
+        routes: dict[str, ImmutableRoute]
+    ) -> dict[int, list[ImmutableRoute]]:
+        lbset_dict: dict[int, list[ImmutableRoute]] = dict()
+        for route in routes.values():
+            if route.lbset not in lbset_dict:
+                lbset_dict[route.lbset] = list()
+            lbset_dict[route.lbset].append(route)
+        return OrderedDict(sorted(lbset_dict.items()))
+
+    @classmethod
     def _get_lbset(
-        lbsets: dict[int, list[ImmutableRoute]], number: int
+        cls, routes: dict[str, ImmutableRoute], number: int
     ) -> list[ImmutableRoute]:
-        assert number in lbsets, f"lbset {number} does not exist"
-        return lbsets[number]
+        _lbsets = cls._get_lbsets(routes)
+        assert number in _lbsets, f"lbset {number} does not exist"
+        return _lbsets[number]
 
     @classmethod
     def _get_parsed_pairs(

@@ -141,7 +141,7 @@ async def test_cluster_lbsets(client, docker_compose_file, docker_compose_projec
 
     balancer_manager = await client.balancer_manager()
     cluster = balancer_manager.cluster("cluster4")
-    lbsets = cluster.lbsets
+    lbsets = cluster.lbsets()
     assert len(lbsets) == 2
     assert len(lbsets[0]) == 5
     assert len(lbsets[1]) == 5
