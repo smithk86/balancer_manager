@@ -39,9 +39,19 @@ class BalancerManager(ImmutableBalancerManager):
         self._client = kwargs["client"]
         super().__init__(*args, **kwargs)
 
+    @staticmethod
+    def _balancer_manager_path(client) -> str:
+        if not isinstance(client.balancer_manager_path, str):
+            raise TypeError("Client.balancer_manager_path must be a string")
+        return client.balancer_manager_path
+
+    @property
+    def balancer_manager_path(self) -> str:
+        return self._balancer_manager_path(self._client)
+
     async def update(self) -> None:
         async with self._client.http_client() as http_client:
-            response = await http_client.get(self._client.balancer_manager_path)
+            response = await http_client.get(self.balancer_manager_path)
         await self._update_from_payload(response.text)
 
     async def _update_from_payload(self, payload: str) -> None:
@@ -51,8 +61,9 @@ class BalancerManager(ImmutableBalancerManager):
 
     @classmethod
     async def parse(cls, client: Client) -> "BalancerManager":
+        path = cls._balancer_manager_path(client)
         async with client.http_client() as http_client:
-            response = await http_client.get(client.balancer_manager_path)
+            response = await http_client.get(path)
         response.raise_for_status()
 
         return await cls.async_parse_payload(response.text, client=client)
@@ -143,9 +154,7 @@ class BalancerManager(ImmutableBalancerManager):
         logger.debug(f"edit route cluster={cluster} route={route} payload={payload}")
 
         async with self._client.http_client() as http_client:
-            response = await http_client.post(
-                self._client.balancer_manager_path, data=payload
-            )
+            response = await http_client.post(self.balancer_manager_path, data=payload)
         response.raise_for_status()
         await self._update_from_payload(response.text)
 

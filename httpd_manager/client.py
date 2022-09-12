@@ -26,18 +26,11 @@ class Client:
 
         self.base_url: str = base_url
         self.server_status_path: str = server_status_path
-        self._balancer_manager_path: str | None = balancer_manager_path
+        self.balancer_manager_path: str | None = balancer_manager_path
         self.http_client_kwargs = http_client_kwargs
 
     def http_client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(**self.http_client_kwargs)
-
-    @property
-    def balancer_manager_path(self) -> str:
-        assert isinstance(
-            self._balancer_manager_path, str
-        ), "balancer_manager_path is not defined"
-        return self._balancer_manager_path
 
     async def server_status(self, include_workers=False) -> "ServerStatus":
         from .server_status import ServerStatus
