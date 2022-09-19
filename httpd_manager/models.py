@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from enum import Enum
-from typing import Any, Dict, Generator, Tuple
+from typing import Any, Generator
 
 from pydantic import BaseModel, Field, validator
 
@@ -16,7 +16,7 @@ class ParsableModel(BaseModel):
     @abstractmethod
     def _get_parsed_pairs(
         cls, data: Any, **kwargs
-    ) -> Generator[Tuple[str, Any], None, None]:
+    ) -> Generator[tuple[str, Any], None, None]:
         ...
 
 

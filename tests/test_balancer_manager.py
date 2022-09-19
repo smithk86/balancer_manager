@@ -60,7 +60,7 @@ def validate_properties(balancer_manager):
             assert isinstance(route.status.stopped, Status)
 
 
-async def test_properties(client):
+async def test_properties(client: Client):
     balancer_manager = await client.balancer_manager()
     validate_properties(balancer_manager)
 
@@ -70,7 +70,7 @@ async def test_properties(client):
     assert _original_date < balancer_manager.date
 
 
-async def test_with_process_pool(client):
+async def test_with_process_pool(client: Client):
     with ProcessPoolExecutor(max_workers=10) as ppexec:
         _token = executor.set(ppexec)
 
@@ -85,18 +85,18 @@ async def test_with_process_pool(client):
         executor.reset(_token)
 
 
-async def test_httpd_version(client, httpd_version):
+async def test_httpd_version(client: Client, httpd_version):
     balancer_manager = await client.balancer_manager()
     assert balancer_manager.httpd_version == httpd_version
 
 
-async def test_cluster_does_not_exist(client):
+async def test_cluster_does_not_exist(client: Client):
     balancer_manager = await client.balancer_manager()
     with pytest.raises(KeyError, match=r"\'does_not_exist\'"):
         balancer_manager.cluster("does_not_exist")
 
 
-async def test_route_status_changes(client):
+async def test_route_status_changes(client: Client):
     balancer_manager = await client.balancer_manager()
 
     # get route and do status update
@@ -110,9 +110,13 @@ async def test_route_status_changes(client):
             continue
 
         # toggle status to the oposite value
-        kwargs = {name: not status.value}
+        status_changes = {name: not status.value}
         # continue with route testing
-        await balancer_manager.edit_route("cluster0", "route00", **kwargs)
+        await balancer_manager.edit_route(
+            "cluster0",
+            "route00",
+            status_changes=status_changes,
+        )
 
     # verify change
     route_2 = balancer_manager.cluster("cluster0").route("route00")
@@ -123,7 +127,10 @@ async def test_route_status_changes(client):
         assert route_status_1[name].value is not status.value
         # toggle status back to original value
         await balancer_manager.edit_route(
-            "cluster0", "route00", **{"force": True, name: not status.value}
+            "cluster0",
+            "route00",
+            force=True,
+            status_changes={name: not status.value},
         )
 
     # verify original value again
@@ -134,7 +141,9 @@ async def test_route_status_changes(client):
         assert route_status_1[name].value is status.value
 
 
-async def test_cluster_lbsets(client, docker_compose_file, docker_compose_project_name):
+async def test_cluster_lbsets(
+    client: Client, docker_compose_file, docker_compose_project_name
+):
     docker_compose = DockerComposeExecutor(
         "docker-compose", docker_compose_file, docker_compose_project_name
     )
@@ -157,7 +166,7 @@ async def test_cluster_lbsets(client, docker_compose_file, docker_compose_projec
         assert route.status.disabled.value is False
 
     # do change
-    await balancer_manager.edit_lbset(cluster, 1, disabled=True)
+    await balancer_manager.edit_lbset(cluster, 1, status_changes={"disabled": True})
     # verify after change
     cluster = balancer_manager.cluster("cluster4")
     for route in cluster.lbset(1):
@@ -166,7 +175,7 @@ async def test_cluster_lbsets(client, docker_compose_file, docker_compose_projec
     assert cluster.active_lbset == 0
 
     # do change
-    await balancer_manager.edit_lbset(cluster, 1, disabled=False)
+    await balancer_manager.edit_lbset(cluster, 1, status_changes={"disabled": False})
     # verify after change
     cluster = balancer_manager.cluster("cluster4")
     for route in cluster.lbset(1):
@@ -175,7 +184,7 @@ async def test_cluster_lbsets(client, docker_compose_file, docker_compose_projec
     assert cluster.active_lbset == 0
 
     # do change
-    await balancer_manager.edit_lbset(cluster, 0, disabled=True)
+    await balancer_manager.edit_lbset(cluster, 0, status_changes={"disabled": True})
     # verify after change
     cluster = balancer_manager.cluster("cluster4")
     for route in cluster.lbset(0):
@@ -192,7 +201,10 @@ async def test_cluster_lbsets(client, docker_compose_file, docker_compose_projec
     try:
         docker_compose.execute("pause httpd")
         await balancer_manager.edit_lbset(
-            cluster, 1, disabled=True, exception_handler=_exception_handler
+            cluster,
+            1,
+            status_changes={"disabled": True},
+            exception_handler=_exception_handler,
         )
     finally:
         docker_compose.execute("unpause httpd")
@@ -202,7 +214,7 @@ async def test_cluster_lbsets(client, docker_compose_file, docker_compose_projec
         assert isinstance(e, httpx.ReadTimeout)
 
 
-async def test_accepting_requests(client):
+async def test_accepting_requests(client: Client):
     balancer_manager = await client.balancer_manager()
     cluster = balancer_manager.cluster("cluster2")
 
@@ -212,7 +224,12 @@ async def test_accepting_requests(client):
     assert cluster.route("route23").accepting_requests is False
 
     await balancer_manager.edit_route(
-        "cluster2", "route20", disabled=True, hot_standby=True
+        "cluster2",
+        "route20",
+        status_changes={
+            "disabled": True,
+            "hot_standby": True,
+        },
     )
     cluster = balancer_manager.cluster("cluster2")
 
@@ -222,7 +239,7 @@ async def test_accepting_requests(client):
     assert cluster.route("route23").accepting_requests is False
 
 
-async def test_route_disable_last(client, enable_all_routes):
+async def test_route_disable_last(client: Client, enable_all_routes):
     balancer_manager = await client.balancer_manager()
     cluster = balancer_manager.cluster("cluster3")
 
@@ -231,23 +248,36 @@ async def test_route_disable_last(client, enable_all_routes):
     try:
         with pytest.raises(ValueError, match=r".*cannot disable final active route.*"):
             for route in cluster.routes.values():
-                await balancer_manager.edit_route(cluster, route, disabled=True)
+                await balancer_manager.edit_route(
+                    cluster, route, status_changes={"disabled": True}
+                )
     finally:
         await enable_all_routes(balancer_manager, cluster)
 
     try:
         for route in cluster.routes.values():
-            await balancer_manager.edit_route(cluster, route, force=True, disabled=True)
+            await balancer_manager.edit_route(
+                cluster,
+                route,
+                force=True,
+                status_changes={
+                    "disabled": True,
+                },
+            )
     finally:
         await enable_all_routes(balancer_manager, cluster)
 
 
-async def test_standby(client, enable_all_routes):
+async def test_standby(client: Client, enable_all_routes):
     balancer_manager = await client.balancer_manager()
 
     await enable_all_routes(balancer_manager, balancer_manager.cluster("cluster2"))
 
     assert balancer_manager.cluster("cluster2").standby is False
-    await balancer_manager.edit_route("cluster2", "route20", disabled=True)
-    await balancer_manager.edit_route("cluster2", "route21", disabled=True)
+    await balancer_manager.edit_route(
+        "cluster2", "route20", status_changes={"disabled": True}
+    )
+    await balancer_manager.edit_route(
+        "cluster2", "route21", status_changes={"disabled": True}
+    )
     assert balancer_manager.cluster("cluster2").standby is True

@@ -84,6 +84,8 @@ def client(create_client) -> Client:
 def enable_all_routes():
     async def handler(balancer_manager, cluster):
         for route in cluster.routes.values():
-            await balancer_manager.edit_route(cluster, route, disabled=False)
+            await balancer_manager.edit_route(
+                cluster, route, status_changes={"disabled": False}
+            )
 
     return handler

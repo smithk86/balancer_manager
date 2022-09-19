@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Any, Callable, TypedDict
+from typing import Callable, TypedDict
 
 from pydantic import PrivateAttr
 
@@ -91,7 +91,7 @@ class BalancerManager(ImmutableBalancerManager):
         factor: float | None = None,
         lbset: int | None = None,
         route_redir: str | None = None,
-        **status_value_kwargs,
+        status_changes: dict[str, bool] = {},
     ) -> None:
         # validate cluster
         if isinstance(cluster, str):
@@ -108,19 +108,11 @@ class BalancerManager(ImmutableBalancerManager):
         assert isinstance(route, Route)
 
         # get a dict of Status objects
-        _status: dict[str, Status] = route.status.mutable()
+        updated_status_values = route.status.get_mutable_values()
 
-        # input validation
-        for name in status_value_kwargs.keys():
-            assert name in _status, f'status "{name}" does not exist'
-
-        status_updates: dict[str, bool] = dict()
         # prepare new values to be sent to server
-        for name in _status.keys():
-            if name in status_value_kwargs:
-                status_updates[name] = status_value_kwargs[name]
-            else:
-                status_updates[name] = _status[name].value
+        for _name, _value in status_changes.items():
+            setattr(updated_status_values, _name, _value)
 
         # except routes with errors from throwing the "last-route" error
         if (
@@ -131,8 +123,8 @@ class BalancerManager(ImmutableBalancerManager):
         ):
             pass
         elif cluster.number_of_eligible_routes <= 1 and (
-            status_updates.get("disabled") is True
-            or status_updates.get("draining_mode") is True
+            updated_status_values.disabled is True
+            or updated_status_values.draining_mode is True
         ):
             raise ValueError("cannot disable final active route")
 
@@ -146,10 +138,9 @@ class BalancerManager(ImmutableBalancerManager):
             "nonce": str(route.session_nonce_uuid),
         }
 
-        for status_name, new_value in status_updates.items():
-            http_form_code = _status[status_name].http_form_code
-            payload_field = f"w_status_{http_form_code}"
-            payload[payload_field] = int(new_value)
+        for _name, _status in route.status.mutable().items():
+            payload_field = f"w_status_{_status.http_form_code}"
+            payload[payload_field] = int(getattr(updated_status_values, _name))
 
         logger.debug(f"edit route cluster={cluster} route={route} payload={payload}")
 
@@ -165,8 +156,8 @@ class BalancerManager(ImmutableBalancerManager):
         force: bool = False,
         factor: float | None = None,
         route_redir: str | None = None,
+        status_changes: dict[str, bool] = {},
         exception_handler: Callable | None = None,
-        **status_value_kwargs,
     ) -> None:
         # validate cluster
         if isinstance(cluster, str):
@@ -183,7 +174,7 @@ class BalancerManager(ImmutableBalancerManager):
                     force=force,
                     factor=factor,
                     route_redir=route_redir,
-                    **status_value_kwargs,
+                    status_changes=status_changes,
                 )
             except Exception as e:
                 logger.exception(e)

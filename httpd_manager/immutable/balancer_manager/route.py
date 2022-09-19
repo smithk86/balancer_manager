@@ -32,6 +32,15 @@ class Status(BaseStatus):
     http_form_code: str
 
 
+class MutableStatusValues(BaseModel, validate_assignment=True, extra="forbid"):
+    ignore_errors: bool
+    draining_mode: bool
+    disabled: bool
+    hot_standby: bool
+    hot_spare: bool
+    stopped: bool
+
+
 class RouteStatus(BaseModel):
     ok: ImmutableStatus
     error: ImmutableStatus
@@ -48,6 +57,16 @@ class RouteStatus(BaseModel):
             for name, status in self
             if not isinstance(status, ImmutableStatus)
         }
+
+    def get_mutable_values(self) -> MutableStatusValues:
+        return MutableStatusValues(
+            ignore_errors=self.ignore_errors.value,
+            draining_mode=self.draining_mode.value,
+            disabled=self.disabled.value,
+            hot_standby=self.hot_standby.value,
+            hot_spare=self.hot_spare.value,
+            stopped=self.stopped.value,
+        )
 
 
 class ImmutableRoute(ParsableModel, validate_assignment=True):
