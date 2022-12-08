@@ -88,7 +88,7 @@ class ParsedBalancerManager(ParsableModel):
                         "name": header.a.text if header.a else header.text,
                         "max_members": cells[0].text,
                         "sticky_session": cells[1]
-                        .find(text=True, recursive=False)
+                        .find(string=True, recursive=False)
                         .strip(),
                         "disable_failover": cells[2].text,
                         "timeout": cells[3].text,
