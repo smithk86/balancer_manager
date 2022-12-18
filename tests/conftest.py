@@ -2,11 +2,16 @@ import logging
 import os
 import socket
 from collections import namedtuple
+from contextvars import Token
 from pathlib import Path
-from typing import Callable
+from typing import AsyncGenerator, Callable, Generator
 
 import pytest
-from httpd_manager import Client
+import pytest_asyncio
+from _pytest.fixtures import SubRequest
+from httpx import AsyncClient
+
+from httpd_manager.httpx.client import http_client
 
 
 dir_ = Path(__file__).parent
@@ -60,27 +65,28 @@ def test_files_dir():
 
 
 @pytest.fixture(scope="session")
-def create_client(docker_ip, docker_services) -> Callable:
+def httpd_endpoint(docker_ip, docker_services) -> str:
     httpd_port = docker_services.port_for("httpd", 80)
     docker_services.wait_until_responsive(
         timeout=30.0, pause=0.1, check=lambda: port_is_ready(docker_ip, httpd_port)
     )
-
-    def handler(base_url=None, **client_kwargs):
-        base_url = base_url if base_url else f"http://{docker_ip}:{httpd_port}"
-        return Client(
-            base_url=base_url, auth=("admin", "password"), timeout=0.25, **client_kwargs
-        )
-
-    return handler
+    return f"http://{docker_ip}:{httpd_port}"
 
 
-@pytest.fixture(scope="session")
-def client(create_client) -> Client:
-    return create_client()
+@pytest_asyncio.fixture
+async def client() -> AsyncGenerator[AsyncClient, None]:
+    async with AsyncClient(auth=("admin", "password")) as _client:
+        yield _client
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(autouse=True)
+def set_client(client: AsyncClient) -> Generator[None, None, None]:
+    token: Token = http_client.set(client)
+    yield
+    http_client.reset(token)
+
+
+@pytest.fixture
 def enable_all_routes():
     async def handler(balancer_manager, cluster):
         for route in cluster.routes.values():

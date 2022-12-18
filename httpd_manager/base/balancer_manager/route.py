@@ -12,18 +12,18 @@ from ...models import ParsableModel
 
 
 if TYPE_CHECKING:
-    from .cluster import ImmutableCluster
+    from .cluster import Cluster
 
 
 logger = logging.getLogger(__name__)
 __all__ = ["ImmutableStatus", "Route", "Status"]
 
 
-class BaseStatus(BaseModel):
+class BaseStatus(BaseModel, validate_assignment=True):
     pass
 
 
-class ImmutableStatus(BaseStatus, allow_mutation=False):
+class ImmutableStatus(BaseStatus):
     value: bool
 
 
@@ -41,7 +41,7 @@ class MutableStatusValues(BaseModel, validate_assignment=True, extra="forbid"):
     stopped: bool
 
 
-class RouteStatus(BaseModel):
+class RouteStatus(BaseModel, validate_assignment=True):
     ok: ImmutableStatus
     error: ImmutableStatus
     ignore_errors: Status
@@ -69,7 +69,7 @@ class RouteStatus(BaseModel):
         )
 
 
-class ImmutableRoute(ParsableModel, validate_assignment=True):
+class Route(ParsableModel, validate_assignment=True):
     name: str
     cluster: str
     worker: str
@@ -85,11 +85,11 @@ class ImmutableRoute(ParsableModel, validate_assignment=True):
     session_nonce_uuid: UUID
     status: RouteStatus
     accepting_requests: bool = False
-    _cluster: ImmutableCluster = PrivateAttr()
+    _cluster: Cluster = PrivateAttr()
 
-    def set_cluster(self, cluster: ImmutableCluster):
-        object.__setattr__(self, "_cluster", cluster)
-        object.__setattr__(self, "accepting_requests", self._get_accepting_requests())
+    def set_cluster(self, cluster: Cluster):
+        self._cluster = cluster
+        self.accepting_requests = self._get_accepting_requests()
 
     def _get_accepting_requests(self) -> bool:
         if self.lbset != self._cluster.active_lbset:

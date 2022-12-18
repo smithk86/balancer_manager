@@ -1,11 +1,11 @@
 import warnings
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Generator, Tuple
+from typing import Any, Generator
 
 import dateparser
 from bs4 import BeautifulSoup
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 from ..models import Bytes, ParsableModel
 from ..utils import RegexPatterns, utcnow
@@ -36,7 +36,7 @@ class WorkerState(str, Enum):
     OPEN = "."
 
 
-class WorkerStateCount(BaseModel, allow_mutation=False):
+class WorkerStateCount(BaseModel, validate_assignment=True):
     closing_connection: int
     dns_lookup: int
     gracefully_finishing: int
@@ -50,7 +50,7 @@ class WorkerStateCount(BaseModel, allow_mutation=False):
     waiting_for_connection: int
 
 
-class Worker(BaseModel, allow_mutation=False):
+class Worker(BaseModel, validate_assignment=True):
     srv: str
     pid: int | None
     acc: str
@@ -68,7 +68,7 @@ class Worker(BaseModel, allow_mutation=False):
     request: str
 
 
-class ParsedServerStatus(ParsableModel):
+class ParsedServerStatus(ParsableModel, validate_assignment=True):
     date: datetime
     httpd_version: str
     httpd_built_date: str
@@ -79,18 +79,19 @@ class ParsedServerStatus(ParsableModel):
     bytes_per_request: str
     ms_per_request: str
     worker_states: str
-    workers: List[List[str]] | None
+    workers: list[list[str]] | None
 
     @classmethod
     def parse_payload(cls, payload: str, **kwargs) -> "ParsedServerStatus":
         bs4_features = "lxml" if lxml_loaded is True else "html.parser"
         data = BeautifulSoup(payload, features=bs4_features)
-        return cls.parse_obj(cls._get_parsed_pairs(data, **kwargs))
+        model_data = dict(cls._get_parsed_pairs(data, **kwargs))
+        return cls.parse_obj(model_data)
 
     @classmethod
     def _get_parsed_pairs(
         cls, data: BeautifulSoup, **kwargs
-    ) -> Generator[Tuple[str, Any], None, None]:
+    ) -> Generator[tuple[str, Any], None, None]:
         _include_workers = kwargs.get("include_workers", True)
 
         # record date of initial parse
@@ -98,20 +99,24 @@ class ParsedServerStatus(ParsableModel):
 
         # initial payload validation
         _bs_h1 = data.find_all("h1")
-        assert (
-            len(_bs_h1) == 1 and "Apache Server Status" in _bs_h1[0].text
-        ), "initial html validation failed; is this really an Httpd Server Status page?"
+        if len(_bs_h1) != 1 or "Apache Server Status" not in _bs_h1[0].text:
+            raise ValueError(
+                "initial html validation failed; is this really an Httpd Server Status page?"
+            )
 
         _bs_dt = data.find_all("dt")
-        assert len(_bs_dt) == 13, f"13 <dt> tags are expected ({len(_bs_dt)} found)"
+        if len(_bs_dt) != 13:
+            raise ValueError(f"13 <dt> tags are expected ({len(_bs_dt)} found)")
 
         _bs_table = data.find_all("table")
-        assert (
-            len(_bs_table) > 0
-        ), f"at least 1 <table> tag is expected ({len(_bs_table)} found)"
+        if len(_bs_table) == 0:
+            raise ValueError(
+                f"at least 1 <table> tag is expected ({len(_bs_table)} found)"
+            )
 
         _bs_pre = data.find_all("pre")
-        assert len(_bs_pre) == 1, f"1 <pre> tag is expected ({len(_bs_pre)} found)"
+        if len(_bs_pre) != 1:
+            raise ValueError(f"1 <pre> tag is expected ({len(_bs_pre)} found)")
 
         # parse versions
         yield ("httpd_version", _bs_dt[0].text)
@@ -142,7 +147,8 @@ class ParsedServerStatus(ParsableModel):
             yield ("workers", None)
 
 
-class ImmutableServerStatus(ParsableModel, allow_mutation=False):
+class ServerStatus(ParsableModel, validate_assignment=True):
+    url: HttpUrl
     date: datetime
     httpd_version: str
     httpd_built_date: datetime
@@ -153,10 +159,10 @@ class ImmutableServerStatus(ParsableModel, allow_mutation=False):
     bytes_per_request: int
     ms_per_request: float
     worker_states: WorkerStateCount
-    workers: List[Worker] | None
+    workers: list[Worker] | None
 
     @classmethod
-    def parse_payload(cls, payload: str, **kwargs) -> "ImmutableServerStatus":
+    def parse_payload(cls, payload: str, **kwargs) -> "ServerStatus":
         parsed_model = ParsedServerStatus.parse_payload(payload, **kwargs)
         model_props = dict(cls._get_parsed_pairs(parsed_model, **kwargs))
         return cls.parse_obj(model_props)
@@ -164,7 +170,7 @@ class ImmutableServerStatus(ParsableModel, allow_mutation=False):
     @classmethod
     def _get_parsed_pairs(
         cls, data: ParsedServerStatus, **kwargs
-    ) -> Generator[Tuple[str, Any], None, None]:
+    ) -> Generator[tuple[str, Any], None, None]:
         yield ("date", data.date)
         # versions
         m = RegexPatterns.HTTPD_VERSION.match(data.httpd_version)

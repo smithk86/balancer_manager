@@ -1,86 +1,58 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Callable, TypedDict
+from typing import Callable
 
-from pydantic import PrivateAttr
+from pydantic import HttpUrl
 
-from .client import Client
-from .executor import executor
-from .immutable.balancer_manager import (
-    ImmutableBalancerManager,
-    ImmutableCluster,
-    ImmutableRoute,
-    ImmutableStatus,
+from .client import http_client
+from ..executor import executor
+from ..base import (
+    BalancerManager,
+    Cluster,
+    Route,
     ParsedBalancerManager,
-    RouteStatus,
-    Status,
 )
 
 
-Route = ImmutableRoute
-Cluster = ImmutableCluster
 logger = logging.getLogger(__name__)
 
 
-class ParseKwargs(TypedDict):
-    client: Client
-
-
-class BalancerManager(ImmutableBalancerManager):
-    _client: Client = PrivateAttr()
-
-    class Config:
-        allow_mutation = True
-        validate_assignment = True
-
-    def __init__(self, *args, **kwargs):
-        assert "client" in kwargs, "client argument is required"
-        self._client = kwargs["client"]
-        super().__init__(*args, **kwargs)
-
-    @staticmethod
-    def _balancer_manager_path(client) -> str:
-        if not isinstance(client.balancer_manager_path, str):
-            raise TypeError("Client.balancer_manager_path must be a string")
-        return client.balancer_manager_path
-
-    @property
-    def balancer_manager_path(self) -> str:
-        return self._balancer_manager_path(self._client)
-
+class HttpxBalancerManager(BalancerManager):
     async def update(self) -> None:
-        async with self._client.http_client() as http_client:
-            response = await http_client.get(self.balancer_manager_path)
+        client = http_client.get()
+        response = await client.get(self.url)
+        response.raise_for_status()
+
         await self._update_from_payload(response.text)
 
     async def _update_from_payload(self, payload: str) -> None:
-        new_model = await self.async_parse_payload(client=self._client, payload=payload)
+        new_model = await self.async_parse_payload(self.url, payload=payload)
         for field, value in new_model:
             setattr(self, field, value)
 
     @classmethod
-    async def parse(cls, client: Client) -> "BalancerManager":
-        path = cls._balancer_manager_path(client)
-        async with client.http_client() as http_client:
-            response = await http_client.get(path)
+    async def parse_from_url(cls, url: str | HttpUrl) -> "HttpxBalancerManager":
+        client = http_client.get()
+        response = await client.get(url)
         response.raise_for_status()
 
-        return await cls.async_parse_payload(response.text, client=client)
+        return await cls.async_parse_payload(url, response.text)
 
     @classmethod
     async def async_parse_payload(
-        cls, payload: str, client: Client, **kwargs
-    ) -> "BalancerManager":
+        cls, url: str | HttpUrl, payload: str, **kwargs
+    ) -> "HttpxBalancerManager":
         _executor = executor.get()
         _loop = asyncio.get_running_loop()
-        _func = partial(cls.parse_payload, payload=payload, client=client, **kwargs)
+        _func = partial(cls.parse_payload, url=url, payload=payload, **kwargs)
         return await _loop.run_in_executor(_executor, _func)
 
     @classmethod
-    def parse_payload(cls, payload: str, **kwargs: ParseKwargs) -> "BalancerManager":
-        parsed_model = ParsedBalancerManager.parse_payload(payload, **kwargs)
-        model_props = dict(cls._get_parsed_pairs(parsed_model, **kwargs))
+    def parse_payload(cls, url: str | HttpUrl, payload: str) -> "HttpxBalancerManager":  # type: ignore[override]
+        parsed_model = ParsedBalancerManager.parse_payload(payload)
+        model_props = dict(cls._get_parsed_pairs(parsed_model))
+        model_props["url"] = url
         return cls.parse_obj(model_props)
 
     async def edit_route(
@@ -98,14 +70,22 @@ class BalancerManager(ImmutableBalancerManager):
             cluster = self.cluster(cluster)
         else:
             cluster = self.cluster(cluster.name)
-        assert isinstance(cluster, Cluster)
+
+        if not isinstance(cluster, Cluster):
+            raise TypeError(
+                "cluster type must be inherited from httpd_manager.base.balancer_manager.Cluster"
+            )
 
         # validate route
         if isinstance(route, str):
             route = cluster.route(route)
         else:
             route = cluster.route(route.name)
-        assert isinstance(route, Route)
+
+        if not isinstance(route, Route):
+            raise TypeError(
+                "route type must be inherited from httpd_manager.base.balancer_manager.Route"
+            )
 
         # get a dict of Status objects
         updated_status_values = route.status.get_mutable_values()
@@ -142,10 +122,14 @@ class BalancerManager(ImmutableBalancerManager):
             payload_field = f"w_status_{_status.http_form_code}"
             payload[payload_field] = int(getattr(updated_status_values, _name))
 
-        logger.debug(f"edit route cluster={cluster} route={route} payload={payload}")
+        logger.debug(
+            f"edit route cluster={cluster.name} route={route.name} payload={payload}"
+        )
 
-        async with self._client.http_client() as http_client:
-            response = await http_client.post(self.balancer_manager_path, data=payload)
+        client = http_client.get()
+        response = await client.post(
+            self.url, headers={"Referer": self.url}, data=payload
+        )
         response.raise_for_status()
         await self._update_from_payload(response.text)
 
@@ -164,7 +148,11 @@ class BalancerManager(ImmutableBalancerManager):
             cluster = self.cluster(cluster)
         else:
             cluster = self.cluster(cluster.name)
-        assert isinstance(cluster, Cluster)
+
+        if not isinstance(cluster, Cluster):
+            raise TypeError(
+                "cluster type must be inherited from httpd_manager.base.balancer_manager.Cluster"
+            )
 
         for route in cluster.lbset(lbset_number):
             try:

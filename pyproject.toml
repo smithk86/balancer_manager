@@ -11,18 +11,22 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-httpx = "*"
+python = ">=3.10,<4"
+httpx = { version="*", optional=true }
 beautifulsoup4 = "*"
 dateparser = "*"
 packaging = "*"
 lxml = "*"
 pydantic = "*"
 
+[tool.poetry.extras]
+httpx = ["httpx"]
+
 [tool.poetry.dev-dependencies]
 pytest = "*"
+pytest-asyncio = "*"
 mypy = "*"
-anyio = "*"
+httpx = "*"
 pytest-mypy = "*"
 pytest-httpx = "*"
 pytest-docker = "*"
@@ -40,6 +44,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 addopts = "--mypy"
+asyncio_mode = "strict"
 
 [tool.mypy]
 plugins = [
@@ -50,6 +55,5 @@ plugins = [
 module = [
     "pytest_docker.plugin",
     "lxml",
-    "pytest_asyncio"
 ]
 ignore_missing_imports = true

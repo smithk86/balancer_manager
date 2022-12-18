@@ -3,33 +3,26 @@ from pathlib import Path
 
 import httpx
 import pytest
+from pytest_httpx import HTTPXMock
 
 from httpd_manager import Cluster
-
-from .test_balancer_manager import validate_properties
+from .test_balancer_manager import HttpxBalancerManager, validate_properties
 
 
 dir_ = Path(__file__).parent
-pytestmark = pytest.mark.anyio
+pytestmark = pytest.mark.asyncio
 
 
-@pytest.fixture
-def mocked_client(create_client):
-    return create_client("https://pytest-httpx")
-
-
-def add_mocked_response(httpx_mock, file_, **kwargs):
-    if isinstance(file_, str):
-        file_ = dir_.joinpath("data").joinpath(file_)
-
-    with open(file_, "r") as fh:
+def add_mocked_response(httpx_mock: HTTPXMock, file_: str | Path, **kwargs):
+    data_dir = dir_.joinpath("data")
+    with open(data_dir / file_, "r") as fh:
         payload = fh.read()
     httpx_mock.add_response(
-        url="https://pytest-httpx/balancer-manager", text=payload, **kwargs
+        url="http://testserver.local/balancer-manager", text=payload, **kwargs
     )
 
 
-def get_mocked_files():
+def get_mocked_files() -> list[tuple[str, Path]]:
     files = list()
     mock_stem_pattern = re.compile(r"^balancer-manager-([\d\.]*)$")
 
@@ -48,10 +41,12 @@ def get_mocked_files():
 @pytest.mark.parametrize(
     "version,filename", get_mocked_files(), ids=[x for x, _ in get_mocked_files()]
 )
-async def test_balancer_manager(mocked_client, httpx_mock, version, filename):
+async def test_balancer_manager(httpx_mock: HTTPXMock, version: str, filename: Path):
     add_mocked_response(httpx_mock, filename)
 
-    balancer_manager = await mocked_client.balancer_manager()
+    balancer_manager = await HttpxBalancerManager.parse_from_url(
+        "http://testserver.local/balancer-manager"
+    )
     validate_properties(balancer_manager)
 
     assert version == balancer_manager.httpd_version
@@ -72,18 +67,24 @@ async def test_balancer_manager(mocked_client, httpx_mock, version, filename):
     ],
     ids=[400, 401, 403, 500],
 )
-async def test_status_errors(mocked_client, httpx_mock, status_code, error_message):
+async def test_status_errors(
+    httpx_mock: HTTPXMock, status_code: int, error_message: str
+):
     httpx_mock.add_response(
-        url="https://pytest-httpx/balancer-manager", status_code=status_code, text=""
+        url="http://testserver.local/balancer-manager", status_code=status_code, text=""
     )
     with pytest.raises(httpx.HTTPStatusError, match=f".*{error_message}.*"):
-        await mocked_client.balancer_manager()
+        await HttpxBalancerManager.parse_from_url(
+            "http://testserver.local/balancer-manager"
+        )
 
 
-async def test_with_route_gc(mocked_client, httpx_mock):
+async def test_with_route_gc(httpx_mock: HTTPXMock):
     # create BalancerManager with mock-1
     add_mocked_response(httpx_mock, "balancer-manager-mock-1.html")
-    balancer_manager = await mocked_client.balancer_manager()
+    balancer_manager = await HttpxBalancerManager.parse_from_url(
+        "http://testserver.local/balancer-manager"
+    )
 
     # cluster3 object should have 10 routes
     assert len(balancer_manager.cluster("cluster3").routes) == 10
@@ -101,3 +102,18 @@ async def test_with_route_gc(mocked_client, httpx_mock):
     # routes route35, route37, and route39 should be removed
     # confirm the number of routes
     assert len(balancer_manager.cluster("cluster3").routes) == 7
+
+
+async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path):
+    with test_files_dir.joinpath("server-status-mock-1.html").open("r") as fh:
+        httpx_mock.add_response(
+            url="http://testserver.local/balancer-manager", text=fh.read()
+        )
+
+    with pytest.raises(
+        ValueError,
+        match=r"initial html validation failed; is this really an Httpd Balancer Manager page?",
+    ):
+        await HttpxBalancerManager.parse_from_url(
+            "http://testserver.local/balancer-manager"
+        )

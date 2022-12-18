@@ -6,10 +6,18 @@ import httpx
 import pytest
 from pytest_docker.plugin import DockerComposeExecutor
 
-from httpd_manager.balancer_manager import *
+from httpd_manager import (
+    Cluster,
+    ImmutableStatus,
+    Route,
+    RouteStatus,
+    Status,
+    executor,
+)
+from httpd_manager.httpx import HttpxBalancerManager
 
 
-pytestmark = pytest.mark.anyio
+pytestmark = pytest.mark.asyncio
 
 
 def validate_properties(balancer_manager):
@@ -60,8 +68,13 @@ def validate_properties(balancer_manager):
             assert isinstance(route.status.stopped, Status)
 
 
-async def test_properties(client: Client):
-    balancer_manager = await client.balancer_manager()
+@pytest.fixture
+def balancer_manager_url(httpd_endpoint: str) -> str:
+    return f"{httpd_endpoint}/balancer-manager"
+
+
+async def test_properties(balancer_manager_url: str):
+    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
     validate_properties(balancer_manager)
 
     # test update
@@ -70,11 +83,13 @@ async def test_properties(client: Client):
     assert _original_date < balancer_manager.date
 
 
-async def test_with_process_pool(client: Client):
+async def test_with_process_pool(balancer_manager_url: str):
     with ProcessPoolExecutor(max_workers=10) as ppexec:
         _token = executor.set(ppexec)
 
-        balancer_manager = await client.balancer_manager()
+        balancer_manager = await HttpxBalancerManager.parse_from_url(
+            balancer_manager_url
+        )
         validate_properties(balancer_manager)
 
         # test update
@@ -85,70 +100,75 @@ async def test_with_process_pool(client: Client):
         executor.reset(_token)
 
 
-async def test_httpd_version(client: Client, httpd_version):
-    balancer_manager = await client.balancer_manager()
+async def test_httpd_version(balancer_manager_url: str, httpd_version):
+    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
     assert balancer_manager.httpd_version == httpd_version
 
 
-async def test_cluster_does_not_exist(client: Client):
-    balancer_manager = await client.balancer_manager()
+async def test_cluster_does_not_exist(balancer_manager_url: str):
+    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
     with pytest.raises(KeyError, match=r"\'does_not_exist\'"):
         balancer_manager.cluster("does_not_exist")
 
 
-async def test_route_status_changes(client: Client):
-    balancer_manager = await client.balancer_manager()
+async def test_route_status_changes(balancer_manager_url: str):
+    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
 
     # get route and do status update
     route_1 = balancer_manager.cluster("cluster0").route("route00")
-    route_status_1 = route_1.status.copy(deep=True).mutable()
+    mutable_routes_1 = route_1.status.copy(deep=True).mutable()
 
     # do the initial changes
-    assert len(route_status_1) > 0
-    for name, status in route_status_1.items():
+    assert len(mutable_routes_1) > 0
+    status_changes_1: dict[str, bool] = {}
+    for name, status in mutable_routes_1.items():
         if type(status) == ImmutableStatus:
             continue
 
         # toggle status to the oposite value
-        status_changes = {name: not status.value}
+        status_changes_1[name] = not status.value
         # continue with route testing
-        await balancer_manager.edit_route(
-            "cluster0",
-            "route00",
-            status_changes=status_changes,
-        )
+    await balancer_manager.edit_route(
+        "cluster0",
+        "route00",
+        force=True,
+        status_changes=status_changes_1,
+    )
 
     # verify change
     route_2 = balancer_manager.cluster("cluster0").route("route00")
-    route_status_2 = route_2.status.mutable()
-    assert len(route_status_2) > 0
-    for name, status in route_status_2.items():
+    mutable_routes_2 = route_2.status.copy(deep=True).mutable()
+
+    assert len(mutable_routes_2) > 0
+    status_changes_2: dict[str, bool] = {}
+    for name, status in mutable_routes_2.items():
         # assert new status value
-        assert route_status_1[name].value is not status.value
+        assert mutable_routes_1[name].value is not status.value
         # toggle status back to original value
-        await balancer_manager.edit_route(
-            "cluster0",
-            "route00",
-            force=True,
-            status_changes={name: not status.value},
-        )
+        status_changes_2[name] = not status.value
+    await balancer_manager.edit_route(
+        "cluster0",
+        "route00",
+        force=True,
+        status_changes=status_changes_2,
+    )
 
     # verify original value again
     route_3 = balancer_manager.cluster("cluster0").route("route00")
-    route_status_3 = route_3.status.mutable()
-    for name, status in route_status_3.items():
+    mutable_routes_3 = route_3.status.copy(deep=True).mutable()
+    for name, status in mutable_routes_3.items():
         # assert originally value
-        assert route_status_1[name].value is status.value
+        assert mutable_routes_1[name].value is status.value
 
 
 async def test_cluster_lbsets(
-    client: Client, docker_compose_file, docker_compose_project_name
+    balancer_manager_url: str, docker_compose_file, docker_compose_project_name
 ):
     docker_compose = DockerComposeExecutor(
         "docker-compose", docker_compose_file, docker_compose_project_name
     )
 
-    balancer_manager = await client.balancer_manager()
+    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
     cluster = balancer_manager.cluster("cluster4")
     lbsets = cluster.lbsets()
     assert len(lbsets) == 2
@@ -158,7 +178,7 @@ async def test_cluster_lbsets(
     assert cluster.active_lbset == 0
 
     # test bad lbset number
-    with pytest.raises(AssertionError, match=r"lbset 99 does not exist"):
+    with pytest.raises(ValueError, match=r"lbset 99 does not exist"):
         cluster.lbset(99)
 
     # verify before change
@@ -214,8 +234,8 @@ async def test_cluster_lbsets(
         assert isinstance(e, httpx.ReadTimeout)
 
 
-async def test_accepting_requests(client: Client):
-    balancer_manager = await client.balancer_manager()
+async def test_accepting_requests(balancer_manager_url: str):
+    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
     cluster = balancer_manager.cluster("cluster2")
 
     assert cluster.route("route20").accepting_requests is True
@@ -239,8 +259,8 @@ async def test_accepting_requests(client: Client):
     assert cluster.route("route23").accepting_requests is False
 
 
-async def test_route_disable_last(client: Client, enable_all_routes):
-    balancer_manager = await client.balancer_manager()
+async def test_route_disable_last(balancer_manager_url: str, enable_all_routes):
+    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
     cluster = balancer_manager.cluster("cluster3")
 
     await enable_all_routes(balancer_manager, cluster)
@@ -268,8 +288,8 @@ async def test_route_disable_last(client: Client, enable_all_routes):
         await enable_all_routes(balancer_manager, cluster)
 
 
-async def test_standby(client: Client, enable_all_routes):
-    balancer_manager = await client.balancer_manager()
+async def test_standby(balancer_manager_url: str, enable_all_routes):
+    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
 
     await enable_all_routes(balancer_manager, balancer_manager.cluster("cluster2"))
 

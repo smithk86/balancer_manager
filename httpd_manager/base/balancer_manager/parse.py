@@ -1,6 +1,6 @@
 import warnings
 from datetime import datetime
-from typing import Any, Generator, Tuple
+from typing import Any, Generator
 
 from bs4 import BeautifulSoup
 
@@ -38,7 +38,7 @@ class ParsedBalancerManager(ParsableModel):
     @classmethod
     def _get_parsed_pairs(
         cls, data: BeautifulSoup, **kwargs
-    ) -> Generator[Tuple[str, Any], None, None]:
+    ) -> Generator[tuple[str, Any], None, None]:
         # record date of initial parse
         yield ("date", utcnow())
 
@@ -48,14 +48,14 @@ class ParsedBalancerManager(ParsableModel):
 
         # initial payload validation
         _bs_h1 = data.find_all("h1")
-        assert (
-            len(_bs_h1) == 1 and "Load Balancer Manager" in _bs_h1[0].text
-        ), "initial html validation failed; is this really an Httpd Balancer Manager page?"
+        if len(_bs_h1) != 1 or "Load Balancer Manager" not in _bs_h1[0].text:
+            raise ValueError(
+                "initial html validation failed; is this really an Httpd Balancer Manager page?"
+            )
 
         _bs_dt = data.find_all("dt")
-        assert (
-            len(_bs_dt) >= 2
-        ), f"at least 2 <dt> tags are expected ({len(_bs_dt)} found)"
+        if len(_bs_dt) < 2:
+            raise ValueError(f"at least 2 <dt> tags are expected ({len(_bs_dt)} found)")
 
         _bs_table = data.find_all("table")
         _bs_table_clusters = _bs_table[::2]  # only capture the even indexes
@@ -68,9 +68,12 @@ class ParsedBalancerManager(ParsableModel):
         _clusters = list()
         for table in _bs_table_clusters:
             header_elements = table.findPreviousSiblings("h3", limit=1)
-            assert (
-                len(header_elements) == 1
-            ), f"single <h3> tag is expected ({len(header_elements)} found)"
+
+            if len(header_elements) != 1:
+                raise ValueError(
+                    f"single <h3> tag is expected ({len(header_elements)} found)"
+                )
+
             header = header_elements[0]
 
             for row in table.find_all("tr"):
