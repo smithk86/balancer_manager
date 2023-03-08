@@ -4,14 +4,14 @@ import socket
 from collections import namedtuple
 from contextvars import Token
 from pathlib import Path
-from typing import AsyncGenerator, Callable, Generator
+from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
-from _pytest.fixtures import SubRequest
 from httpx import AsyncClient
 
 from httpd_manager.httpx.client import http_client
+from .utils import port_is_ready
 
 
 dir_ = Path(__file__).parent
@@ -23,14 +23,6 @@ def pytest_addoption(parser):
     parser.addoption("--disable-docker", action="store_true", default=False)
 
 
-def port_is_ready(host: str, port: int, timeout: int = 5) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError as ex:
-        return False
-
-
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
@@ -39,6 +31,11 @@ def anyio_backend():
 @pytest.fixture(scope="session")
 def httpd_version(request):
     return request.config.getoption("httpd_version")
+
+
+@pytest.fixture(scope="session")
+def docker_compose_command() -> str:
+    return "docker compose"
 
 
 @pytest.fixture(scope="session")

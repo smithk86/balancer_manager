@@ -1,5 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+from typing import Callable
 from uuid import UUID
 
 import httpx
@@ -7,7 +8,7 @@ import pytest
 from pytest_docker.plugin import DockerComposeExecutor
 
 from httpd_manager import (
-    Cluster,
+    BalancerManager,
     ImmutableStatus,
     Route,
     RouteStatus,
@@ -20,7 +21,18 @@ from httpd_manager.httpx import HttpxBalancerManager
 pytestmark = pytest.mark.asyncio
 
 
-def validate_properties(balancer_manager):
+@pytest.fixture
+def docker_compose(
+    docker_compose_command: str,
+    docker_compose_file: str,
+    docker_compose_project_name: str,
+) -> DockerComposeExecutor:
+    return DockerComposeExecutor(
+        docker_compose_command, docker_compose_file, docker_compose_project_name
+    )
+
+
+def validate_properties(balancer_manager: BalancerManager):
     assert isinstance(balancer_manager.date, datetime)
     assert isinstance(balancer_manager.httpd_version, str)
     assert isinstance(balancer_manager.httpd_built_date, datetime)
@@ -29,9 +41,7 @@ def validate_properties(balancer_manager):
     for cluster in balancer_manager.clusters.values():
         assert isinstance(cluster.max_members, int)
         assert isinstance(cluster.max_members_used, int)
-        assert (
-            cluster.sticky_session is None or isinstance(cluster.sticky_session) is str
-        )
+        assert cluster.sticky_session is None or isinstance(cluster.sticky_session, str)
         assert cluster.disable_failover is None or isinstance(
             cluster.disable_failover, bool
         )
@@ -44,7 +54,6 @@ def validate_properties(balancer_manager):
         for route in cluster.routes.values():
             assert isinstance(route, Route)
             assert isinstance(route.cluster, str)
-            assert isinstance(route._cluster, Cluster)
             assert isinstance(route.worker, str)
             assert isinstance(route.name, str)
             assert isinstance(route.priority, int)
@@ -162,20 +171,15 @@ async def test_route_status_changes(balancer_manager_url: str):
 
 
 async def test_cluster_lbsets(
-    balancer_manager_url: str, docker_compose_file, docker_compose_project_name
+    balancer_manager_url: str,
+    docker_compose: DockerComposeExecutor,
 ):
-    docker_compose = DockerComposeExecutor(
-        "docker-compose", docker_compose_file, docker_compose_project_name
-    )
-
     balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
     cluster = balancer_manager.cluster("cluster4")
     lbsets = cluster.lbsets()
     assert len(lbsets) == 2
     assert len(lbsets[0]) == 5
     assert len(lbsets[1]) == 5
-
-    assert cluster.active_lbset == 0
 
     # test bad lbset number
     with pytest.raises(ValueError, match=r"lbset 99 does not exist"):
@@ -191,8 +195,6 @@ async def test_cluster_lbsets(
     cluster = balancer_manager.cluster("cluster4")
     for route in cluster.lbset(1):
         assert route.status.disabled.value is True
-    # verify active lbset
-    assert cluster.active_lbset == 0
 
     # do change
     await balancer_manager.edit_lbset(cluster, 1, status_changes={"disabled": False})
@@ -200,8 +202,6 @@ async def test_cluster_lbsets(
     cluster = balancer_manager.cluster("cluster4")
     for route in cluster.lbset(1):
         assert route.status.disabled.value is False
-    # verify active lbset
-    assert cluster.active_lbset == 0
 
     # do change
     await balancer_manager.edit_lbset(cluster, 0, status_changes={"disabled": True})
@@ -209,8 +209,6 @@ async def test_cluster_lbsets(
     cluster = balancer_manager.cluster("cluster4")
     for route in cluster.lbset(0):
         assert route.status.disabled.value is True
-    # verify active lbset
-    assert cluster.active_lbset == 1
 
     # test an enforce that throws exceptions
     edit_lbset_exceptions = list()
@@ -232,31 +230,6 @@ async def test_cluster_lbsets(
     assert len(edit_lbset_exceptions) == 5
     for e in edit_lbset_exceptions:
         assert isinstance(e, httpx.ReadTimeout)
-
-
-async def test_accepting_requests(balancer_manager_url: str):
-    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
-    cluster = balancer_manager.cluster("cluster2")
-
-    assert cluster.route("route20").accepting_requests is True
-    assert cluster.route("route21").accepting_requests is True
-    assert cluster.route("route22").accepting_requests is False
-    assert cluster.route("route23").accepting_requests is False
-
-    await balancer_manager.edit_route(
-        "cluster2",
-        "route20",
-        status_changes={
-            "disabled": True,
-            "hot_standby": True,
-        },
-    )
-    cluster = balancer_manager.cluster("cluster2")
-
-    assert cluster.route("route20").accepting_requests is False
-    assert cluster.route("route21").accepting_requests is True
-    assert cluster.route("route22").accepting_requests is False
-    assert cluster.route("route23").accepting_requests is False
 
 
 async def test_route_disable_last(balancer_manager_url: str, enable_all_routes):
@@ -286,18 +259,3 @@ async def test_route_disable_last(balancer_manager_url: str, enable_all_routes):
             )
     finally:
         await enable_all_routes(balancer_manager, cluster)
-
-
-async def test_standby(balancer_manager_url: str, enable_all_routes):
-    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
-
-    await enable_all_routes(balancer_manager, balancer_manager.cluster("cluster2"))
-
-    assert balancer_manager.cluster("cluster2").standby is False
-    await balancer_manager.edit_route(
-        "cluster2", "route20", status_changes={"disabled": True}
-    )
-    await balancer_manager.edit_route(
-        "cluster2", "route21", status_changes={"disabled": True}
-    )
-    assert balancer_manager.cluster("cluster2").standby is True

@@ -102,7 +102,7 @@ class HttpxBalancerManager(BalancerManager):
             or route.status.draining_mode.value is True
         ):
             pass
-        elif cluster.number_of_eligible_routes <= 1 and (
+        elif cluster.number_of_electable_routes <= 1 and (
             updated_status_values.disabled is True
             or updated_status_values.draining_mode is True
         ):

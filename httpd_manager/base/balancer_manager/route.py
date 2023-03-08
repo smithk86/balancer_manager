@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Generator, TYPE_CHECKING
+from typing import Any, Generator
 from uuid import UUID
 
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel
 
 from ...models import Bytes
 from ...utils import RegexPatterns
 from ...models import ParsableModel
-
-
-if TYPE_CHECKING:
-    from .cluster import Cluster
 
 
 logger = logging.getLogger(__name__)
@@ -84,26 +80,21 @@ class Route(ParsableModel, validate_assignment=True):
     from_: int
     session_nonce_uuid: UUID
     status: RouteStatus
-    accepting_requests: bool = False
-    _cluster: Cluster = PrivateAttr()
 
-    def set_cluster(self, cluster: Cluster):
-        self._cluster = cluster
-        self.accepting_requests = self._get_accepting_requests()
+    @property
+    def electable(self) -> bool:
+        """
+        Return true/false if Route is eligible to be used for active traffic.
+        """
 
-    def _get_accepting_requests(self) -> bool:
-        if self.lbset != self._cluster.active_lbset:
-            return False
-        else:
-            return (
-                self.status.error.value is False
-                and self.status.disabled.value is False
-                and self.status.draining_mode.value is False
-                and (
-                    self.status.hot_standby.value is False
-                    or self._cluster.standby is True
-                )
-            )
+        return all(
+            [
+                self.status.disabled.value is False,
+                self.status.draining_mode.value is False,
+                self.status.error.value is False,
+                self.status.ok.value is True,
+            ]
+        )
 
     @classmethod
     def _get_parsed_pairs(
