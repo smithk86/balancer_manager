@@ -1,7 +1,7 @@
 [tool]
 [tool.poetry]
 name = "py-httpd-manager"
-version = "0.1.4-dev"
+version = "0.2.0"
 description = "interface with httpd's mod_status and mod_proxy_balancer management pages"
 authors = ["Kyle Smith <smithk86@gmail.com>"]
 license = "MIT"
