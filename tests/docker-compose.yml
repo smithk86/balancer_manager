@@ -1,0 +1,10 @@
+version: "3"
+services:
+  httpd:
+    image: py-httpd-manager/httpd:${HTTPD_VERSION:-latest}
+    build:
+      context: ./httpd
+      args:
+        FROM: httpd:${HTTPD_VERSION:-latest}
+    ports:
+      - "80"

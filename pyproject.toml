@@ -1,9 +1,9 @@
 [tool]
 [tool.poetry]
 name = "py-httpd-manager"
-version = "0.1.3"
-description = "interact with httpd's mod_proxy_balancer management interface"
-authors = ["Kyle Smith <smithk86@smc3.com>"]
+version = "0.2.0"
+description = "interface with httpd's mod_status and mod_proxy_balancer management pages"
+authors = ["Kyle Smith <smithk86@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/smithk86/py-httpd-manager"
 packages = [
@@ -11,25 +11,29 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-httpx = "^0.21.1"
-beautifulsoup4 = "^4.10.0"
-dateparser = "^1.1.0"
-packaging = "^21.3"
-pytz = "^2021.3"
-tzdata = "^2021.5"
-lxml = "^4.7.1"
+python = ">=3.10,<4"
+httpx = { version="*", optional=true }
+beautifulsoup4 = "*"
+dateparser = "*"
+packaging = "*"
+lxml = "*"
+pydantic = "*"
+
+[tool.poetry.extras]
+httpx = ["httpx"]
 
 [tool.poetry.dev-dependencies]
-mypy = "^0.920"
-pytest = "^6.2"
-pytest-asyncio = "^0.16.0"
-pytest-mypy = "^0.8.1"
-docker = "^5.0.3"
-respx = "^0.19.0"
-types-beautifulsoup4 = "^4.10.5"
-types-dateparser = "^1.0.8"
-types-pytz = "^2021.3.3"
+pytest = "*"
+pytest-asyncio = "*"
+mypy = "*"
+httpx = "*"
+pytest-mypy = "*"
+pytest-httpx = "*"
+pytest-docker = "*"
+types-beautifulsoup4 = "*"
+types-dateparser = "*"
+types-pytz = "*"
+black = "*"
 
 [tool.poetry.scripts]
 pytest = "pytest:main"
@@ -40,3 +44,16 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 addopts = "--mypy"
+asyncio_mode = "strict"
+
+[tool.mypy]
+plugins = [
+  "pydantic.mypy"
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "pytest_docker.plugin",
+    "lxml",
+]
+ignore_missing_imports = true
