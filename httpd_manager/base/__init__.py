@@ -1,6 +1,7 @@
 from .balancer_manager import (
     BalancerManager,
     Cluster,
+    HealthCheck,
     ImmutableStatus,
     ParsedBalancerManager,
     Route,
@@ -19,6 +20,7 @@ from .server_status import (
 __all__ = [
     "BalancerManager",
     "Cluster",
+    "HealthCheck",
     "ImmutableStatus",
     "ParsedBalancerManager",
     "ParsedServerStatus",

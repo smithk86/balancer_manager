@@ -1,6 +1,7 @@
 from .base import (
     BalancerManager,
     Cluster,
+    HealthCheck,
     ImmutableStatus,
     ParsedBalancerManager,
     ParsedServerStatus,
@@ -21,6 +22,7 @@ __all__ = [
     "BalancerManager",
     "Bytes",
     "Cluster",
+    "HealthCheck",
     "ImmutableStatus",
     "ParsedBalancerManager",
     "ParsedServerStatus",

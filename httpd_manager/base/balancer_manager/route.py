@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+from enum import StrEnum
 from typing import Any, Generator
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 from ...models import Bytes
 from ...utils import RegexPatterns
@@ -13,6 +14,12 @@ from ...models import ParsableModel
 
 logger = logging.getLogger(__name__)
 __all__ = ["ImmutableStatus", "Route", "Status"]
+
+
+def strnone_validator(value: Any) -> str | None:
+    if isinstance(value, str) and len(value) > 0:
+        return value
+    return None
 
 
 class BaseStatus(BaseModel, validate_assignment=True):
@@ -40,6 +47,7 @@ class MutableStatusValues(BaseModel, validate_assignment=True, extra="forbid"):
 class RouteStatus(BaseModel, validate_assignment=True):
     ok: ImmutableStatus
     error: ImmutableStatus
+    hcheck_failure: ImmutableStatus | None
     ignore_errors: Status
     draining_mode: Status
     disabled: Status
@@ -51,7 +59,7 @@ class RouteStatus(BaseModel, validate_assignment=True):
         return {
             name: status
             for name, status in self
-            if not isinstance(status, ImmutableStatus)
+            if status and not isinstance(status, ImmutableStatus)
         }
 
     def get_mutable_values(self) -> MutableStatusValues:
@@ -63,6 +71,56 @@ class RouteStatus(BaseModel, validate_assignment=True):
             hot_spare=self.hot_spare.value,
             stopped=self.stopped.value,
         )
+
+
+class HealthCheckCounter(BaseModel):
+    value: int
+    state: int
+
+    @classmethod
+    def parse(cls, value: str | dict[str, Any]) -> HealthCheckCounter:
+        if isinstance(value, dict):
+            return cls.parse_obj(value)
+
+        m = RegexPatterns.HCHECK_COUNTER.match(value)
+        return cls(value=m.group(1), state=m.group(2))
+
+
+class HealthCheckMethod(StrEnum):
+    tcp = "TCP"
+    options = "OPTIONS"
+    head = "HEAD"
+    get = "GET"
+    options11 = "OPTIONS11"
+    head11 = "HEAD11"
+    get11 = "GET11"
+
+
+class HealthCheck(BaseModel, validate_assignment=True):
+    method: HealthCheckMethod
+    interval_ms: int
+    passes: HealthCheckCounter
+    fails: HealthCheckCounter
+    uri: str | None
+    expr: str | None
+
+    @validator("interval_ms", pre=True)
+    def interval_ms_validator(cls, value: Any) -> int:
+        if isinstance(value, int):
+            return value
+
+        m = RegexPatterns.HCHECK_INTERVAL.match(value)
+        return int(m.group(1))
+
+    # reuse validators
+    _passes_validator = validator("passes", allow_reuse=True, pre=True)(
+        HealthCheckCounter.parse
+    )
+    _fails_validator = validator("fails", allow_reuse=True, pre=True)(
+        HealthCheckCounter.parse
+    )
+    _uri_validator = validator("uri", allow_reuse=True)(strnone_validator)
+    _expr_validator = validator("expr", allow_reuse=True)(strnone_validator)
 
 
 class Route(ParsableModel, validate_assignment=True):
@@ -80,6 +138,7 @@ class Route(ParsableModel, validate_assignment=True):
     from_: int
     session_nonce_uuid: UUID
     status: RouteStatus
+    hcheck: HealthCheck | None
 
     @property
     def electable(self) -> bool:
@@ -122,12 +181,20 @@ class Route(ParsableModel, validate_assignment=True):
         yield ("elected", data["elected"])
         yield ("busy", data["busy"])
         yield ("load", data["load"])
+        yield ("hcheck", data["hcheck"])
+
+        hcheck_failure = (
+            ImmutableStatus(value="HcFl" in data["active_status_codes"])
+            if data["hcheck"]
+            else None
+        )
 
         yield (
             "status",
             RouteStatus(
                 ok=ImmutableStatus(value="Ok" in data["active_status_codes"]),
                 error=ImmutableStatus(value="Err" in data["active_status_codes"]),
+                hcheck_failure=hcheck_failure,
                 ignore_errors=Status(
                     http_form_code="I", value="Ign" in data["active_status_codes"]
                 ),

@@ -5,7 +5,7 @@ import httpx
 import pytest
 from pytest_httpx import HTTPXMock
 
-from httpd_manager import Cluster
+from httpd_manager import Cluster, HealthCheck
 from .test_balancer_manager import HttpxBalancerManager, validate_properties
 
 
@@ -22,15 +22,16 @@ def add_mocked_response(httpx_mock: HTTPXMock, file_: str | Path, **kwargs):
     )
 
 
-def get_mocked_files() -> list[tuple[str, Path]]:
-    files = list()
-    mock_stem_pattern = re.compile(r"^balancer-manager-([\d\.]*)$")
+def get_mocked_files() -> dict[str, tuple[str, Path]]:
+    files = {}
+    mock_stem_pattern = re.compile(r"^balancer-manager-(([\d\.]+).*)")
 
     for f in dir_.joinpath("data").glob("*.html"):
         m = mock_stem_pattern.match(f.stem)
         if m:
-            version = m.group(1)
-            files.append((version, f))
+            key = m.group(1)
+            version = m.group(2)
+            files[key] = (version, f)
 
     # confirm the list of file is not empty
     assert len(files) > 0
@@ -39,7 +40,9 @@ def get_mocked_files() -> list[tuple[str, Path]]:
 
 
 @pytest.mark.parametrize(
-    "version,filename", get_mocked_files(), ids=[x for x, _ in get_mocked_files()]
+    "version,filename",
+    list(get_mocked_files().values()),
+    ids=list(get_mocked_files().keys()),
 )
 async def test_balancer_manager(httpx_mock: HTTPXMock, version: str, filename: Path):
     add_mocked_response(httpx_mock, filename)
@@ -117,3 +120,26 @@ async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path):
         await HttpxBalancerManager.parse_from_url(
             "http://testserver.local/balancer-manager"
         )
+
+
+async def test_hcheck(httpx_mock: HTTPXMock, test_files_dir: Path):
+    with test_files_dir.joinpath("balancer-manager-2.4.56-hcheck.html").open("r") as fh:
+        httpx_mock.add_response(
+            url="http://testserver.local/balancer-manager", text=fh.read()
+        )
+
+        balancer_manager = await HttpxBalancerManager.parse_from_url(
+            "http://testserver.local/balancer-manager"
+        )
+
+        for route in balancer_manager.cluster("cluster4").routes.values():
+            assert route.hcheck is None
+
+        for route in balancer_manager.cluster("cluster5").routes.values():
+            assert type(route.hcheck) is HealthCheck
+
+        route51 = balancer_manager.cluster("cluster5").route("route51")
+        assert route51.status.hcheck_failure.value is False
+
+        route52 = balancer_manager.cluster("cluster5").route("route52")
+        assert route52.status.hcheck_failure.value is True

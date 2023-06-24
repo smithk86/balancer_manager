@@ -26,6 +26,8 @@ class RegexPatterns(Enum):
     BALANCER_URI: re.Pattern = re.compile(r"balancer://(.*)")
     ROUTE_USED: re.Pattern = re.compile(r"^(\d*) \[(\d*) Used\]$")
     BANDWIDTH_USAGE: re.Pattern = re.compile(r"([\d\.]+)([KMGT]?)")
+    HCHECK_INTERVAL: re.Pattern = re.compile(r"^([\d\.]+)ms$")
+    HCHECK_COUNTER: re.Pattern = re.compile(r"^([\d\.]+)\ \(([\d\.]+)\)$")
 
     def match(self, value: str):
         m = self.value.match(value)

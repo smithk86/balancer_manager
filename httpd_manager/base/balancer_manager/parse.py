@@ -1,8 +1,8 @@
 import warnings
 from datetime import datetime
-from typing import Any, Generator
+from typing import Any, Generator, cast
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ...models import ParsableModel
 from ...utils import utcnow
@@ -19,13 +19,25 @@ except ModuleNotFoundError:
     )
 
 
+def get_table_rows(table: Tag) -> list[dict[str, Tag]]:
+    rows = table.find_all("tr")
+    header = rows[0]
+    header_values = [cell.text for cell in header.find_all("th")]
+
+    results: list[dict[str, Tag]] = []
+    for row in rows[1:]:
+        zipped = zip(header_values, row.find_all("td"))
+        results.append(dict(zipped))
+    return results
+
+
 class ParsedBalancerManager(ParsableModel):
     date: datetime
     httpd_version: str
     httpd_built_date: str
     openssl_version: str
-    clusters: list[dict[str, str]]
-    routes: list[dict[str, str]]
+    clusters: list[dict[str, Any]]
+    routes: list[dict[str, Any]]
 
     @classmethod
     def parse_payload(cls, payload: str, **kwargs) -> "ParsedBalancerManager":
@@ -76,29 +88,26 @@ class ParsedBalancerManager(ParsableModel):
 
             header = header_elements[0]
 
-            for row in table.find_all("tr"):
-                cells = row.find_all("td")
-
-                if len(cells) == 0:
-                    continue
-
+            for row in get_table_rows(table):
                 # Note about sticky_session:
                 # there is a workaround for a bug in the html formatting in httpd 2.4.20 in
                 # which the StickySession cell closing tag comes after DisableFailover
                 # HTML = <td>JSESSIONID<td>Off</td></td>
+                sticky_session = str(
+                    row["StickySession"].find(string=True, recursive=False)
+                ).strip()
+
                 _clusters.append(
                     {
                         "name": header.a.text if header.a else header.text,
-                        "max_members": cells[0].text,
-                        "sticky_session": cells[1]
-                        .find(string=True, recursive=False)
-                        .strip(),
-                        "disable_failover": cells[2].text,
-                        "timeout": cells[3].text,
-                        "failover_attempts": cells[4].text,
-                        "method": cells[5].text,
-                        "path": cells[6].text,
-                        "active": cells[7].text,
+                        "max_members": row["MaxMembers"].text,
+                        "sticky_session": sticky_session,
+                        "disable_failover": row["DisableFailover"].text,
+                        "timeout": row["Timeout"].text,
+                        "failover_attempts": row["FailoverAttempts"].text,
+                        "method": row["Method"].text,
+                        "path": row["Path"].text,
+                        "active": row["Active"].text,
                     }
                 )
 
@@ -106,28 +115,36 @@ class ParsedBalancerManager(ParsableModel):
 
         _routes = list()
         for table in _bs_table_routes:
-            for i, row in enumerate(table.find_all("tr")):
-                cells = row.find_all("td")
+            for i, row in enumerate(get_table_rows(table)):
+                worker_url = cast(Tag, row["Worker URL"].find("a"))
+                row_data: dict[str, Any] = {
+                    "name": row["Route"].text,
+                    "worker_url": worker_url["href"] if worker_url else "",
+                    "worker": worker_url.text if worker_url else "",
+                    "priority": i,
+                    "route_redir": row["RouteRedir"].text,
+                    "factor": row["Factor"].text,
+                    "lbset": row["Set"].text,
+                    "elected": row["Elected"].text,
+                    "busy": row["Busy"].text,
+                    "load": row["Load"].text,
+                    "to": row["To"].text,
+                    "from": row["From"].text,
+                    "active_status_codes": row["Status"].text,
+                    "hcheck": None,
+                }
 
-                if len(cells) == 0:
-                    continue
-
-                _routes.append(
-                    {
-                        "name": cells[1].text,
-                        "worker_url": cells[0].find("a")["href"],
-                        "worker": cells[0].find("a").text,
-                        "priority": i,
-                        "route_redir": cells[2].text,
-                        "factor": cells[3].text,
-                        "lbset": cells[4].text,
-                        "elected": cells[6].text,
-                        "busy": cells[7].text,
-                        "load": cells[8].text,
-                        "to": cells[9].text,
-                        "from": cells[10].text,
-                        "active_status_codes": cells[5].text,
+                # add hcheck data if available
+                if "HC Method" in row and row["HC Method"].text != "NONE":
+                    row_data["hcheck"] = {
+                        "method": row["HC Method"].text,
+                        "interval_ms": row["HC Interval"].text,
+                        "passes": row["Passes"].text,
+                        "fails": row["Fails"].text,
+                        "uri": row["HC uri"].text,
+                        "expr": row["HC Expr"].text,
                     }
-                )
+
+                _routes.append(row_data)
 
         yield ("routes", _routes)
