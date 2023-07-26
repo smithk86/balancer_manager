@@ -1,7 +1,7 @@
 [tool]
 [tool.poetry]
 name = "py-httpd-manager"
-version = "0.3.0.dev"
+version = "0.3.0.dev3"
 description = "interface with httpd's mod_status and mod_proxy_balancer management pages"
 authors = ["Kyle Smith <smithk86@gmail.com>"]
 license = "MIT"
@@ -17,7 +17,7 @@ beautifulsoup4 = "*"
 dateparser = "*"
 packaging = "*"
 lxml = "*"
-pydantic = "*"
+pydantic = "<2"
 
 [tool.poetry.extras]
 httpx = ["httpx"]
