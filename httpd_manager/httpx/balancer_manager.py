@@ -40,9 +40,7 @@ class HttpxBalancerManager(BalancerManager):
         return await cls.async_parse_payload(url, response.text)
 
     @classmethod
-    async def async_parse_payload(
-        cls, url: str | HttpUrl, payload: str, **kwargs
-    ) -> "HttpxBalancerManager":
+    async def async_parse_payload(cls, url: str | HttpUrl, payload: str, **kwargs) -> "HttpxBalancerManager":
         _executor = executor.get()
         _loop = asyncio.get_running_loop()
         _func = partial(cls.parse_payload, url=url, payload=payload, **kwargs)
@@ -72,9 +70,7 @@ class HttpxBalancerManager(BalancerManager):
             cluster = self.cluster(cluster.name)
 
         if not isinstance(cluster, Cluster):
-            raise TypeError(
-                "cluster type must be inherited from httpd_manager.base.balancer_manager.Cluster"
-            )
+            raise TypeError("cluster type must be inherited from httpd_manager.base.balancer_manager.Cluster")
 
         # validate route
         if isinstance(route, str):
@@ -83,9 +79,7 @@ class HttpxBalancerManager(BalancerManager):
             route = cluster.route(route.name)
 
         if not isinstance(route, Route):
-            raise TypeError(
-                "route type must be inherited from httpd_manager.base.balancer_manager.Route"
-            )
+            raise TypeError("route type must be inherited from httpd_manager.base.balancer_manager.Route")
 
         # get a dict of Status objects
         updated_status_values = route.status.get_mutable_values()
@@ -103,8 +97,7 @@ class HttpxBalancerManager(BalancerManager):
         ):
             pass
         elif cluster.number_of_electable_routes <= 1 and (
-            updated_status_values.disabled is True
-            or updated_status_values.draining_mode is True
+            updated_status_values.disabled is True or updated_status_values.draining_mode is True
         ):
             raise ValueError("cannot disable final active route")
 
@@ -122,14 +115,10 @@ class HttpxBalancerManager(BalancerManager):
             payload_field = f"w_status_{_status.http_form_code}"
             payload[payload_field] = int(getattr(updated_status_values, _name))
 
-        logger.debug(
-            f"edit route cluster={cluster.name} route={route.name} payload={payload}"
-        )
+        logger.debug(f"edit route cluster={cluster.name} route={route.name} payload={payload}")
 
         client = http_client.get()
-        response = await client.post(
-            self.url, headers={"Referer": self.url}, data=payload
-        )
+        response = await client.post(self.url, headers={"Referer": self.url}, data=payload)
         response.raise_for_status()
         await self._update_from_payload(response.text)
 
@@ -150,9 +139,7 @@ class HttpxBalancerManager(BalancerManager):
             cluster = self.cluster(cluster.name)
 
         if not isinstance(cluster, Cluster):
-            raise TypeError(
-                "cluster type must be inherited from httpd_manager.base.balancer_manager.Cluster"
-            )
+            raise TypeError("cluster type must be inherited from httpd_manager.base.balancer_manager.Cluster")
 
         for route in cluster.lbset(lbset_number):
             try:

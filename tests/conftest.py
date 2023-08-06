@@ -48,9 +48,7 @@ def pytest_collection_modifyitems(config, items):
     if not config.getoption("disable_docker"):
         return
     else:
-        _skip_docker = pytest.mark.skip(
-            reason="skip tests that require the Docker Engine"
-        )
+        _skip_docker = pytest.mark.skip(reason="skip tests that require the Docker Engine")
         for item in items:
             if hasattr(item, "fixturenames") and "docker_services" in item.fixturenames:
                 item.add_marker(_skip_docker)
@@ -64,9 +62,7 @@ def test_files_dir():
 @pytest.fixture(scope="session")
 def httpd_endpoint(docker_ip, docker_services) -> str:
     httpd_port = docker_services.port_for("httpd", 80)
-    docker_services.wait_until_responsive(
-        timeout=30.0, pause=0.1, check=lambda: port_is_ready(docker_ip, httpd_port)
-    )
+    docker_services.wait_until_responsive(timeout=30.0, pause=0.1, check=lambda: port_is_ready(docker_ip, httpd_port))
     return f"http://{docker_ip}:{httpd_port}"
 
 
@@ -87,8 +83,6 @@ def set_client(client: AsyncClient) -> Generator[None, None, None]:
 def enable_all_routes():
     async def handler(balancer_manager, cluster):
         for route in cluster.routes.values():
-            await balancer_manager.edit_route(
-                cluster, route, status_changes={"disabled": False}
-            )
+            await balancer_manager.edit_route(cluster, route, status_changes={"disabled": False})
 
     return handler

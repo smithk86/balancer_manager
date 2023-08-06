@@ -27,9 +27,7 @@ def docker_compose(
     docker_compose_file: str,
     docker_compose_project_name: str,
 ) -> DockerComposeExecutor:
-    return DockerComposeExecutor(
-        docker_compose_command, docker_compose_file, docker_compose_project_name
-    )
+    return DockerComposeExecutor(docker_compose_command, docker_compose_file, docker_compose_project_name)
 
 
 def validate_properties(balancer_manager: BalancerManager):
@@ -42,9 +40,7 @@ def validate_properties(balancer_manager: BalancerManager):
         assert isinstance(cluster.max_members, int)
         assert isinstance(cluster.max_members_used, int)
         assert cluster.sticky_session is None or isinstance(cluster.sticky_session, str)
-        assert cluster.disable_failover is None or isinstance(
-            cluster.disable_failover, bool
-        )
+        assert cluster.disable_failover is None or isinstance(cluster.disable_failover, bool)
         assert isinstance(cluster.timeout, int)
         assert isinstance(cluster.failover_attempts, int)
         assert isinstance(cluster.method, str)
@@ -96,9 +92,7 @@ async def test_with_process_pool(balancer_manager_url: str):
     with ProcessPoolExecutor(max_workers=10) as ppexec:
         _token = executor.set(ppexec)
 
-        balancer_manager = await HttpxBalancerManager.parse_from_url(
-            balancer_manager_url
-        )
+        balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
         validate_properties(balancer_manager)
 
         # test update
@@ -241,9 +235,7 @@ async def test_route_disable_last(balancer_manager_url: str, enable_all_routes):
     try:
         with pytest.raises(ValueError, match=r".*cannot disable final active route.*"):
             for route in cluster.routes.values():
-                await balancer_manager.edit_route(
-                    cluster, route, status_changes={"disabled": True}
-                )
+                await balancer_manager.edit_route(cluster, route, status_changes={"disabled": True})
     finally:
         await enable_all_routes(balancer_manager, cluster)
 

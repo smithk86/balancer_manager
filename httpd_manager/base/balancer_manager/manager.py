@@ -42,9 +42,7 @@ class BalancerManager(ParsableModel, validate_assignment=True):
         return cls.parse_obj(model_props)
 
     @classmethod
-    def _get_parsed_pairs(
-        cls, data: ParsedBalancerManager, **kwargs
-    ) -> Generator[tuple[str, Any], None, None]:
+    def _get_parsed_pairs(cls, data: ParsedBalancerManager, **kwargs) -> Generator[tuple[str, Any], None, None]:
         _cluster_class = cls._parse_options["cluster_class"]
         _route_class = cls._parse_options["route_class"]
 

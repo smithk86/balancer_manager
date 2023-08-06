@@ -28,28 +28,16 @@ class HttpxServerStatus(ServerStatus):
             setattr(self, field, value)
 
     @classmethod
-    async def parse_from_url(
-        cls, url: str | HttpUrl, include_workers: bool = True
-    ) -> "HttpxServerStatus":
+    async def parse_from_url(cls, url: str | HttpUrl, include_workers: bool = True) -> "HttpxServerStatus":
         client = http_client.get()
         response = await client.get(url)
         response.raise_for_status()
 
-        return await cls.async_parse_payload(
-            url, response.text, include_workers=include_workers
-        )
+        return await cls.async_parse_payload(url, response.text, include_workers=include_workers)
 
     @classmethod
-    async def async_parse_payload(
-        cls, url: str | HttpUrl, payload: str, include_workers: bool = True, **kwargs
-    ):
+    async def async_parse_payload(cls, url: str | HttpUrl, payload: str, include_workers: bool = True, **kwargs):
         _executor = executor.get()
         _loop = asyncio.get_running_loop()
-        _func = partial(
-            cls.parse_payload,
-            url=url,
-            payload=payload,
-            include_workers=include_workers,
-            **kwargs
-        )
+        _func = partial(cls.parse_payload, url=url, payload=payload, include_workers=include_workers, **kwargs)
         return await _loop.run_in_executor(_executor, _func)

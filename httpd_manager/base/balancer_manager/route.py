@@ -56,11 +56,7 @@ class RouteStatus(BaseModel, validate_assignment=True):
     stopped: Status
 
     def mutable(self) -> dict[str, Status]:
-        return {
-            name: status
-            for name, status in self
-            if status and not isinstance(status, ImmutableStatus)
-        }
+        return {name: status for name, status in self if status and not isinstance(status, ImmutableStatus)}
 
     def get_mutable_values(self) -> MutableStatusValues:
         return MutableStatusValues(
@@ -113,12 +109,8 @@ class HealthCheck(BaseModel, validate_assignment=True):
         return int(m.group(1))
 
     # reuse validators
-    _passes_validator = validator("passes", allow_reuse=True, pre=True)(
-        HealthCheckCounter.parse
-    )
-    _fails_validator = validator("fails", allow_reuse=True, pre=True)(
-        HealthCheckCounter.parse
-    )
+    _passes_validator = validator("passes", allow_reuse=True, pre=True)(HealthCheckCounter.parse)
+    _fails_validator = validator("fails", allow_reuse=True, pre=True)(HealthCheckCounter.parse)
     _uri_validator = validator("uri", allow_reuse=True)(strnone_validator)
     _expr_validator = validator("expr", allow_reuse=True)(strnone_validator)
 
@@ -156,9 +148,7 @@ class Route(ParsableModel, validate_assignment=True):
         )
 
     @classmethod
-    def _get_parsed_pairs(
-        cls, data: dict[str, str], **kwargs
-    ) -> Generator[tuple[str, Any], None, None]:
+    def _get_parsed_pairs(cls, data: dict[str, str], **kwargs) -> Generator[tuple[str, Any], None, None]:
         yield ("name", data["name"])
 
         m = RegexPatterns.CLUSTER_NAME.match(data["worker_url"])
@@ -183,11 +173,7 @@ class Route(ParsableModel, validate_assignment=True):
         yield ("load", data["load"])
         yield ("hcheck", data["hcheck"])
 
-        hcheck_failure = (
-            ImmutableStatus(value="HcFl" in data["active_status_codes"])
-            if data["hcheck"]
-            else None
-        )
+        hcheck_failure = ImmutableStatus(value="HcFl" in data["active_status_codes"]) if data["hcheck"] else None
 
         yield (
             "status",
@@ -195,23 +181,11 @@ class Route(ParsableModel, validate_assignment=True):
                 ok=ImmutableStatus(value="Ok" in data["active_status_codes"]),
                 error=ImmutableStatus(value="Err" in data["active_status_codes"]),
                 hcheck_failure=hcheck_failure,
-                ignore_errors=Status(
-                    http_form_code="I", value="Ign" in data["active_status_codes"]
-                ),
-                draining_mode=Status(
-                    http_form_code="N", value="Drn" in data["active_status_codes"]
-                ),
-                disabled=Status(
-                    http_form_code="D", value="Dis" in data["active_status_codes"]
-                ),
-                hot_standby=Status(
-                    http_form_code="H", value="Stby" in data["active_status_codes"]
-                ),
-                hot_spare=Status(
-                    http_form_code="R", value="Spar" in data["active_status_codes"]
-                ),
-                stopped=Status(
-                    http_form_code="S", value="Stop" in data["active_status_codes"]
-                ),
+                ignore_errors=Status(http_form_code="I", value="Ign" in data["active_status_codes"]),
+                draining_mode=Status(http_form_code="N", value="Drn" in data["active_status_codes"]),
+                disabled=Status(http_form_code="D", value="Dis" in data["active_status_codes"]),
+                hot_standby=Status(http_form_code="H", value="Stby" in data["active_status_codes"]),
+                hot_spare=Status(http_form_code="R", value="Spar" in data["active_status_codes"]),
+                stopped=Status(http_form_code="S", value="Stop" in data["active_status_codes"]),
             ),
         )

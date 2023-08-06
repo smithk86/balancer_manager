@@ -1,4 +1,8 @@
 [tool]
+
+[tool.black]
+line-length = 120
+
 [tool.poetry]
 name = "py-httpd-manager"
 version = "0.3.0"

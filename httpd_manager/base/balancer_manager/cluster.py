@@ -67,9 +67,7 @@ class Cluster(ParsableModel, validate_assignment=True):
         return _lbsets[number]
 
     @classmethod
-    def _get_parsed_pairs(
-        cls, data: dict[str, str], **kwargs
-    ) -> Generator[tuple[str, Any], None, None]:
+    def _get_parsed_pairs(cls, data: dict[str, str], **kwargs) -> Generator[tuple[str, Any], None, None]:
         _routes: list[Route] = kwargs.get("routes", [])
 
         m = RegexPatterns.BALANCER_URI.match(data["name"])

@@ -14,9 +14,7 @@ try:
     lxml_loaded = True
 except ModuleNotFoundError:
     lxml_loaded = False
-    warnings.warn(
-        "lxml is not installed; " "parsing performance could be impacted", UserWarning
-    )
+    warnings.warn("lxml is not installed; " "parsing performance could be impacted", UserWarning)
 
 
 def get_table_rows(table: Tag) -> list[dict[str, Tag]]:
@@ -48,9 +46,7 @@ class ParsedBalancerManager(ParsableModel):
         return cls.parse_obj(model_data)
 
     @classmethod
-    def _get_parsed_pairs(
-        cls, data: BeautifulSoup, **kwargs
-    ) -> Generator[tuple[str, Any], None, None]:
+    def _get_parsed_pairs(cls, data: BeautifulSoup, **kwargs) -> Generator[tuple[str, Any], None, None]:
         # record date of initial parse
         yield ("date", utcnow())
 
@@ -61,9 +57,7 @@ class ParsedBalancerManager(ParsableModel):
         # initial payload validation
         _bs_h1 = data.find_all("h1")
         if len(_bs_h1) != 1 or "Load Balancer Manager" not in _bs_h1[0].text:
-            raise ValueError(
-                "initial html validation failed; is this really an Httpd Balancer Manager page?"
-            )
+            raise ValueError("initial html validation failed; is this really an Httpd Balancer Manager page?")
 
         _bs_dt = data.find_all("dt")
         if len(_bs_dt) < 2:
@@ -82,9 +76,7 @@ class ParsedBalancerManager(ParsableModel):
             header_elements = table.findPreviousSiblings("h3", limit=1)
 
             if len(header_elements) != 1:
-                raise ValueError(
-                    f"single <h3> tag is expected ({len(header_elements)} found)"
-                )
+                raise ValueError(f"single <h3> tag is expected ({len(header_elements)} found)")
 
             header = header_elements[0]
 
@@ -93,9 +85,7 @@ class ParsedBalancerManager(ParsableModel):
                 # there is a workaround for a bug in the html formatting in httpd 2.4.20 in
                 # which the StickySession cell closing tag comes after DisableFailover
                 # HTML = <td>JSESSIONID<td>Off</td></td>
-                sticky_session = str(
-                    row["StickySession"].find(string=True, recursive=False)
-                ).strip()
+                sticky_session = str(row["StickySession"].find(string=True, recursive=False)).strip()
 
                 _clusters.append(
                     {

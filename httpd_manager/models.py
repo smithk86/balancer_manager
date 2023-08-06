@@ -14,9 +14,7 @@ class ParsableModel(BaseModel):
 
     @classmethod
     @abstractmethod
-    def _get_parsed_pairs(
-        cls, data: Any, **kwargs
-    ) -> Generator[tuple[str, Any], None, None]:
+    def _get_parsed_pairs(cls, data: Any, **kwargs) -> Generator[tuple[str, Any], None, None]:
         ...
 
 

@@ -17,9 +17,7 @@ try:
     lxml_loaded = True
 except ModuleNotFoundError:
     lxml_loaded = False
-    warnings.warn(
-        "lxml is not installed; " "parsing performance could be impacted", UserWarning
-    )
+    warnings.warn("lxml is not installed; " "parsing performance could be impacted", UserWarning)
 
 
 class WorkerState(str, Enum):
@@ -89,9 +87,7 @@ class ParsedServerStatus(ParsableModel, validate_assignment=True):
         return cls.parse_obj(model_data)
 
     @classmethod
-    def _get_parsed_pairs(
-        cls, data: BeautifulSoup, **kwargs
-    ) -> Generator[tuple[str, Any], None, None]:
+    def _get_parsed_pairs(cls, data: BeautifulSoup, **kwargs) -> Generator[tuple[str, Any], None, None]:
         _include_workers = kwargs.get("include_workers", True)
 
         # record date of initial parse
@@ -100,9 +96,7 @@ class ParsedServerStatus(ParsableModel, validate_assignment=True):
         # initial payload validation
         _bs_h1 = data.find_all("h1")
         if len(_bs_h1) != 1 or "Apache Server Status" not in _bs_h1[0].text:
-            raise ValueError(
-                "initial html validation failed; is this really an Httpd Server Status page?"
-            )
+            raise ValueError("initial html validation failed; is this really an Httpd Server Status page?")
 
         _bs_dt = data.find_all("dt")
         if len(_bs_dt) != 13:
@@ -110,9 +104,7 @@ class ParsedServerStatus(ParsableModel, validate_assignment=True):
 
         _bs_table = data.find_all("table")
         if len(_bs_table) == 0:
-            raise ValueError(
-                f"at least 1 <table> tag is expected ({len(_bs_table)} found)"
-            )
+            raise ValueError(f"at least 1 <table> tag is expected ({len(_bs_table)} found)")
 
         _bs_pre = data.find_all("pre")
         if len(_bs_pre) != 1:
@@ -137,11 +129,7 @@ class ParsedServerStatus(ParsableModel, validate_assignment=True):
         if _include_workers is True:
             rows = _bs_table[0].find_all(lambda tag: tag.name == "tr")
             # "rows[1:]" is used to skip the header row of the <table>
-            workers = [
-                [x.text.strip() for x in row.find_all("td")]
-                for row in rows[1:]
-                if len(row) == 15
-            ]
+            workers = [[x.text.strip() for x in row.find_all("td")] for row in rows[1:] if len(row) == 15]
             yield ("workers", workers)
         else:
             yield ("workers", None)
@@ -168,9 +156,7 @@ class ServerStatus(ParsableModel, validate_assignment=True):
         return cls.parse_obj(model_props)
 
     @classmethod
-    def _get_parsed_pairs(
-        cls, data: ParsedServerStatus, **kwargs
-    ) -> Generator[tuple[str, Any], None, None]:
+    def _get_parsed_pairs(cls, data: ParsedServerStatus, **kwargs) -> Generator[tuple[str, Any], None, None]:
         yield ("date", data.date)
         # versions
         m = RegexPatterns.HTTPD_VERSION.match(data.httpd_version)
@@ -218,9 +204,7 @@ class ServerStatus(ParsableModel, validate_assignment=True):
         # count the number of worker in each state
         _worker_states = dict()
         for state_enum in WorkerState:
-            _worker_states[state_enum.name.lower()] = data.worker_states.count(
-                state_enum.value
-            )
+            _worker_states[state_enum.name.lower()] = data.worker_states.count(state_enum.value)
         yield ("worker_states", WorkerStateCount.parse_obj(_worker_states))
 
         if data.workers is None:
