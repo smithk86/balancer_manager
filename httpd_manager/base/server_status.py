@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from pydantic import BaseModel, HttpUrl
 
 from ..models import Bytes, ParsableModel
-from ..utils import RegexPatterns, utcnow
+from ..utils import RegexPatterns, get_table_rows, utcnow
 
 
 try:
@@ -66,7 +66,7 @@ class Worker(BaseModel, validate_assignment=True):
     request: str
 
 
-class ParsedServerStatus(ParsableModel, validate_assignment=True):
+class ParsedServerStatus(ParsableModel, validate_assignment=True, arbitrary_types_allowed=True):
     date: datetime
     httpd_version: str
     httpd_built_date: str
@@ -77,7 +77,7 @@ class ParsedServerStatus(ParsableModel, validate_assignment=True):
     bytes_per_request: str
     ms_per_request: str
     worker_states: str
-    workers: list[list[str]] | None
+    workers: list[dict[str, str]] | None
 
     @classmethod
     def parse_payload(cls, payload: str, **kwargs) -> "ParsedServerStatus":
@@ -127,10 +127,14 @@ class ParsedServerStatus(ParsableModel, validate_assignment=True):
         # worker statistics
         yield ("worker_states", _bs_pre[0].text.replace("\n", ""))
         if _include_workers is True:
-            rows = _bs_table[0].find_all(lambda tag: tag.name == "tr")
-            # "rows[1:]" is used to skip the header row of the <table>
-            workers = [[x.text.strip() for x in row.find_all("td")] for row in rows[1:] if len(row) == 15]
-            yield ("workers", workers)
+            yield (
+                "workers",
+                [
+                    {column_name: column_tag.text.strip() for column_name, column_tag in worker.items()}
+                    for worker in get_table_rows(_bs_table[0])
+                    if "Srv" in worker
+                ],
+            )
         else:
             yield ("workers", None)
 
@@ -211,24 +215,25 @@ class ServerStatus(ParsableModel, validate_assignment=True):
             yield ("workers", None)
         else:
             _workers = list()
-            for row in data.workers:
+            for worker in data.workers:
+                print(worker)
                 _workers.append(
                     Worker(
-                        srv=row[0],
-                        pid=None if row[1] == "-" else row[1],
-                        acc=row[2],
-                        m=row[3],
-                        cpu=row[4],
-                        ss=row[5],
-                        req=row[6],
-                        dur=row[7],
-                        conn=row[8],
-                        child=row[9],
-                        slot=row[10],
-                        client=row[11],
-                        protocol=row[12],
-                        vhost=row[13],
-                        request=row[14],
+                        srv=worker["Srv"],
+                        pid=None if worker["PID"] == "-" else worker["PID"],
+                        acc=worker["Acc"],
+                        m=worker["M"],
+                        cpu=worker["CPU"],
+                        ss=worker["SS"],
+                        req=worker["Req"],
+                        dur=worker["Dur"],
+                        conn=worker["Conn"],
+                        child=worker["Child"],
+                        slot=worker["Slot"],
+                        client=worker["Client"],
+                        protocol=worker["Protocol"],
+                        vhost=worker["VHost"],
+                        request=worker["Request"],
                     )
                 )
             yield ("workers", _workers)

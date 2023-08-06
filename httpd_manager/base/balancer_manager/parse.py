@@ -5,7 +5,7 @@ from typing import Any, Generator, cast
 from bs4 import BeautifulSoup, Tag
 
 from ...models import ParsableModel
-from ...utils import utcnow
+from ...utils import get_table_rows, utcnow
 
 
 try:
@@ -15,18 +15,6 @@ try:
 except ModuleNotFoundError:
     lxml_loaded = False
     warnings.warn("lxml is not installed; " "parsing performance could be impacted", UserWarning)
-
-
-def get_table_rows(table: Tag) -> list[dict[str, Tag]]:
-    rows = table.find_all("tr")
-    header = rows[0]
-    header_values = [cell.text for cell in header.find_all("th")]
-
-    results: list[dict[str, Tag]] = []
-    for row in rows[1:]:
-        zipped = zip(header_values, row.find_all("td"))
-        results.append(dict(zipped))
-    return results
 
 
 class ParsedBalancerManager(ParsableModel):

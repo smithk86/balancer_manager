@@ -2,6 +2,20 @@ import re
 from datetime import datetime, timezone
 from enum import Enum
 
+from bs4 import Tag
+
+
+def get_table_rows(table: Tag, first_row_index: int = 1) -> list[dict[str, Tag]]:
+    rows = table.find_all("tr")
+    header = rows[0]
+    header_values = [cell.text.strip() for cell in header.find_all("th")]
+
+    results: list[dict[str, Tag]] = []
+    for row in rows[first_row_index:]:
+        zipped = zip(header_values, row.find_all("td"))
+        results.append(dict(zipped))
+    return results
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
