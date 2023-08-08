@@ -45,7 +45,7 @@ def get_mocked_files() -> dict[str, tuple[str, Path]]:
 async def test_balancer_manager(httpx_mock: HTTPXMock, version: str, filename: Path):
     add_mocked_response(httpx_mock, filename)
 
-    balancer_manager = await HttpxBalancerManager.parse_from_url("http://testserver.local/balancer-manager")
+    balancer_manager = await HttpxBalancerManager.async_model_validate_url("http://testserver.local/balancer-manager")
     validate_properties(balancer_manager)
 
     assert version == balancer_manager.httpd_version
@@ -69,13 +69,13 @@ async def test_balancer_manager(httpx_mock: HTTPXMock, version: str, filename: P
 async def test_status_errors(httpx_mock: HTTPXMock, status_code: int, error_message: str):
     httpx_mock.add_response(url="http://testserver.local/balancer-manager", status_code=status_code, text="")
     with pytest.raises(httpx.HTTPStatusError, match=f".*{error_message}.*"):
-        await HttpxBalancerManager.parse_from_url("http://testserver.local/balancer-manager")
+        await HttpxBalancerManager.async_model_validate_url("http://testserver.local/balancer-manager")
 
 
 async def test_with_route_gc(httpx_mock: HTTPXMock):
     # create BalancerManager with mock-1
     add_mocked_response(httpx_mock, "balancer-manager-mock-1.html")
-    balancer_manager = await HttpxBalancerManager.parse_from_url("http://testserver.local/balancer-manager")
+    balancer_manager = await HttpxBalancerManager.async_model_validate_url("http://testserver.local/balancer-manager")
 
     # cluster3 object should have 10 routes
     assert len(balancer_manager.cluster("cluster3").routes) == 10
@@ -103,14 +103,16 @@ async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path):
         ValueError,
         match=r"initial html validation failed; is this really an Httpd Balancer Manager page?",
     ):
-        await HttpxBalancerManager.parse_from_url("http://testserver.local/balancer-manager")
+        await HttpxBalancerManager.async_model_validate_url("http://testserver.local/balancer-manager")
 
 
 async def test_hcheck(httpx_mock: HTTPXMock, test_files_dir: Path):
     with test_files_dir.joinpath("balancer-manager-2.4.56-hcheck.html").open("r") as fh:
         httpx_mock.add_response(url="http://testserver.local/balancer-manager", text=fh.read())
 
-        balancer_manager = await HttpxBalancerManager.parse_from_url("http://testserver.local/balancer-manager")
+        balancer_manager = await HttpxBalancerManager.async_model_validate_url(
+            "http://testserver.local/balancer-manager"
+        )
 
         for route in balancer_manager.cluster("cluster4").routes.values():
             assert route.hcheck is None

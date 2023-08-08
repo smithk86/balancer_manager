@@ -32,7 +32,7 @@ def server_status_url(httpd_endpoint: str) -> str:
 
 
 async def test_server_status(server_status_url: str):
-    server_status = await HttpxServerStatus.parse_from_url(server_status_url, include_workers=False)
+    server_status = await HttpxServerStatus.async_model_validate_url(server_status_url, include_workers=False)
     validate_properties(server_status)
     assert server_status.workers is None
 
@@ -42,7 +42,7 @@ async def test_server_status(server_status_url: str):
     assert _original_date < server_status.date
 
     # confirm workers if include_workers=True
-    server_status = await HttpxServerStatus.parse_from_url(server_status_url, include_workers=True)
+    server_status = await HttpxServerStatus.async_model_validate_url(server_status_url, include_workers=True)
     validate_properties(server_status)
     assert isinstance(server_status.workers, list)
 
@@ -51,7 +51,7 @@ async def test_with_process_pool(server_status_url: str):
     with ProcessPoolExecutor(max_workers=10) as ppexec:
         _token = executor.set(ppexec)
 
-        server_status = await HttpxServerStatus.parse_from_url(server_status_url, include_workers=False)
+        server_status = await HttpxServerStatus.async_model_validate_url(server_status_url, include_workers=False)
         validate_properties(server_status)
         assert server_status.workers is None
 
@@ -61,7 +61,7 @@ async def test_with_process_pool(server_status_url: str):
         assert _original_date < server_status.date
 
         # confirm workers if include_workers=True
-        server_status = await HttpxServerStatus.parse_from_url(server_status_url, include_workers=True)
+        server_status = await HttpxServerStatus.async_model_validate_url(server_status_url, include_workers=True)
         validate_properties(server_status)
         assert isinstance(server_status.workers, list)
 
@@ -74,7 +74,7 @@ async def test_mocked_server_status(httpx_mock: HTTPXMock, test_files_dir: Path)
 
     httpx_mock.add_response(url="http://testserver.local/server-status", text=html_payload)
 
-    server_status = await HttpxServerStatus.parse_from_url(
+    server_status = await HttpxServerStatus.async_model_validate_url(
         "http://testserver.local/server-status", include_workers=True
     )
     validate_properties(server_status)
@@ -109,4 +109,4 @@ async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path):
         ValueError,
         match=r"initial html validation failed; is this really an Httpd Server Status page?",
     ):
-        await HttpxServerStatus.parse_from_url("http://testserver.local/server-status")
+        await HttpxServerStatus.async_model_validate_url("http://testserver.local/server-status")

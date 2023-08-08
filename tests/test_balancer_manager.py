@@ -79,7 +79,7 @@ def balancer_manager_url(httpd_endpoint: str) -> str:
 
 
 async def test_properties(balancer_manager_url: str):
-    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
+    balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     validate_properties(balancer_manager)
 
     # test update
@@ -92,7 +92,7 @@ async def test_with_process_pool(balancer_manager_url: str):
     with ProcessPoolExecutor(max_workers=10) as ppexec:
         _token = executor.set(ppexec)
 
-        balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
+        balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
         validate_properties(balancer_manager)
 
         # test update
@@ -104,22 +104,22 @@ async def test_with_process_pool(balancer_manager_url: str):
 
 
 async def test_httpd_version(balancer_manager_url: str, httpd_version):
-    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
+    balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     assert balancer_manager.httpd_version == httpd_version
 
 
 async def test_cluster_does_not_exist(balancer_manager_url: str):
-    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
+    balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     with pytest.raises(KeyError, match=r"\'does_not_exist\'"):
         balancer_manager.cluster("does_not_exist")
 
 
 async def test_route_status_changes(balancer_manager_url: str):
-    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
+    balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
 
     # get route and do status update
     route_1 = balancer_manager.cluster("cluster0").route("route00")
-    mutable_routes_1 = route_1.status.copy(deep=True).mutable()
+    mutable_routes_1 = route_1.status.model_copy(deep=True).mutable()
 
     # do the initial changes
     assert len(mutable_routes_1) > 0
@@ -140,7 +140,7 @@ async def test_route_status_changes(balancer_manager_url: str):
 
     # verify change
     route_2 = balancer_manager.cluster("cluster0").route("route00")
-    mutable_routes_2 = route_2.status.copy(deep=True).mutable()
+    mutable_routes_2 = route_2.status.model_copy(deep=True).mutable()
 
     assert len(mutable_routes_2) > 0
     status_changes_2: dict[str, bool] = {}
@@ -158,7 +158,7 @@ async def test_route_status_changes(balancer_manager_url: str):
 
     # verify original value again
     route_3 = balancer_manager.cluster("cluster0").route("route00")
-    mutable_routes_3 = route_3.status.copy(deep=True).mutable()
+    mutable_routes_3 = route_3.status.model_copy(deep=True).mutable()
     for name, status in mutable_routes_3.items():
         # assert originally value
         assert mutable_routes_1[name].value is status.value
@@ -168,7 +168,7 @@ async def test_cluster_lbsets(
     balancer_manager_url: str,
     docker_compose: DockerComposeExecutor,
 ):
-    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
+    balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     cluster = balancer_manager.cluster("cluster4")
     lbsets = cluster.lbsets()
     assert len(lbsets) == 2
@@ -227,7 +227,7 @@ async def test_cluster_lbsets(
 
 
 async def test_route_disable_last(balancer_manager_url: str, enable_all_routes):
-    balancer_manager = await HttpxBalancerManager.parse_from_url(balancer_manager_url)
+    balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     cluster = balancer_manager.cluster("cluster3")
 
     await enable_all_routes(balancer_manager, cluster)

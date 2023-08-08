@@ -1,24 +1,10 @@
-from abc import abstractmethod
-from enum import Enum
-from typing import Any, Generator
+from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field, validator
-
-
-class ParsableModel(BaseModel):
-    _parse_options: Any
-
-    @classmethod
-    def parse_payload(cls, payload: str, **kwargs) -> Any:
-        pass
-
-    @classmethod
-    @abstractmethod
-    def _get_parsed_pairs(cls, data: Any, **kwargs) -> Generator[tuple[str, Any], None, None]:
-        ...
+from pydantic import BaseModel, field_validator
 
 
-class DataUnit(str, Enum):
+class DataUnit(StrEnum):
     BYTE = "B"
     KILOBYTE = "K"
     MEGABYTE = "M"
@@ -27,13 +13,14 @@ class DataUnit(str, Enum):
 
 
 class Bytes(BaseModel):
-    unit: DataUnit | None
+    unit: DataUnit | None = None
     value: float
 
-    @validator("unit", pre=True)
-    def unit_validator(cls, v):
-        if v:
-            return v[0].upper()
+    @field_validator("unit", mode="before")
+    def unit_validator(cls, value: Any) -> Any:
+        if value and isinstance(value, str):
+            return value[0].upper()
+        return None
 
     def __int__(self) -> int:
         if self.value == 0 or not self.unit:

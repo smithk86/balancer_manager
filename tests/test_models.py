@@ -20,8 +20,8 @@ def test_bytes(bytes_, int_):
 
 
 def test_bytes_bad_unit():
-    with pytest.raises(ValidationError, match=r".*value is not a valid enumeration member.*"):
+    with pytest.raises(ValidationError, match=r".*validation error for Bytes.*"):
         Bytes(value=51, unit="zb")
 
-    with pytest.raises(ValidationError, match=r".*none is not an allowed value.*") as excinfo:
+    with pytest.raises(ValidationError, match=r".*Input should be a valid number.*") as excinfo:
         Bytes(value=None, unit="K")

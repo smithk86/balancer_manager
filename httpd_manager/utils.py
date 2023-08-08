@@ -1,8 +1,19 @@
 import re
+import warnings
 from datetime import datetime, timezone
 from enum import Enum
+from re import Match
 
 from bs4 import Tag
+
+
+try:
+    import lxml
+
+    lxml_is_loaded = True
+except ModuleNotFoundError:
+    lxml_is_loaded = False
+    warnings.warn("lxml is not installed; " "parsing performance could be impacted", UserWarning)
 
 
 def get_table_rows(table: Tag, first_row_index: int = 1) -> list[dict[str, Tag]]:
@@ -43,13 +54,13 @@ class RegexPatterns(Enum):
     HCHECK_INTERVAL: re.Pattern = re.compile(r"^([\d\.]+)ms$")
     HCHECK_COUNTER: re.Pattern = re.compile(r"^([\d\.]+)\ \(([\d\.]+)\)$")
 
-    def match(self, value: str):
+    def match(self, value: str) -> Match[str]:
         m = self.value.match(value)
         if m is None:
             raise ValueError(f'{self}.match() failed for "{value}"')
         return m
 
-    def search(self, value: str):
+    def search(self, value: str) -> Match[str]:
         m = self.value.search(value)
         if m is None:
             raise ValueError(f'{self}.search() failed for "{value}"')

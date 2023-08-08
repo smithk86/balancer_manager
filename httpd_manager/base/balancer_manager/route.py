@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import logging
 from enum import StrEnum
-from typing import Any, Generator
+from typing import Annotated, Any, Generator
 from uuid import UUID
 
-from pydantic import BaseModel, validator
+from bs4 import Tag
+from pydantic import BaseModel, BeforeValidator, computed_field, field_validator, model_validator
 
 from ...models import Bytes
 from ...utils import RegexPatterns
-from ...models import ParsableModel
 
 
 logger = logging.getLogger(__name__)
@@ -73,13 +73,15 @@ class HealthCheckCounter(BaseModel):
     value: int
     state: int
 
+    @model_validator(mode="before")
     @classmethod
-    def parse(cls, value: str | dict[str, Any]) -> HealthCheckCounter:
-        if isinstance(value, dict):
-            return cls.parse_obj(value)
-
-        m = RegexPatterns.HCHECK_COUNTER.match(value)
-        return cls(value=m.group(1), state=m.group(2))
+    def _model_validator(cls, values: Any) -> dict[str, str]:
+        if isinstance(values, dict):
+            return values
+        if isinstance(values, str):
+            m = RegexPatterns.HCHECK_COUNTER.match(values)
+            return {"value": m.group(1), "state": m.group(2)}
+        raise ValueError("could not parse HealthCheckCounter")
 
 
 class HealthCheckMethod(StrEnum):
@@ -97,10 +99,10 @@ class HealthCheck(BaseModel, validate_assignment=True):
     interval_ms: int
     passes: HealthCheckCounter
     fails: HealthCheckCounter
-    uri: str | None
-    expr: str | None
+    uri: Annotated[str | None, BeforeValidator(strnone_validator)]
+    expr: Annotated[str | None, BeforeValidator(strnone_validator)]
 
-    @validator("interval_ms", pre=True)
+    @field_validator("interval_ms", mode="before")
     def interval_ms_validator(cls, value: Any) -> int:
         if isinstance(value, int):
             return value
@@ -108,14 +110,8 @@ class HealthCheck(BaseModel, validate_assignment=True):
         m = RegexPatterns.HCHECK_INTERVAL.match(value)
         return int(m.group(1))
 
-    # reuse validators
-    _passes_validator = validator("passes", allow_reuse=True, pre=True)(HealthCheckCounter.parse)
-    _fails_validator = validator("fails", allow_reuse=True, pre=True)(HealthCheckCounter.parse)
-    _uri_validator = validator("uri", allow_reuse=True)(strnone_validator)
-    _expr_validator = validator("expr", allow_reuse=True)(strnone_validator)
 
-
-class Route(ParsableModel, validate_assignment=True):
+class Route(BaseModel, validate_assignment=True):
     name: str
     cluster: str
     worker: str
@@ -130,8 +126,9 @@ class Route(ParsableModel, validate_assignment=True):
     from_: int
     session_nonce_uuid: UUID
     status: RouteStatus
-    hcheck: HealthCheck | None
+    hcheck: HealthCheck | None = None
 
+    @computed_field  # type: ignore[misc]
     @property
     def electable(self) -> bool:
         """
@@ -144,48 +141,74 @@ class Route(ParsableModel, validate_assignment=True):
                 self.status.draining_mode.value is False,
                 self.status.error.value is False,
                 self.status.ok.value is True,
+                (self.status.hcheck_failure is None or self.status.hcheck_failure.value is False),
             ]
         )
 
     @classmethod
-    def _get_parsed_pairs(cls, data: dict[str, str], **kwargs) -> Generator[tuple[str, Any], None, None]:
-        yield ("name", data["name"])
+    def parse_values_from_tags(cls, values: dict[str, Tag]) -> Generator[tuple[str, Any], None, None]:
+        status_str = values["Status"].text
+        worker_url = values["Worker URL"].find("a")
 
-        m = RegexPatterns.CLUSTER_NAME.match(data["worker_url"])
+        if not isinstance(worker_url, Tag):
+            raise TypeError(f"worker_uri should be an instance of Tag; got {type(worker_url)}")
+
+        m = RegexPatterns.CLUSTER_NAME.match(str(worker_url["href"]))
         yield ("cluster", m.group(1))
 
-        m = RegexPatterns.SESSION_NONCE_UUID.search(data["worker_url"])
+        m = RegexPatterns.SESSION_NONCE_UUID.search(str(worker_url["href"]))
         yield ("session_nonce_uuid", m.group(1))
 
-        m = RegexPatterns.BANDWIDTH_USAGE.search(data["to"])
+        m = RegexPatterns.BANDWIDTH_USAGE.search(values["To"].text)
         yield ("to_", int(Bytes(value=m.group(1), unit=m.group(2))))
 
-        m = RegexPatterns.BANDWIDTH_USAGE.search(data["from"])
+        m = RegexPatterns.BANDWIDTH_USAGE.search(values["From"].text)
         yield ("from_", int(Bytes(value=m.group(1), unit=m.group(2))))
 
-        yield ("worker", data["worker"])
-        yield ("priority", data["priority"])
-        yield ("route_redir", data["route_redir"])
-        yield ("factor", data["factor"])
-        yield ("lbset", data["lbset"])
-        yield ("elected", data["elected"])
-        yield ("busy", data["busy"])
-        yield ("load", data["load"])
-        yield ("hcheck", data["hcheck"])
+        yield ("worker", values["Worker URL"].text)
+        yield ("route_redir", values["RouteRedir"].text)
+        yield ("factor", values["Factor"].text)
+        yield ("lbset", values["Set"].text)
+        yield ("elected", values["Elected"].text)
+        yield ("busy", values["Busy"].text)
+        yield ("load", values["Load"].text)
 
-        hcheck_failure = ImmutableStatus(value="HcFl" in data["active_status_codes"]) if data["hcheck"] else None
+        # add hcheck data if available
+        hcheck_failure: ImmutableStatus | None = None
+        if "HC Method" in values and values["HC Method"].text != "NONE":
+            hcheck_failure = ImmutableStatus(value="HcFl" in status_str)
+            yield (
+                "hcheck",
+                {
+                    "method": values["HC Method"].text,
+                    "interval_ms": values["HC Interval"].text,
+                    "passes": values["Passes"].text,
+                    "fails": values["Fails"].text,
+                    "uri": values["HC uri"].text,
+                    "expr": values["HC Expr"].text,
+                },
+            )
 
         yield (
             "status",
             RouteStatus(
-                ok=ImmutableStatus(value="Ok" in data["active_status_codes"]),
-                error=ImmutableStatus(value="Err" in data["active_status_codes"]),
+                ok=ImmutableStatus(value="Ok" in status_str),
+                error=ImmutableStatus(value="Err" in status_str),
                 hcheck_failure=hcheck_failure,
-                ignore_errors=Status(http_form_code="I", value="Ign" in data["active_status_codes"]),
-                draining_mode=Status(http_form_code="N", value="Drn" in data["active_status_codes"]),
-                disabled=Status(http_form_code="D", value="Dis" in data["active_status_codes"]),
-                hot_standby=Status(http_form_code="H", value="Stby" in data["active_status_codes"]),
-                hot_spare=Status(http_form_code="R", value="Spar" in data["active_status_codes"]),
-                stopped=Status(http_form_code="S", value="Stop" in data["active_status_codes"]),
+                ignore_errors=Status(http_form_code="I", value="Ign" in status_str),
+                draining_mode=Status(http_form_code="N", value="Drn" in status_str),
+                disabled=Status(http_form_code="D", value="Dis" in status_str),
+                hot_standby=Status(http_form_code="H", value="Stby" in status_str),
+                hot_spare=Status(http_form_code="R", value="Spar" in status_str),
+                stopped=Status(http_form_code="S", value="Stop" in status_str),
             ),
         )
+
+    @classmethod
+    def model_validate_tags(cls, name: str, priority: int, values: dict[str, Tag]) -> Route:
+        model_values = {
+            "name": name,
+            "priority": priority,
+        }
+        model_values.update(dict(cls.parse_values_from_tags(values)))
+        return cls.model_validate(model_values)

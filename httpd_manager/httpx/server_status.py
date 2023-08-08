@@ -1,43 +1,45 @@
 import asyncio
 from functools import partial
+from typing import Any
 
-from pydantic import HttpUrl, PrivateAttr
+from pydantic import HttpUrl
 
 from .client import http_client
-from ..executor import executor
+from ..executor import executor as executor_var
 from ..base import ServerStatus
 
 
+def parse_values_from_payload(url: str | HttpUrl, payload: bytes, include_workers: bool = True) -> "HttpxServerStatus":
+    model_values = {"url": str(url)}
+    model_values.update(dict(ServerStatus.parse_values_from_payload(payload, include_workers=include_workers)))
+    return HttpxServerStatus.model_validate(model_values)
+
+
 class HttpxServerStatus(ServerStatus):
-    _include_workers: bool = PrivateAttr()
-
-    def __init__(self, *args, **kwargs):
-        self._include_workers = kwargs.pop("include_workers", False)
-        super().__init__(*args, **kwargs)
-
     async def update(self) -> None:
         client = http_client.get()
-        response = await client.get(self.url)
+        response = await client.get(str(self.url))
         response.raise_for_status()
-        new_model = await self.async_parse_payload(
-            url=self.url,
-            payload=response.text,
-            include_workers=self._include_workers,
+        new_model = await self.async_model_validate_payload(
+            url=str(self.url),
+            payload=response.content,
+            include_workers=self.workers is not None,
         )
         for field, value in new_model:
             setattr(self, field, value)
 
     @classmethod
-    async def parse_from_url(cls, url: str | HttpUrl, include_workers: bool = True) -> "HttpxServerStatus":
+    async def async_model_validate_url(cls, url: str | HttpUrl, include_workers: bool = True) -> "HttpxServerStatus":
         client = http_client.get()
-        response = await client.get(url)
+        response = await client.get(str(url))
         response.raise_for_status()
-
-        return await cls.async_parse_payload(url, response.text, include_workers=include_workers)
+        return await cls.async_model_validate_payload(url, response.content, include_workers=include_workers)
 
     @classmethod
-    async def async_parse_payload(cls, url: str | HttpUrl, payload: str, include_workers: bool = True, **kwargs):
-        _executor = executor.get()
-        _loop = asyncio.get_running_loop()
-        _func = partial(cls.parse_payload, url=url, payload=payload, include_workers=include_workers, **kwargs)
-        return await _loop.run_in_executor(_executor, _func)
+    async def async_model_validate_payload(
+        cls, url: str | HttpUrl, payload: str | bytes, include_workers: bool = True
+    ) -> "HttpxServerStatus":
+        executor = executor_var.get()
+        loop = asyncio.get_running_loop()
+        handler = partial(parse_values_from_payload, url, payload, include_workers=include_workers)
+        return await loop.run_in_executor(executor, handler)

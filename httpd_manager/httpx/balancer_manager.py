@@ -6,52 +6,51 @@ from typing import Callable
 from pydantic import HttpUrl
 
 from .client import http_client
-from ..executor import executor
-from ..base import (
-    BalancerManager,
-    Cluster,
-    Route,
-    ParsedBalancerManager,
-)
+from ..executor import executor as executor_var
+from ..base import BalancerManager, Cluster, Route
+from ..base.balancer_manager.manager import ValidatorContext
 
 
 logger = logging.getLogger(__name__)
 
 
+def parse_values_from_payload(
+    url: str | HttpUrl, payload: bytes, context: ValidatorContext | None = None
+) -> "HttpxBalancerManager":
+    model_values = {"url": str(url)}
+    model_values.update(dict(BalancerManager.parse_values_from_payload(payload, context=context)))
+    return HttpxBalancerManager.model_validate(model_values)
+
+
 class HttpxBalancerManager(BalancerManager):
     async def update(self) -> None:
         client = http_client.get()
-        response = await client.get(self.url)
+        response = await client.get(str(self.url))
         response.raise_for_status()
+        await self.update_from_payload(response.content)
 
-        await self._update_from_payload(response.text)
-
-    async def _update_from_payload(self, payload: str) -> None:
-        new_model = await self.async_parse_payload(self.url, payload=payload)
+    async def update_from_payload(self, payload: bytes) -> None:
+        new_model = await self.async_model_validate_payload(self.url, payload)
         for field, value in new_model:
             setattr(self, field, value)
 
     @classmethod
-    async def parse_from_url(cls, url: str | HttpUrl) -> "HttpxBalancerManager":
+    async def async_model_validate_url(
+        cls, url: str | HttpUrl, context: ValidatorContext | None = None
+    ) -> "HttpxBalancerManager":
         client = http_client.get()
-        response = await client.get(url)
+        response = await client.get(str(url))
         response.raise_for_status()
-
-        return await cls.async_parse_payload(url, response.text)
-
-    @classmethod
-    async def async_parse_payload(cls, url: str | HttpUrl, payload: str, **kwargs) -> "HttpxBalancerManager":
-        _executor = executor.get()
-        _loop = asyncio.get_running_loop()
-        _func = partial(cls.parse_payload, url=url, payload=payload, **kwargs)
-        return await _loop.run_in_executor(_executor, _func)
+        return await cls.async_model_validate_payload(url, response.text, context=context)
 
     @classmethod
-    def parse_payload(cls, url: str | HttpUrl, payload: str) -> "HttpxBalancerManager":  # type: ignore[override]
-        parsed_model = ParsedBalancerManager.parse_payload(payload)
-        model_props = dict(cls._get_parsed_pairs(parsed_model))
-        model_props["url"] = url
-        return cls.parse_obj(model_props)
+    async def async_model_validate_payload(
+        cls, url: str | HttpUrl, payload: str | bytes, context: ValidatorContext | None = None
+    ) -> "HttpxBalancerManager":
+        executor = executor_var.get()
+        loop = asyncio.get_running_loop()
+        handler = partial(parse_values_from_payload, url, payload, context=context)
+        return await loop.run_in_executor(executor, handler)
 
     async def edit_route(
         self,
@@ -118,9 +117,9 @@ class HttpxBalancerManager(BalancerManager):
         logger.debug(f"edit route cluster={cluster.name} route={route.name} payload={payload}")
 
         client = http_client.get()
-        response = await client.post(self.url, headers={"Referer": self.url}, data=payload)
+        response = await client.post(str(self.url), headers={"Referer": str(self.url)}, data=payload)
         response.raise_for_status()
-        await self._update_from_payload(response.text)
+        await self.update_from_payload(response.content)
 
     async def edit_lbset(
         self,

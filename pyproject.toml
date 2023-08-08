@@ -21,7 +21,7 @@ beautifulsoup4 = "*"
 dateparser = "*"
 packaging = "*"
 lxml = "*"
-pydantic = "<2"
+pydantic = ">=2"
 
 [tool.poetry.extras]
 httpx = ["httpx"]

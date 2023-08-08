@@ -4,11 +4,11 @@ import logging
 from collections import OrderedDict
 from typing import Any, Generator
 
-from pydantic import validator
+from bs4 import Tag
+from pydantic import BaseModel, computed_field, field_validator
 
 from .route import Route
 from ...utils import RegexPatterns
-from ...models import ParsableModel
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def get_electable_routes(routes: dict[str, Route]) -> list[Route]:
     ]
 
 
-class Cluster(ParsableModel, validate_assignment=True):
+class Cluster(BaseModel, validate_assignment=True):
     name: str
     max_members: int
     max_members_used: int
@@ -43,11 +43,11 @@ class Cluster(ParsableModel, validate_assignment=True):
     path: str
     active: bool
     routes: dict[str, Route]
-    number_of_electable_routes: int = 0
 
-    @validator("number_of_electable_routes", always=True)
-    def validator_number_of_electable_routes(cls, _, values) -> int:
-        return len(get_electable_routes(values.get("routes", {})))
+    @computed_field  # type: ignore[misc]
+    @property
+    def number_of_electable_routes(self) -> int:
+        return len(get_electable_routes(self.routes))
 
     def route(self, name: str):
         return self.routes[name]
@@ -67,24 +67,24 @@ class Cluster(ParsableModel, validate_assignment=True):
         return _lbsets[number]
 
     @classmethod
-    def _get_parsed_pairs(cls, data: dict[str, str], **kwargs) -> Generator[tuple[str, Any], None, None]:
-        _routes: list[Route] = kwargs.get("routes", [])
-
-        m = RegexPatterns.BALANCER_URI.match(data["name"])
-        name = m.group(1)
+    def parse_values_from_tags(cls, name: str, values: dict[str, Tag]) -> Generator[tuple[str, Any], None, None]:
         yield ("name", name)
-
-        m = RegexPatterns.ROUTE_USED.match(data["max_members"])
+        m = RegexPatterns.ROUTE_USED.match(values["MaxMembers"].text)
         yield ("max_members", int(m.group(1)))
         yield ("max_members_used", int(m.group(2)))
         yield (
             "sticky_session",
-            None if data["sticky_session"] == "(None)" else data["sticky_session"],
+            None if values["StickySession"].text == "(None)" else values["StickySession"].text,
         )
-        yield ("disable_failover", "On" in data["disable_failover"])
-        yield ("timeout", int(data["timeout"]))
-        yield ("failover_attempts", int(data["failover_attempts"]))
-        yield ("method", data["method"])
-        yield ("path", data["path"])
-        yield ("active", "Yes" in data["active"])
-        yield ("routes", {x.name: x for x in _routes if x.cluster == name})
+        yield ("disable_failover", "On" in values["DisableFailover"].text)
+        yield ("timeout", values["Timeout"].text)
+        yield ("failover_attempts", values["FailoverAttempts"].text)
+        yield ("method", values["Method"].text)
+        yield ("path", values["Path"].text)
+        yield ("active", "Yes" in values["Active"].text)
+
+    @classmethod
+    def model_validate_tags(cls, name: str, values: dict[str, Tag], routes: dict[str, Route]) -> Cluster:
+        model_values = dict(cls.parse_values_from_tags(name, values))
+        model_values.update({"routes": routes})
+        return cls.model_validate(model_values)

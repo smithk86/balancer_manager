@@ -3,13 +3,11 @@ from .balancer_manager import (
     Cluster,
     HealthCheck,
     ImmutableStatus,
-    ParsedBalancerManager,
     Route,
     RouteStatus,
     Status,
 )
 from .server_status import (
-    ParsedServerStatus,
     ServerStatus,
     Worker,
     WorkerState,
@@ -22,8 +20,6 @@ __all__ = [
     "Cluster",
     "HealthCheck",
     "ImmutableStatus",
-    "ParsedBalancerManager",
-    "ParsedServerStatus",
     "Route",
     "RouteStatus",
     "ServerStatus",
