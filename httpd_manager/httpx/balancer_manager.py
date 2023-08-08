@@ -5,7 +5,7 @@ from typing import Callable
 
 from pydantic import HttpUrl
 
-from .client import http_client
+from .client import get_http_client
 from ..executor import executor as executor_var
 from ..base import BalancerManager, Cluster, Route
 from ..base.balancer_manager.manager import ValidatorContext
@@ -24,8 +24,8 @@ def parse_values_from_payload(
 
 class HttpxBalancerManager(BalancerManager):
     async def update(self) -> None:
-        client = http_client.get()
-        response = await client.get(str(self.url))
+        async with get_http_client() as client:
+            response = await client.get(str(self.url))
         response.raise_for_status()
         await self.update_from_payload(response.content)
 
@@ -38,8 +38,8 @@ class HttpxBalancerManager(BalancerManager):
     async def async_model_validate_url(
         cls, url: str | HttpUrl, context: ValidatorContext | None = None
     ) -> "HttpxBalancerManager":
-        client = http_client.get()
-        response = await client.get(str(url))
+        async with get_http_client() as client:
+            response = await client.get(str(url))
         response.raise_for_status()
         return await cls.async_model_validate_payload(url, response.text, context=context)
 
@@ -116,8 +116,8 @@ class HttpxBalancerManager(BalancerManager):
 
         logger.debug(f"edit route cluster={cluster.name} route={route.name} payload={payload}")
 
-        client = http_client.get()
-        response = await client.post(str(self.url), headers={"Referer": str(self.url)}, data=payload)
+        async with get_http_client() as client:
+            response = await client.post(str(self.url), headers={"Referer": str(self.url)}, data=payload)
         response.raise_for_status()
         await self.update_from_payload(response.content)
 

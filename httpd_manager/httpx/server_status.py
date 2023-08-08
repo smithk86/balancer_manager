@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import HttpUrl
 
-from .client import http_client
+from .client import get_http_client
 from ..executor import executor as executor_var
 from ..base import ServerStatus
 
@@ -17,8 +17,9 @@ def parse_values_from_payload(url: str | HttpUrl, payload: bytes, include_worker
 
 class HttpxServerStatus(ServerStatus):
     async def update(self) -> None:
-        client = http_client.get()
-        response = await client.get(str(self.url))
+        async with get_http_client() as client:
+            response = await client.get(str(self.url))
+
         response.raise_for_status()
         new_model = await self.async_model_validate_payload(
             url=str(self.url),
@@ -30,8 +31,8 @@ class HttpxServerStatus(ServerStatus):
 
     @classmethod
     async def async_model_validate_url(cls, url: str | HttpUrl, include_workers: bool = True) -> "HttpxServerStatus":
-        client = http_client.get()
-        response = await client.get(str(url))
+        async with get_http_client() as client:
+            response = await client.get(str(url))
         response.raise_for_status()
         return await cls.async_model_validate_payload(url, response.content, include_workers=include_workers)
 
