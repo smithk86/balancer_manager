@@ -15,13 +15,13 @@ from httpd_manager.models import Bytes
         (Bytes(value="5.1", unit="TB"), 5100000000000),
     ],
 )
-def test_bytes(bytes_, int_):
+def test_bytes(bytes_: bytes, int_: int) -> None:
     assert int(bytes_) == int_
 
 
-def test_bytes_bad_unit():
+def test_bytes_bad_unit() -> None:
     with pytest.raises(ValidationError, match=r".*validation error for Bytes.*"):
         Bytes(value=51, unit="zb")
 
-    with pytest.raises(ValidationError, match=r".*Input should be a valid number.*") as excinfo:
+    with pytest.raises(ValidationError, match=r".*Input should be a valid number.*"):
         Bytes(value=None, unit="K")

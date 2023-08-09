@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
 from enum import StrEnum
-from typing import Annotated, Any, Generator
+from typing import Annotated, Any
 from uuid import UUID
 
 from bs4 import Tag
@@ -10,7 +11,6 @@ from pydantic import BaseModel, BeforeValidator, computed_field, field_validator
 
 from ...models import Bytes
 from ...utils import RegexPatterns
-
 
 logger = logging.getLogger(__name__)
 __all__ = ["ImmutableStatus", "Route", "Status"]
@@ -103,6 +103,7 @@ class HealthCheck(BaseModel, validate_assignment=True):
     expr: Annotated[str | None, BeforeValidator(strnone_validator)]
 
     @field_validator("interval_ms", mode="before")
+    @classmethod
     def interval_ms_validator(cls, value: Any) -> int:
         if isinstance(value, int):
             return value
@@ -131,10 +132,7 @@ class Route(BaseModel, validate_assignment=True):
     @computed_field  # type: ignore[misc]
     @property
     def electable(self) -> bool:
-        """
-        Return true/false if Route is eligible to be used for active traffic.
-        """
-
+        """Return true/false if Route is eligible to be used for active traffic."""
         return all(
             [
                 self.status.disabled.value is False,

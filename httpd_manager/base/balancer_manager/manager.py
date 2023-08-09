@@ -1,15 +1,15 @@
 import logging
+from collections.abc import Generator
 from datetime import datetime
-from typing import Any, Generator, NotRequired, TypedDict, cast
+from typing import Any, NotRequired, TypedDict, cast
 
 import dateparser
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, HttpUrl
 
+from ...utils import RegexPatterns, get_table_rows, lxml_is_loaded, utcnow
 from .cluster import Cluster
 from .route import Route
-from ...utils import RegexPatterns, get_table_rows, lxml_is_loaded, utcnow
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class BalancerManager(BaseModel, validate_assignment=True):
     openssl_version: str
     clusters: dict[str, Cluster]
 
-    def cluster(self, name: str):
+    def cluster(self, name: str) -> Cluster:
         return self.clusters[name]
 
     @classmethod
@@ -38,10 +38,7 @@ class BalancerManager(BaseModel, validate_assignment=True):
         cluster_class = context.get("cluster_class", Cluster)
         route_class = context.get("route_class", Route)
 
-        if lxml_is_loaded:
-            bs = BeautifulSoup(payload, features="lxml")
-        else:
-            bs = BeautifulSoup(payload)
+        bs = BeautifulSoup(payload, features="lxml") if lxml_is_loaded else BeautifulSoup(payload)
 
         yield ("date", utcnow())
 

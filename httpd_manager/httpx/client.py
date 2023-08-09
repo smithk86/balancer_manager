@@ -1,9 +1,9 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from httpx import AsyncClient
-
 
 http_client: ContextVar[AsyncClient] = ContextVar("http_client")
 

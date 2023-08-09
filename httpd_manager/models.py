@@ -17,6 +17,7 @@ class Bytes(BaseModel):
     value: float
 
     @field_validator("unit", mode="before")
+    @classmethod
     def unit_validator(cls, value: Any) -> Any:
         if value and isinstance(value, str):
             return value[0].upper()

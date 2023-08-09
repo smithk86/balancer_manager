@@ -2,28 +2,30 @@ import re
 import warnings
 from datetime import datetime, timezone
 from enum import Enum
+from importlib.util import find_spec
 from re import Match
 
 from bs4 import Tag
 
+lxml_is_loaded = find_spec("lxml") is not None
 
-try:
-    import lxml
-
-    lxml_is_loaded = True
-except ModuleNotFoundError:
-    lxml_is_loaded = False
-    warnings.warn("lxml is not installed; " "parsing performance could be impacted", UserWarning)
+if lxml_is_loaded is False:
+    warnings.warn("lxml is not installed; parsing performance could be impacted", UserWarning, stacklevel=1)
 
 
-def get_table_rows(table: Tag, first_row_index: int = 1) -> list[dict[str, Tag]]:
+def get_table_rows(table: Tag) -> list[dict[str, Tag]]:
     rows = table.find_all("tr")
     header = rows[0]
     header_values = [cell.text.strip() for cell in header.find_all("th")]
 
     results: list[dict[str, Tag]] = []
-    for row in rows[first_row_index:]:
-        zipped = zip(header_values, row.find_all("td"))
+    for row in rows[1:]:
+        cells = row.find_all("td")
+
+        if len(header_values) != len(cells):
+            continue
+
+        zipped = zip(header_values, cells, strict=True)
         results.append(dict(zipped))
     return results
 
@@ -34,25 +36,25 @@ def utcnow() -> datetime:
 
 class RegexPatterns(Enum):
     # common
-    HTTPD_VERSION: re.Pattern = re.compile(r"^Server\ Version:\ Apache/([\.0-9]*)")
-    HTTPD_BUILT_DATE: re.Pattern = re.compile(r"Server Built:\ (.*)")
-    OPENSSL_VERSION: re.Pattern = re.compile(r"OpenSSL\/([0-9\.a-z]*)")
+    HTTPD_VERSION: re.Pattern[str] = re.compile(r"^Server\ Version:\ Apache/([\.0-9]*)")
+    HTTPD_BUILT_DATE: re.Pattern[str] = re.compile(r"Server Built:\ (.*)")
+    OPENSSL_VERSION: re.Pattern[str] = re.compile(r"OpenSSL\/([0-9\.a-z]*)")
 
     # server status
-    RESTART_TIME: re.Pattern = re.compile(r"Restart Time: (.*)")
-    REQUEST_PER_SECOND: re.Pattern = re.compile(r"([\d\.]+) requests/sec")
-    BYTES_PER_SECOND: re.Pattern = re.compile(r"([\d\.]+)\ (\w?B)/second")
-    BYTES_PER_REQUEST: re.Pattern = re.compile(r"([\d\.]+)\ (\w?B)/request")
-    MILLISECONDS_PER_REQUEST: re.Pattern = re.compile(r"([\d\.]+) ms/request")
+    RESTART_TIME: re.Pattern[str] = re.compile(r"Restart Time: (.*)")
+    REQUEST_PER_SECOND: re.Pattern[str] = re.compile(r"([\d\.]+) requests/sec")
+    BYTES_PER_SECOND: re.Pattern[str] = re.compile(r"([\d\.]+)\ (\w?B)/second")
+    BYTES_PER_REQUEST: re.Pattern[str] = re.compile(r"([\d\.]+)\ (\w?B)/request")
+    MILLISECONDS_PER_REQUEST: re.Pattern[str] = re.compile(r"([\d\.]+) ms/request")
 
     # balancer manager
-    SESSION_NONCE_UUID: re.Pattern = re.compile(r".*&nonce=([-a-f0-9]{36}).*")
-    CLUSTER_NAME: re.Pattern = re.compile(r".*\?b=(.*?)&.*")
-    BALANCER_URI: re.Pattern = re.compile(r"balancer://(.*)")
-    ROUTE_USED: re.Pattern = re.compile(r"^(\d*) \[(\d*) Used\]$")
-    BANDWIDTH_USAGE: re.Pattern = re.compile(r"([\d\.]+)([KMGT]?)")
-    HCHECK_INTERVAL: re.Pattern = re.compile(r"^([\d\.]+)ms$")
-    HCHECK_COUNTER: re.Pattern = re.compile(r"^([\d\.]+)\ \(([\d\.]+)\)$")
+    SESSION_NONCE_UUID: re.Pattern[str] = re.compile(r".*&nonce=([-a-f0-9]{36}).*")
+    CLUSTER_NAME: re.Pattern[str] = re.compile(r".*\?b=(.*?)&.*")
+    BALANCER_URI: re.Pattern[str] = re.compile(r"balancer://(.*)")
+    ROUTE_USED: re.Pattern[str] = re.compile(r"^(\d*) \[(\d*) Used\]$")
+    BANDWIDTH_USAGE: re.Pattern[str] = re.compile(r"([\d\.]+)([KMGT]?)")
+    HCHECK_INTERVAL: re.Pattern[str] = re.compile(r"^([\d\.]+)ms$")
+    HCHECK_COUNTER: re.Pattern[str] = re.compile(r"^([\d\.]+)\ \(([\d\.]+)\)$")
 
     def match(self, value: str) -> Match[str]:
         m = self.value.match(value)

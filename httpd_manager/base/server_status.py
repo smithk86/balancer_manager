@@ -1,7 +1,7 @@
-import warnings
+from collections.abc import Generator
 from datetime import datetime
 from enum import Enum
-from typing import Any, Generator
+from typing import Any
 
 import dateparser
 from bs4 import BeautifulSoup
@@ -75,10 +75,7 @@ class ServerStatus(BaseModel, validate_assignment=True):
     def parse_values_from_payload(
         cls, payload: str | bytes, include_workers: bool = True
     ) -> Generator[tuple[str, Any], None, None]:
-        if lxml_is_loaded:
-            bs = BeautifulSoup(payload, features="lxml")
-        else:
-            bs = BeautifulSoup(payload)
+        bs = BeautifulSoup(payload, features="lxml") if lxml_is_loaded else BeautifulSoup(payload)
 
         yield ("date", utcnow())
 
@@ -144,17 +141,17 @@ class ServerStatus(BaseModel, validate_assignment=True):
 
         # count the number of worker in each state
         worker_states_str = _bs_pre[0].text.replace("\n", "")
-        worker_states = dict()
+        worker_states = {}
         for state_enum in WorkerState:
             worker_states[state_enum.name.lower()] = worker_states_str.count(state_enum.value)
         yield ("worker_states", worker_states)
 
         # worker statistics
         if include_workers is True:
-            workers = list()
-            for worker in get_table_rows(_bs_table[0]):
+            workers = []
+            for worker in get_table_rows(_bs_table[1]):
                 # the first rows are not worker data
-                if "Srv" not in worker:
+                if "PID" not in worker:
                     continue
 
                 workers.append(

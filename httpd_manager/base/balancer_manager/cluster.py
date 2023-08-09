@@ -2,24 +2,20 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 from bs4 import Tag
-from pydantic import BaseModel, computed_field, field_validator
+from pydantic import BaseModel, computed_field
 
-from .route import Route
 from ...utils import RegexPatterns
-
+from .route import Route
 
 logger = logging.getLogger(__name__)
 
 
 def get_electable_routes(routes: dict[str, Route]) -> list[Route]:
-    """
-    return list of Routes that are capable of
-    accepting incoming traffic
-    """
-
+    """Return list of Routes that are capable of accepting incoming traffic."""
     return [
         route
         for route in routes.values()
@@ -49,14 +45,14 @@ class Cluster(BaseModel, validate_assignment=True):
     def number_of_electable_routes(self) -> int:
         return len(get_electable_routes(self.routes))
 
-    def route(self, name: str):
+    def route(self, name: str) -> Route:
         return self.routes[name]
 
     def lbsets(self) -> dict[int, list[Route]]:
-        lbset_dict: dict[int, list[Route]] = dict()
+        lbset_dict: dict[int, list[Route]] = {}
         for route in self.routes.values():
             if route.lbset not in lbset_dict:
-                lbset_dict[route.lbset] = list()
+                lbset_dict[route.lbset] = []
             lbset_dict[route.lbset].append(route)
         return OrderedDict(sorted(lbset_dict.items()))
 

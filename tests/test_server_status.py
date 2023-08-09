@@ -8,11 +8,10 @@ from pytest_httpx import HTTPXMock
 from httpd_manager import ServerStatus, Worker, WorkerStateCount, executor
 from httpd_manager.httpx import HttpxServerStatus
 
-
 pytestmark = pytest.mark.asyncio
 
 
-def validate_properties(server_status):
+def validate_properties(server_status: ServerStatus) -> None:
     assert isinstance(server_status, ServerStatus)
     assert isinstance(server_status.date, datetime)
     assert isinstance(server_status.httpd_version, str)
@@ -31,7 +30,7 @@ def server_status_url(httpd_endpoint: str) -> str:
     return f"{httpd_endpoint}/server-status"
 
 
-async def test_server_status(server_status_url: str):
+async def test_server_status(server_status_url: str) -> None:
     server_status = await HttpxServerStatus.async_model_validate_url(server_status_url, include_workers=False)
     validate_properties(server_status)
     assert server_status.workers is None
@@ -47,7 +46,7 @@ async def test_server_status(server_status_url: str):
     assert isinstance(server_status.workers, list)
 
 
-async def test_with_process_pool(server_status_url: str):
+async def test_with_process_pool(server_status_url: str) -> None:
     with ProcessPoolExecutor(max_workers=10) as ppexec:
         _token = executor.set(ppexec)
 
@@ -68,8 +67,8 @@ async def test_with_process_pool(server_status_url: str):
         executor.reset(_token)
 
 
-async def test_mocked_server_status(httpx_mock: HTTPXMock, test_files_dir: Path):
-    with open(test_files_dir.joinpath("server-status-mock-1.html"), "r") as fh:
+async def test_mocked_server_status(httpx_mock: HTTPXMock, test_files_dir: Path) -> None:
+    with test_files_dir.joinpath("server-status-mock-1.html").open("r") as fh:
         html_payload = fh.read()
 
     httpx_mock.add_response(url="http://testserver.local/server-status", text=html_payload)
@@ -101,7 +100,7 @@ async def test_mocked_server_status(httpx_mock: HTTPXMock, test_files_dir: Path)
         assert isinstance(w, Worker)
 
 
-async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path):
+async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path) -> None:
     with test_files_dir.joinpath("balancer-manager-mock-1.html").open("r") as fh:
         httpx_mock.add_response(url="http://testserver.local/server-status", text=fh.read())
 

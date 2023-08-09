@@ -1,21 +1,23 @@
 import re
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
 from pytest_httpx import HTTPXMock
 
 from httpd_manager import Cluster, HealthCheck
-from .test_balancer_manager import HttpxBalancerManager, validate_properties
+from httpd_manager.httpx import HttpxBalancerManager
 
+from .test_balancer_manager import validate_properties
 
 dir_ = Path(__file__).parent
 pytestmark = pytest.mark.asyncio
 
 
-def add_mocked_response(httpx_mock: HTTPXMock, file_: str | Path, **kwargs):
+def add_mocked_response(httpx_mock: HTTPXMock, file_: str | Path, **kwargs: Any) -> None:
     data_dir = dir_.joinpath("data")
-    with open(data_dir / file_, "r") as fh:
+    with data_dir.joinpath(file_).open("r") as fh:
         payload = fh.read()
     httpx_mock.add_response(url="http://testserver.local/balancer-manager", text=payload, **kwargs)
 
@@ -42,7 +44,7 @@ def get_mocked_files() -> dict[str, tuple[str, Path]]:
     list(get_mocked_files().values()),
     ids=list(get_mocked_files().keys()),
 )
-async def test_balancer_manager(httpx_mock: HTTPXMock, version: str, filename: Path):
+async def test_balancer_manager(httpx_mock: HTTPXMock, version: str, filename: Path) -> None:
     add_mocked_response(httpx_mock, filename)
 
     balancer_manager = await HttpxBalancerManager.async_model_validate_url("http://testserver.local/balancer-manager")
@@ -66,13 +68,13 @@ async def test_balancer_manager(httpx_mock: HTTPXMock, version: str, filename: P
     ],
     ids=[400, 401, 403, 500],
 )
-async def test_status_errors(httpx_mock: HTTPXMock, status_code: int, error_message: str):
+async def test_status_errors(httpx_mock: HTTPXMock, status_code: int, error_message: str) -> None:
     httpx_mock.add_response(url="http://testserver.local/balancer-manager", status_code=status_code, text="")
     with pytest.raises(httpx.HTTPStatusError, match=f".*{error_message}.*"):
         await HttpxBalancerManager.async_model_validate_url("http://testserver.local/balancer-manager")
 
 
-async def test_with_route_gc(httpx_mock: HTTPXMock):
+async def test_with_route_gc(httpx_mock: HTTPXMock) -> None:
     # create BalancerManager with mock-1
     add_mocked_response(httpx_mock, "balancer-manager-mock-1.html")
     balancer_manager = await HttpxBalancerManager.async_model_validate_url("http://testserver.local/balancer-manager")
@@ -95,7 +97,7 @@ async def test_with_route_gc(httpx_mock: HTTPXMock):
     assert len(balancer_manager.cluster("cluster3").routes) == 7
 
 
-async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path):
+async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path) -> None:
     with test_files_dir.joinpath("server-status-mock-1.html").open("r") as fh:
         httpx_mock.add_response(url="http://testserver.local/balancer-manager", text=fh.read())
 
@@ -106,7 +108,7 @@ async def test_bad_payload(httpx_mock: HTTPXMock, test_files_dir: Path):
         await HttpxBalancerManager.async_model_validate_url("http://testserver.local/balancer-manager")
 
 
-async def test_hcheck(httpx_mock: HTTPXMock, test_files_dir: Path):
+async def test_hcheck(httpx_mock: HTTPXMock, test_files_dir: Path) -> None:
     with test_files_dir.joinpath("balancer-manager-2.4.56-hcheck.html").open("r") as fh:
         httpx_mock.add_response(url="http://testserver.local/balancer-manager", text=fh.read())
 
@@ -121,7 +123,7 @@ async def test_hcheck(httpx_mock: HTTPXMock, test_files_dir: Path):
             assert type(route.hcheck) is HealthCheck
 
         route51 = balancer_manager.cluster("cluster5").route("route51")
-        assert route51.status.hcheck_failure.value is False
+        assert route51.status.hcheck_failure and route51.status.hcheck_failure.value is False
 
         route52 = balancer_manager.cluster("cluster5").route("route52")
-        assert route52.status.hcheck_failure.value is True
+        assert route52.status.hcheck_failure and route52.status.hcheck_failure.value is True

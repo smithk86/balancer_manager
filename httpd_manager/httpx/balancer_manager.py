@@ -1,15 +1,14 @@
 import asyncio
 import logging
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 from pydantic import HttpUrl
 
-from .client import get_http_client
-from ..executor import executor as executor_var
 from ..base import BalancerManager, Cluster, Route
 from ..base.balancer_manager.manager import ValidatorContext
-
+from ..executor import executor as executor_var
+from .client import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -60,22 +59,18 @@ class HttpxBalancerManager(BalancerManager):
         factor: float | None = None,
         lbset: int | None = None,
         route_redir: str | None = None,
-        status_changes: dict[str, bool] = {},
+        status_changes: dict[str, bool] | None = None,
     ) -> None:
+        status_changes = status_changes or {}
+
         # validate cluster
-        if isinstance(cluster, str):
-            cluster = self.cluster(cluster)
-        else:
-            cluster = self.cluster(cluster.name)
+        cluster = self.cluster(cluster) if isinstance(cluster, str) else self.cluster(cluster.name)
 
         if not isinstance(cluster, Cluster):
             raise TypeError("cluster type must be inherited from httpd_manager.base.balancer_manager.Cluster")
 
         # validate route
-        if isinstance(route, str):
-            route = cluster.route(route)
-        else:
-            route = cluster.route(route.name)
+        route = cluster.route(route) if isinstance(route, str) else cluster.route(route.name)
 
         if not isinstance(route, Route):
             raise TypeError("route type must be inherited from httpd_manager.base.balancer_manager.Route")
@@ -128,14 +123,13 @@ class HttpxBalancerManager(BalancerManager):
         force: bool = False,
         factor: float | None = None,
         route_redir: str | None = None,
-        status_changes: dict[str, bool] = {},
-        exception_handler: Callable | None = None,
+        status_changes: dict[str, bool] | None = None,
+        exception_handler: Callable[[Exception], None] | None = None,
     ) -> None:
+        status_changes = status_changes or {}
+
         # validate cluster
-        if isinstance(cluster, str):
-            cluster = self.cluster(cluster)
-        else:
-            cluster = self.cluster(cluster.name)
+        cluster = self.cluster(cluster) if isinstance(cluster, str) else self.cluster(cluster.name)
 
         if not isinstance(cluster, Cluster):
             raise TypeError("cluster type must be inherited from httpd_manager.base.balancer_manager.Cluster")
@@ -151,7 +145,7 @@ class HttpxBalancerManager(BalancerManager):
                     status_changes=status_changes,
                 )
             except Exception as e:
-                logger.exception(e)
+                logger.exception(f"route failed to be updated url={self.url} cluster={cluster.name} route={route.name}")
                 if exception_handler:
                     exception_handler(e)
                 else:

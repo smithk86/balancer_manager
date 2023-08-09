@@ -1,22 +1,15 @@
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
-from typing import Callable
 from uuid import UUID
 
 import httpx
 import pytest
 from pytest_docker.plugin import DockerComposeExecutor
 
-from httpd_manager import (
-    BalancerManager,
-    ImmutableStatus,
-    Route,
-    RouteStatus,
-    Status,
-    executor,
-)
+from httpd_manager import BalancerManager, ImmutableStatus, Route, RouteStatus, Status, executor
 from httpd_manager.httpx import HttpxBalancerManager
 
+from .types import EnableAllRoutesHandler
 
 pytestmark = pytest.mark.asyncio
 
@@ -30,7 +23,7 @@ def docker_compose(
     return DockerComposeExecutor(docker_compose_command, docker_compose_file, docker_compose_project_name)
 
 
-def validate_properties(balancer_manager: BalancerManager):
+def validate_properties(balancer_manager: BalancerManager) -> None:
     assert isinstance(balancer_manager.date, datetime)
     assert isinstance(balancer_manager.httpd_version, str)
     assert isinstance(balancer_manager.httpd_built_date, datetime)
@@ -78,7 +71,7 @@ def balancer_manager_url(httpd_endpoint: str) -> str:
     return f"{httpd_endpoint}/balancer-manager"
 
 
-async def test_properties(balancer_manager_url: str):
+async def test_properties(balancer_manager_url: str) -> None:
     balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     validate_properties(balancer_manager)
 
@@ -88,7 +81,7 @@ async def test_properties(balancer_manager_url: str):
     assert _original_date < balancer_manager.date
 
 
-async def test_with_process_pool(balancer_manager_url: str):
+async def test_with_process_pool(balancer_manager_url: str) -> None:
     with ProcessPoolExecutor(max_workers=10) as ppexec:
         _token = executor.set(ppexec)
 
@@ -103,18 +96,18 @@ async def test_with_process_pool(balancer_manager_url: str):
         executor.reset(_token)
 
 
-async def test_httpd_version(balancer_manager_url: str, httpd_version):
+async def test_httpd_version(balancer_manager_url: str, httpd_version: str) -> None:
     balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     assert balancer_manager.httpd_version == httpd_version
 
 
-async def test_cluster_does_not_exist(balancer_manager_url: str):
+async def test_cluster_does_not_exist(balancer_manager_url: str) -> None:
     balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     with pytest.raises(KeyError, match=r"\'does_not_exist\'"):
         balancer_manager.cluster("does_not_exist")
 
 
-async def test_route_status_changes(balancer_manager_url: str):
+async def test_route_status_changes(balancer_manager_url: str) -> None:
     balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
 
     # get route and do status update
@@ -125,10 +118,10 @@ async def test_route_status_changes(balancer_manager_url: str):
     assert len(mutable_routes_1) > 0
     status_changes_1: dict[str, bool] = {}
     for name, status in mutable_routes_1.items():
-        if type(status) == ImmutableStatus:
+        if type(status) == ImmutableStatus:  # type: ignore[comparison-overlap]
             continue
 
-        # toggle status to the oposite value
+        # toggle status to the opposite value
         status_changes_1[name] = not status.value
         # continue with route testing
     await balancer_manager.edit_route(
@@ -164,10 +157,7 @@ async def test_route_status_changes(balancer_manager_url: str):
         assert mutable_routes_1[name].value is status.value
 
 
-async def test_cluster_lbsets(
-    balancer_manager_url: str,
-    docker_compose: DockerComposeExecutor,
-):
+async def test_cluster_lbsets(balancer_manager_url: str, docker_compose: DockerComposeExecutor) -> None:
     balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     cluster = balancer_manager.cluster("cluster4")
     lbsets = cluster.lbsets()
@@ -205,9 +195,9 @@ async def test_cluster_lbsets(
         assert route.status.disabled.value is True
 
     # test an enforce that throws exceptions
-    edit_lbset_exceptions = list()
+    edit_lbset_exceptions: list[Exception] = []
 
-    def _exception_handler(e: Exception):
+    def _exception_handler(e: Exception) -> None:
         edit_lbset_exceptions.append(e)
 
     try:
@@ -226,7 +216,7 @@ async def test_cluster_lbsets(
         assert isinstance(e, httpx.ReadTimeout)
 
 
-async def test_route_disable_last(balancer_manager_url: str, enable_all_routes):
+async def test_route_disable_last(balancer_manager_url: str, enable_all_routes: EnableAllRoutesHandler) -> None:
     balancer_manager = await HttpxBalancerManager.async_model_validate_url(balancer_manager_url)
     cluster = balancer_manager.cluster("cluster3")
 

@@ -14,7 +14,6 @@ from .server_status import (
     WorkerStateCount,
 )
 
-
 __all__ = [
     "BalancerManager",
     "Cluster",

@@ -5,7 +5,6 @@ from .base import (
     ImmutableStatus,
     Route,
     RouteStatus,
-    RouteStatus,
     ServerStatus,
     Status,
     Worker,
@@ -14,7 +13,6 @@ from .base import (
 )
 from .executor import executor
 from .models import Bytes
-
 
 __all__ = [
     "BalancerManager",
