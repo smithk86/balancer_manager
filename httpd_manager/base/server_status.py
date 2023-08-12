@@ -149,7 +149,14 @@ class ServerStatus(BaseModel, validate_assignment=True):
         # worker statistics
         if include_workers is True:
             workers = []
-            for worker in get_table_rows(_bs_table[1]):
+            if len(_bs_table) == 3:
+                worker_table = _bs_table[1]
+            elif len(_bs_table) == 2:
+                worker_table = _bs_table[0]
+            else:
+                raise ValueError("server-status page can only contain either 2 or 3 html tables")
+
+            for worker in get_table_rows(worker_table):
                 # the first rows are not worker data
                 if "PID" not in worker:
                     continue
