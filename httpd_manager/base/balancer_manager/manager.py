@@ -5,7 +5,7 @@ from typing import Any, NotRequired, TypedDict, cast
 
 import dateparser
 from bs4 import BeautifulSoup
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, model_validator
 
 from ...utils import RegexPatterns, get_table_rows, lxml_is_loaded, utcnow
 from .cluster import Cluster
@@ -26,6 +26,12 @@ class BalancerManager(BaseModel, validate_assignment=True):
     httpd_built_date: datetime
     openssl_version: str
     clusters: dict[str, Cluster]
+
+    @model_validator(mode="after")
+    def set_manager_in_clusters(self) -> "BalancerManager":
+        for cluster in self.clusters.values():
+            cluster._manager = self
+        return self
 
     def cluster(self, name: str) -> Cluster:
         return self.clusters[name]
@@ -100,11 +106,17 @@ class BalancerManager(BaseModel, validate_assignment=True):
                 cluster_uri = header.a.text if header.a else header.text
                 m = RegexPatterns.BALANCER_URI.match(cluster_uri)
                 cluster_name = m.group(1)
-                clusters[cluster_name] = cluster_class.model_validate_tags(
+                cluster = cluster_class.model_validate_tags(
                     name=cluster_name,
                     values=row,
                     routes={x.name: x for x in routes if x.cluster == cluster_name},
                 )
+
+                # set private attribute Route._cluster for every route in cluster
+                for route in cluster.routes.values():
+                    route._cluster = cluster
+
+                clusters[cluster_name] = cluster
 
         yield ("clusters", clusters)
 

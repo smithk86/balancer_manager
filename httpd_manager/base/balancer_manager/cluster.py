@@ -3,13 +3,16 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from collections.abc import Generator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from bs4 import Tag
 from pydantic import BaseModel, computed_field
 
 from ...utils import RegexPatterns
 from .route import Route
+
+if TYPE_CHECKING:
+    from .manager import BalancerManager
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +42,7 @@ class Cluster(BaseModel, validate_assignment=True):
     path: str
     active: bool
     routes: dict[str, Route]
+    _manager: BalancerManager
 
     @computed_field  # type: ignore[misc]
     @property

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator
 from enum import StrEnum
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 from bs4 import Tag
@@ -11,6 +11,10 @@ from pydantic import BaseModel, BeforeValidator, computed_field, field_validator
 
 from ...models import Bytes
 from ...utils import RegexPatterns
+
+if TYPE_CHECKING:
+    from .cluster import Cluster
+
 
 logger = logging.getLogger(__name__)
 __all__ = ["ImmutableStatus", "Route", "Status"]
@@ -128,6 +132,7 @@ class Route(BaseModel, validate_assignment=True):
     session_nonce_uuid: UUID
     status: RouteStatus
     hcheck: HealthCheck | None = None
+    _cluster: Cluster
 
     @computed_field  # type: ignore[misc]
     @property
