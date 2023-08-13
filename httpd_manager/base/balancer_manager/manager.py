@@ -1,11 +1,11 @@
 import logging
 from collections.abc import Generator
 from datetime import datetime
-from typing import Any, NotRequired, Self, TypedDict, cast
+from typing import Any, NotRequired, TypedDict, cast
 
 import dateparser
 from bs4 import BeautifulSoup
-from pydantic import BaseModel, HttpUrl, model_validator
+from pydantic import BaseModel, HttpUrl
 
 from ...utils import RegexPatterns, get_table_rows, lxml_is_loaded, utcnow
 from .cluster import Cluster
@@ -27,11 +27,12 @@ class BalancerManager(BaseModel, validate_assignment=True):
     openssl_version: str
     clusters: dict[str, Cluster]
 
-    @model_validator(mode="after")
-    def set_manager_in_clusters(self) -> Self:
+    def __init__(self, **data: Any) -> None:
+        super().__init__(**data)
+
+        # update Cluster._manager
         for cluster in self.clusters.values():
             cluster._manager = self
-        return self
 
     def cluster(self, name: str) -> Cluster:
         return self.clusters[name]
