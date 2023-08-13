@@ -177,9 +177,9 @@ class Route(BaseModel, validate_assignment=True):
         yield ("load", values["Load"].text)
 
         # add hcheck data if available
-        hcheck_failure: ImmutableStatus | None = None
+        hcheck_failure: dict[str, Any] | None = None
         if "HC Method" in values and values["HC Method"].text != "NONE":
-            hcheck_failure = ImmutableStatus(value="HcFl" in status_str)
+            hcheck_failure = {"value": "HcFl" in status_str}
             yield (
                 "hcheck",
                 {
@@ -194,17 +194,17 @@ class Route(BaseModel, validate_assignment=True):
 
         yield (
             "status",
-            RouteStatus(
-                ok=ImmutableStatus(value="Ok" in status_str),
-                error=ImmutableStatus(value="Err" in status_str),
-                hcheck_failure=hcheck_failure,
-                ignore_errors=Status(http_form_code="I", value="Ign" in status_str),
-                draining_mode=Status(http_form_code="N", value="Drn" in status_str),
-                disabled=Status(http_form_code="D", value="Dis" in status_str),
-                hot_standby=Status(http_form_code="H", value="Stby" in status_str),
-                hot_spare=Status(http_form_code="R", value="Spar" in status_str),
-                stopped=Status(http_form_code="S", value="Stop" in status_str),
-            ),
+            {
+                "ok": {"value": "Ok" in status_str},
+                "error": {"value": "Err" in status_str},
+                "hcheck_failure": hcheck_failure,
+                "ignore_errors": {"value": "Ign" in status_str, "http_form_code": "I"},
+                "draining_mode": {"value": "Drn" in status_str, "http_form_code": "N"},
+                "disabled": {"value": "Dis" in status_str, "http_form_code": "D"},
+                "hot_standby": {"value": "Stby" in status_str, "http_form_code": "H"},
+                "hot_spare": {"value": "Spar" in status_str, "http_form_code": "R"},
+                "stopped": {"value": "Stop" in status_str, "http_form_code": "S"},
+            },
         )
 
     @classmethod
