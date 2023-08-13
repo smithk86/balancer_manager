@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Generator
 from datetime import datetime
-from typing import Any, NotRequired, TypedDict, cast
+from typing import Any, NotRequired, Self, TypedDict, cast
 
 import dateparser
 from bs4 import BeautifulSoup
@@ -28,7 +28,7 @@ class BalancerManager(BaseModel, validate_assignment=True):
     clusters: dict[str, Cluster]
 
     @model_validator(mode="after")
-    def set_manager_in_clusters(self) -> "BalancerManager":
+    def set_manager_in_clusters(self) -> Self:
         for cluster in self.clusters.values():
             cluster._manager = self
         return self
