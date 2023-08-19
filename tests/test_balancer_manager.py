@@ -6,7 +6,7 @@ import httpx
 import pytest
 from pytest_docker.plugin import DockerComposeExecutor
 
-from httpd_manager import BalancerManager, ImmutableStatus, Route, RouteStatus, Status, executor
+from httpd_manager import ImmutableStatus, Route, RouteStatus, Status, executor
 from httpd_manager.httpx import HttpxBalancerManager
 
 from .types import EnableAllRoutesHandler
@@ -23,14 +23,13 @@ def docker_compose(
     return DockerComposeExecutor(docker_compose_command, docker_compose_file, docker_compose_project_name)
 
 
-def validate_properties(balancer_manager: BalancerManager) -> None:
+def validate_properties(balancer_manager: HttpxBalancerManager) -> None:
     assert isinstance(balancer_manager.date, datetime)
     assert isinstance(balancer_manager.httpd_version, str)
     assert isinstance(balancer_manager.httpd_built_date, datetime)
     assert isinstance(balancer_manager.openssl_version, str)
 
     for cluster in balancer_manager.clusters.values():
-        assert cluster._manager is balancer_manager
         assert isinstance(cluster.max_members, int)
         assert isinstance(cluster.max_members_used, int)
         assert cluster.sticky_session is None or isinstance(cluster.sticky_session, str)
@@ -42,7 +41,6 @@ def validate_properties(balancer_manager: BalancerManager) -> None:
         assert isinstance(cluster.active, bool)
 
         for route in cluster.routes.values():
-            assert route._cluster is cluster
             assert isinstance(route, Route)
             assert isinstance(route.cluster, str)
             assert isinstance(route.worker, str)

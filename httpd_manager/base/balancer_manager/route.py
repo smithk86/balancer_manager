@@ -3,18 +3,14 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import Annotated, Any, TypeVar
 from uuid import UUID
 
 from bs4 import Tag
-from pydantic import BaseModel, BeforeValidator, computed_field, field_validator, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, computed_field, field_validator, model_validator
 
 from ...models import Bytes
 from ...utils import RegexPatterns
-
-if TYPE_CHECKING:
-    from .cluster import Cluster
-
 
 logger = logging.getLogger(__name__)
 __all__ = ["ImmutableStatus", "Route", "Status"]
@@ -39,7 +35,9 @@ class Status(BaseStatus):
     http_form_code: str
 
 
-class MutableStatusValues(BaseModel, validate_assignment=True, extra="forbid"):
+class MutableStatusValues(BaseModel):
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
     ignore_errors: bool
     draining_mode: bool
     disabled: bool
@@ -48,7 +46,9 @@ class MutableStatusValues(BaseModel, validate_assignment=True, extra="forbid"):
     stopped: bool
 
 
-class RouteStatus(BaseModel, validate_assignment=True):
+class RouteStatus(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     ok: ImmutableStatus
     error: ImmutableStatus
     hcheck_failure: ImmutableStatus | None
@@ -98,7 +98,9 @@ class HealthCheckMethod(StrEnum):
     get11 = "GET11"
 
 
-class HealthCheck(BaseModel, validate_assignment=True):
+class HealthCheck(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     method: HealthCheckMethod
     interval_ms: int
     passes: HealthCheckCounter
@@ -116,7 +118,9 @@ class HealthCheck(BaseModel, validate_assignment=True):
         return int(m.group(1))
 
 
-class Route(BaseModel, validate_assignment=True):
+class Route(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     name: str
     cluster: str
     worker: str
@@ -132,7 +136,6 @@ class Route(BaseModel, validate_assignment=True):
     session_nonce_uuid: UUID
     status: RouteStatus
     hcheck: HealthCheck | None = None
-    _cluster: Cluster
 
     @computed_field  # type: ignore[misc]
     @property
@@ -148,8 +151,8 @@ class Route(BaseModel, validate_assignment=True):
             ]
         )
 
-    @classmethod
-    def parse_values_from_tags(cls, values: dict[str, Tag]) -> Generator[tuple[str, Any], None, None]:
+    @staticmethod
+    def parse_values_from_tags(values: dict[str, Tag]) -> Generator[tuple[str, Any], None, None]:
         status_str = values["Status"].text
         worker_url = values["Worker URL"].find("a")
 
@@ -207,11 +210,5 @@ class Route(BaseModel, validate_assignment=True):
             },
         )
 
-    @classmethod
-    def model_validate_tags(cls, name: str, priority: int, values: dict[str, Tag]) -> Route:
-        model_values = {
-            "name": name,
-            "priority": priority,
-        }
-        model_values.update(dict(cls.parse_values_from_tags(values)))
-        return cls.model_validate(model_values)
+
+RouteType = TypeVar("RouteType", bound=Route)

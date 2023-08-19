@@ -12,7 +12,7 @@ from httpx import AsyncClient
 from pytest import Parser
 from pytest_docker.plugin import Services
 
-from httpd_manager.base import Cluster
+from httpd_manager.base import Cluster, Route
 from httpd_manager.httpx import HttpxBalancerManager
 from httpd_manager.httpx.client import http_client
 
@@ -81,7 +81,7 @@ def set_client(client: AsyncClient) -> Generator[None, None, None]:
 
 @pytest.fixture
 def enable_all_routes() -> EnableAllRoutesHandler:
-    async def handler(balancer_manager: HttpxBalancerManager, cluster: Cluster) -> None:
+    async def handler(balancer_manager: HttpxBalancerManager, cluster: Cluster[Route]) -> None:
         for route in cluster.routes.values():
             await balancer_manager.edit_route(cluster, route, status_changes={"disabled": False})
 

@@ -1,31 +1,28 @@
 import logging
 from collections.abc import Generator
 from datetime import datetime
-from typing import Any, NotRequired, TypedDict, cast
+from typing import Any, Generic
 
 import dateparser
 from bs4 import BeautifulSoup
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, ConfigDict, HttpUrl
 
 from ...utils import RegexPatterns, get_table_rows, lxml_is_loaded, utcnow
-from .cluster import Cluster
+from .cluster import Cluster, ClusterType
 from .route import Route
 
 logger = logging.getLogger(__name__)
 
 
-class ValidatorContext(TypedDict):
-    cluster_class: NotRequired[type[Cluster]]
-    route_class: NotRequired[type[Route]]
+class BalancerManager(BaseModel, Generic[ClusterType]):
+    model_config = ConfigDict(validate_assignment=True)
 
-
-class BalancerManager(BaseModel, validate_assignment=True):
     date: datetime
     url: HttpUrl
     httpd_version: str
     httpd_built_date: datetime
     openssl_version: str
-    clusters: dict[str, Cluster]
+    clusters: dict[str, ClusterType]
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -34,16 +31,14 @@ class BalancerManager(BaseModel, validate_assignment=True):
         for cluster in self.clusters.values():
             cluster._manager = self
 
-    def cluster(self, name: str) -> Cluster:
+    def cluster(self, name: str) -> ClusterType:
         return self.clusters[name]
 
     @classmethod
     def parse_values_from_payload(
-        cls, payload: str | bytes, context: ValidatorContext | None
+        cls, payload: str | bytes, context: dict[str, Any] | None
     ) -> Generator[tuple[str, Any], None, None]:
         context = context or {}
-        cluster_class = context.get("cluster_class", Cluster)
-        route_class = context.get("route_class", Route)
 
         bs = BeautifulSoup(payload, features="lxml") if lxml_is_loaded else BeautifulSoup(payload)
 
@@ -76,19 +71,15 @@ class BalancerManager(BaseModel, validate_assignment=True):
         m = RegexPatterns.OPENSSL_VERSION.search(_bs_dt[0].text)
         yield ("openssl_version", m.group(1))
 
-        routes: list[Route] = []
+        routes: list[dict[str, Any]] = []
         for table in _bs_table[1::2]:  # routes are the even tables
             for i, row in enumerate(get_table_rows(table)):
                 route_name = row["Route"].text
-                routes.append(
-                    route_class.model_validate_tags(
-                        name=route_name,
-                        priority=i,
-                        values=row,
-                    )
-                )
+                route = {"name": route_name, "priority": i}
+                route.update(dict(Route.parse_values_from_tags(row)))
+                routes.append(route)
 
-        clusters: dict[str, Cluster] = {}
+        clusters: dict[str, dict[str, Any]] = {}
         for table in _bs_table[::2]:  # clusters are the odd table
             header_elements = table.findPreviousSiblings("h3", limit=1)
 
@@ -107,24 +98,23 @@ class BalancerManager(BaseModel, validate_assignment=True):
                 cluster_uri = header.a.text if header.a else header.text
                 m = RegexPatterns.BALANCER_URI.match(cluster_uri)
                 cluster_name = m.group(1)
-                cluster = cluster_class.model_validate_tags(
-                    name=cluster_name,
-                    values=row,
-                    routes={x.name: x for x in routes if x.cluster == cluster_name},
-                )
-
-                # set private attribute Route._cluster for every route in cluster
-                for route in cluster.routes.values():
-                    route._cluster = cluster
-
+                cluster = {
+                    "name": cluster_name,
+                    "routes": {x["name"]: x for x in routes if x["cluster"] == cluster_name},
+                }
+                cluster.update(dict(Cluster.parse_values_from_tags(row)))
                 clusters[cluster_name] = cluster
 
         yield ("clusters", clusters)
 
     @classmethod
     def model_validate_payload(
-        cls, url: str | HttpUrl, payload: str | bytes, context: ValidatorContext | None = None
-    ) -> "BalancerManager":
+        cls,
+        url: str | HttpUrl,
+        payload: str | bytes,
+        cluster_model: type[ClusterType],
+        context: dict[str, Any] | None = None,
+    ) -> "BalancerManager[ClusterType]":
         values: dict[str, Any] = {"url": url}
         values.update(dict(cls.parse_values_from_payload(payload, context=context)))
-        return cls.model_validate(values, context=cast(dict[str, Any], context))
+        return cls[cluster_model].model_validate(values, context=context)  # type: ignore[no-any-return,index]

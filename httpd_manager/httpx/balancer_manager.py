@@ -2,11 +2,13 @@ import asyncio
 import logging
 from collections.abc import Callable
 from functools import partial
+from typing import Any
 
 from pydantic import HttpUrl
 
-from ..base import BalancerManager, Cluster, Route
-from ..base.balancer_manager.manager import ValidatorContext
+from ..base.balancer_manager.cluster import Cluster
+from ..base.balancer_manager.manager import BalancerManager
+from ..base.balancer_manager.route import Route
 from ..executor import executor as executor_var
 from .client import get_http_client
 
@@ -14,14 +16,16 @@ logger = logging.getLogger(__name__)
 
 
 def parse_values_from_payload(
-    url: str | HttpUrl, payload: bytes, context: ValidatorContext | None = None
+    url: str | HttpUrl,
+    payload: bytes,
+    context: dict[str, Any] | None = None,
 ) -> "HttpxBalancerManager":
     model_values = {"url": str(url)}
     model_values.update(dict(BalancerManager.parse_values_from_payload(payload, context=context)))
     return HttpxBalancerManager.model_validate(model_values)
 
 
-class HttpxBalancerManager(BalancerManager):
+class HttpxBalancerManager(BalancerManager[Cluster[Route]]):
     async def update(self) -> None:
         async with get_http_client() as client:
             response = await client.get(str(self.url))
@@ -35,16 +39,16 @@ class HttpxBalancerManager(BalancerManager):
 
     @classmethod
     async def async_model_validate_url(
-        cls, url: str | HttpUrl, context: ValidatorContext | None = None
+        cls, url: str | HttpUrl, context: dict[str, Any] | None = None
     ) -> "HttpxBalancerManager":
         async with get_http_client() as client:
             response = await client.get(str(url))
         response.raise_for_status()
-        return await cls.async_model_validate_payload(url, response.text, context=context)
+        return await cls.async_model_validate_payload(url, response.content, context=context)
 
     @classmethod
     async def async_model_validate_payload(
-        cls, url: str | HttpUrl, payload: str | bytes, context: ValidatorContext | None = None
+        cls, url: str | HttpUrl, payload: str | bytes, context: dict[str, Any] | None = None
     ) -> "HttpxBalancerManager":
         executor = executor_var.get()
         loop = asyncio.get_running_loop()
@@ -53,7 +57,7 @@ class HttpxBalancerManager(BalancerManager):
 
     async def edit_route(
         self,
-        cluster: Cluster | str,
+        cluster: Cluster[Route] | str,
         route: Route | str,
         force: bool = False,
         factor: float | None = None,
@@ -118,7 +122,7 @@ class HttpxBalancerManager(BalancerManager):
 
     async def edit_lbset(
         self,
-        cluster: Cluster | str,
+        cluster: Cluster[Route] | str,
         lbset_number: int,
         force: bool = False,
         factor: float | None = None,

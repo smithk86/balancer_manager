@@ -1,5 +1,7 @@
 from .balancer_manager import (
-    BalancerManager,
+    BalancerManager as BaseBalancerManager,
+)
+from .balancer_manager import (
     Cluster,
     HealthCheck,
     ImmutableStatus,
@@ -13,6 +15,11 @@ from .server_status import (
     WorkerState,
     WorkerStateCount,
 )
+
+
+class BalancerManager(BaseBalancerManager[Cluster[Route]]):
+    pass
+
 
 __all__ = [
     "BalancerManager",
