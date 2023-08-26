@@ -1,5 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -7,7 +8,7 @@ import pytest
 from pytest_docker.plugin import DockerComposeExecutor
 
 from httpd_manager import ImmutableStatus, Route, RouteStatus, Status, executor
-from httpd_manager.httpx import HttpxBalancerManager
+from httpd_manager.httpx import HttpxBalancerManager, HttpxBalancerManagerBase
 
 from .types import EnableAllRoutesHandler
 
@@ -23,7 +24,7 @@ def docker_compose(
     return DockerComposeExecutor(docker_compose_command, docker_compose_file, docker_compose_project_name)
 
 
-def validate_properties(balancer_manager: HttpxBalancerManager) -> None:
+def validate_properties(balancer_manager: HttpxBalancerManagerBase[Any]) -> None:
     assert isinstance(balancer_manager.date, datetime)
     assert isinstance(balancer_manager.httpd_version, str)
     assert isinstance(balancer_manager.httpd_built_date, datetime)

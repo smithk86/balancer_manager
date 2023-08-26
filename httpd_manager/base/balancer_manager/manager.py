@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Generator
 from datetime import datetime
-from typing import Any, Generic
+from typing import Any, Generic, TypeVar
 
 import dateparser
 from bs4 import BeautifulSoup
@@ -109,12 +111,16 @@ class BalancerManager(BaseModel, Generic[ClusterType]):
 
     @classmethod
     def model_validate_payload(
-        cls,
+        cls: type[BalancerManagerType],
         url: str | HttpUrl,
         payload: str | bytes,
-        cluster_model: type[ClusterType],
         context: dict[str, Any] | None = None,
-    ) -> "BalancerManager[ClusterType]":
-        values: dict[str, Any] = {"url": url}
-        values.update(dict(cls.parse_values_from_payload(payload, context=context)))
-        return cls[cluster_model].model_validate(values, context=context)  # type: ignore[no-any-return,index]
+        **extra: Any,
+    ) -> BalancerManagerType:
+        values = dict(BalancerManager.parse_values_from_payload(payload, context=context))
+        values.update({"url": url})
+        values.update(extra)
+        return cls.model_validate(values, context=context)
+
+
+BalancerManagerType = TypeVar("BalancerManagerType", bound=BalancerManager[Any])

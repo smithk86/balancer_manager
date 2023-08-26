@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from collections.abc import Callable
 from functools import partial
-from typing import Any
+from typing import Any, Generic, TypeVar, cast
+from typing import get_args as get_typing_args
 
 from pydantic import HttpUrl
 
-from ..base.balancer_manager.cluster import Cluster
+from ..base.balancer_manager.cluster import Cluster, ClusterType
 from ..base.balancer_manager.manager import BalancerManager
 from ..base.balancer_manager.route import Route
 from ..executor import executor as executor_var
@@ -15,17 +18,7 @@ from .client import get_http_client
 logger = logging.getLogger(__name__)
 
 
-def parse_values_from_payload(
-    url: str | HttpUrl,
-    payload: bytes,
-    context: dict[str, Any] | None = None,
-) -> "HttpxBalancerManager":
-    model_values = {"url": str(url)}
-    model_values.update(dict(BalancerManager.parse_values_from_payload(payload, context=context)))
-    return HttpxBalancerManager.model_validate(model_values)
-
-
-class HttpxBalancerManager(BalancerManager[Cluster[Route]]):
+class HttpxBalancerManagerBase(BalancerManager[ClusterType], Generic[ClusterType]):
     async def update(self) -> None:
         async with get_http_client() as client:
             response = await client.get(str(self.url))
@@ -33,26 +26,38 @@ class HttpxBalancerManager(BalancerManager[Cluster[Route]]):
         await self.update_from_payload(response.content)
 
     async def update_from_payload(self, payload: bytes) -> None:
-        new_model = await self.async_model_validate_payload(self.url, payload)
-        for field, value in new_model:
+        try:
+            cluster_model = cast(type[ClusterType], get_typing_args(self.model_fields["clusters"].annotation)[1])
+        except Exception as e:
+            raise TypeError(f"could not determine cluster model class from annotations in {type(self)}") from e
+
+        model = await HttpxBalancerManagerBase[cluster_model].async_model_validate_payload(self.url, payload)  # type: ignore[valid-type]
+        for field, value in model:
             setattr(self, field, value)
 
     @classmethod
     async def async_model_validate_url(
-        cls, url: str | HttpUrl, context: dict[str, Any] | None = None
-    ) -> "HttpxBalancerManager":
+        cls: type[HttpxBalancerManagerType],
+        url: str | HttpUrl,
+        context: dict[str, Any] | None = None,
+        **extra: Any,
+    ) -> HttpxBalancerManagerType:
         async with get_http_client() as client:
             response = await client.get(str(url))
         response.raise_for_status()
-        return await cls.async_model_validate_payload(url, response.content, context=context)
+        return await cls.async_model_validate_payload(url, response.content, context=context, **extra)
 
     @classmethod
     async def async_model_validate_payload(
-        cls, url: str | HttpUrl, payload: str | bytes, context: dict[str, Any] | None = None
-    ) -> "HttpxBalancerManager":
+        cls: type[HttpxBalancerManagerType],
+        url: str | HttpUrl,
+        payload: bytes,
+        context: dict[str, Any] | None = None,
+        **extra: Any,
+    ) -> HttpxBalancerManagerType:
         executor = executor_var.get()
         loop = asyncio.get_running_loop()
-        handler = partial(parse_values_from_payload, url, payload, context=context)
+        handler = partial(cls.model_validate_payload, url, payload, context=context, **extra)
         return await loop.run_in_executor(executor, handler)
 
     async def edit_route(
@@ -154,3 +159,7 @@ class HttpxBalancerManager(BalancerManager[Cluster[Route]]):
                     exception_handler(e)
                 else:
                     raise
+
+
+HttpxBalancerManagerType = TypeVar("HttpxBalancerManagerType", bound=HttpxBalancerManagerBase[Any])
+HttpxBalancerManager = HttpxBalancerManagerBase[Cluster[Route]]
