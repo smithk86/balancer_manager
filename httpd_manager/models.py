@@ -1,7 +1,11 @@
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
 from pydantic import BaseModel, field_validator
+
+
+class ModelWithName(Protocol):
+    name: str
 
 
 class DataUnit(StrEnum):

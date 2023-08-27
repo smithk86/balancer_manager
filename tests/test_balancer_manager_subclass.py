@@ -37,6 +37,12 @@ class CustomCluster(Cluster[CustomRoute]):
 class CustomHttpxBalancerManager(HttpxBalancerManagerBase[CustomCluster]):
     custom_balancer_value: str
 
+    async def update_from_payload(self, payload: bytes, **extra: Any) -> None:
+        extra["custom_balancer_value"] = "hello world"
+        model = await type(self).async_model_validate_payload(self.url, payload, **extra)
+        for field, value in model:
+            setattr(self, field, value)
+
 
 def add_mocked_response(httpx_mock: HTTPXMock, file_: str | Path, **kwargs: Any) -> None:
     data_dir = dir_.joinpath("data")

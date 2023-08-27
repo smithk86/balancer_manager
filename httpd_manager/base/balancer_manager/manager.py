@@ -36,9 +36,9 @@ class BalancerManager(BaseModel, Generic[ClusterType]):
     def cluster(self, name: str) -> ClusterType:
         return self.clusters[name]
 
-    @classmethod
+    @staticmethod
     def parse_values_from_payload(
-        cls, payload: str | bytes, context: dict[str, Any] | None
+        payload: str | bytes, context: dict[str, Any] | None
     ) -> Generator[tuple[str, Any], None, None]:
         context = context or {}
 
@@ -117,7 +117,7 @@ class BalancerManager(BaseModel, Generic[ClusterType]):
         context: dict[str, Any] | None = None,
         **extra: Any,
     ) -> BalancerManagerType:
-        values = dict(BalancerManager.parse_values_from_payload(payload, context=context))
+        values = dict(cls.parse_values_from_payload(payload, context=context))
         values.update({"url": url})
         values.update(extra)
         return cls.model_validate(values, context=context)

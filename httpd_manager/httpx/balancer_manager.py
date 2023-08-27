@@ -4,8 +4,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from functools import partial
-from typing import Any, Generic, TypeVar, cast
-from typing import get_args as get_typing_args
+from typing import Any, Generic, TypeVar
 
 from pydantic import HttpUrl
 
@@ -13,6 +12,7 @@ from ..base.balancer_manager.cluster import Cluster, ClusterType
 from ..base.balancer_manager.manager import BalancerManager
 from ..base.balancer_manager.route import Route
 from ..executor import executor as executor_var
+from ..models import ModelWithName
 from .client import get_http_client
 
 logger = logging.getLogger(__name__)
@@ -25,13 +25,8 @@ class HttpxBalancerManagerBase(BalancerManager[ClusterType], Generic[ClusterType
         response.raise_for_status()
         await self.update_from_payload(response.content)
 
-    async def update_from_payload(self, payload: bytes) -> None:
-        try:
-            cluster_model = cast(type[ClusterType], get_typing_args(self.model_fields["clusters"].annotation)[1])
-        except Exception as e:
-            raise TypeError(f"could not determine cluster model class from annotations in {type(self)}") from e
-
-        model = await HttpxBalancerManagerBase[cluster_model].async_model_validate_payload(self.url, payload)  # type: ignore[valid-type]
+    async def update_from_payload(self, payload: bytes, **extra: Any) -> None:
+        model = await type(self).async_model_validate_payload(self.url, payload, **extra)
         for field, value in model:
             setattr(self, field, value)
 
@@ -62,8 +57,8 @@ class HttpxBalancerManagerBase(BalancerManager[ClusterType], Generic[ClusterType
 
     async def edit_route(
         self,
-        cluster: Cluster[Route] | str,
-        route: Route | str,
+        cluster: ModelWithName | str,
+        route: ModelWithName | str,
         force: bool = False,
         factor: float | None = None,
         lbset: int | None = None,
@@ -127,7 +122,7 @@ class HttpxBalancerManagerBase(BalancerManager[ClusterType], Generic[ClusterType
 
     async def edit_lbset(
         self,
-        cluster: Cluster[Route] | str,
+        cluster: ModelWithName | str,
         lbset_number: int,
         force: bool = False,
         factor: float | None = None,
