@@ -51,7 +51,7 @@ class RouteStatus(BaseModel):
 
     ok: ImmutableStatus
     error: ImmutableStatus
-    hcheck_failure: ImmutableStatus | None
+    hcheck_failure: ImmutableStatus | None = None
     ignore_errors: Status
     draining_mode: Status
     disabled: Status

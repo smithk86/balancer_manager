@@ -39,7 +39,7 @@ class Cluster(BaseModel, Generic[RouteType]):
     name: str
     max_members: int
     max_members_used: int
-    sticky_session: str | None
+    sticky_session: str | None = None
     disable_failover: bool
     timeout: int
     failover_attempts: int
