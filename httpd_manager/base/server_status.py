@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, TypeVar
 
 import dateparser
 from bs4 import BeautifulSoup
@@ -73,7 +75,7 @@ class ServerStatus(BaseModel, validate_assignment=True):
 
     @classmethod
     def parse_values_from_payload(
-        cls, payload: str | bytes, include_workers: bool = True
+        cls, payload: bytes, include_workers: bool = True
     ) -> Generator[tuple[str, Any], None, None]:
         bs = BeautifulSoup(payload, features="lxml") if lxml_is_loaded else BeautifulSoup(payload)
 
@@ -184,8 +186,11 @@ class ServerStatus(BaseModel, validate_assignment=True):
 
     @classmethod
     def model_validate_payload(
-        cls, url: str | HttpUrl, payload: str | bytes, include_workers: bool = True
-    ) -> "ServerStatus":
+        cls: type[ServerStatusType], url: str | HttpUrl, payload: bytes, include_workers: bool = True
+    ) -> ServerStatusType:
         model_values = {"url": str(url)}
         model_values.update(dict(cls.parse_values_from_payload(payload, include_workers)))
         return cls.model_validate(model_values)
+
+
+ServerStatusType = TypeVar("ServerStatusType", bound=ServerStatus)

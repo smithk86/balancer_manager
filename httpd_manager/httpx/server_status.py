@@ -1,17 +1,14 @@
+from __future__ import annotations
+
 import asyncio
 from functools import partial
+from typing import TypeVar
 
 from pydantic import HttpUrl
 
 from ..base import ServerStatus
 from ..executor import executor as executor_var
 from .client import get_http_client
-
-
-def parse_values_from_payload(url: str | HttpUrl, payload: bytes, include_workers: bool = True) -> "HttpxServerStatus":
-    model_values = {"url": str(url)}
-    model_values.update(dict(ServerStatus.parse_values_from_payload(payload, include_workers=include_workers)))
-    return HttpxServerStatus.model_validate(model_values)
 
 
 class HttpxServerStatus(ServerStatus):
@@ -29,7 +26,9 @@ class HttpxServerStatus(ServerStatus):
             setattr(self, field, value)
 
     @classmethod
-    async def async_model_validate_url(cls, url: str | HttpUrl, include_workers: bool = True) -> "HttpxServerStatus":
+    async def async_model_validate_url(
+        cls: type[HttpxServerStatusType], url: str | HttpUrl, include_workers: bool = True
+    ) -> HttpxServerStatusType:
         async with get_http_client() as client:
             response = await client.get(str(url))
         response.raise_for_status()
@@ -37,9 +36,12 @@ class HttpxServerStatus(ServerStatus):
 
     @classmethod
     async def async_model_validate_payload(
-        cls, url: str | HttpUrl, payload: str | bytes, include_workers: bool = True
-    ) -> "HttpxServerStatus":
+        cls: type[HttpxServerStatusType], url: str | HttpUrl, payload: bytes, include_workers: bool = True
+    ) -> HttpxServerStatusType:
         executor = executor_var.get()
         loop = asyncio.get_running_loop()
-        handler = partial(parse_values_from_payload, url, payload, include_workers=include_workers)
+        handler = partial(cls.model_validate_payload, url, payload, include_workers=include_workers)
         return await loop.run_in_executor(executor, handler)
+
+
+HttpxServerStatusType = TypeVar("HttpxServerStatusType", bound=HttpxServerStatus)
