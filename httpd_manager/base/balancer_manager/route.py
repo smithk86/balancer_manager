@@ -105,8 +105,8 @@ class HealthCheck(BaseModel):
     interval_ms: int
     passes: HealthCheckCounter
     fails: HealthCheckCounter
-    uri: Annotated[str | None, BeforeValidator(strnone_validator)]
-    expr: Annotated[str | None, BeforeValidator(strnone_validator)]
+    uri: Annotated[str | None, BeforeValidator(strnone_validator)] = None
+    expr: Annotated[str | None, BeforeValidator(strnone_validator)] = None
 
     @field_validator("interval_ms", mode="before")
     @classmethod
